@@ -102,14 +102,14 @@ Development methodology: brainstorming, TDD, subagent-driven development, code r
 ```
 /comet
   ↓ auto-detect
-/comet-open ──→ /comet-design ──→ /comet-build ──→ /comet-verify ──→ /comet-archive
+/comet-open ——→ /comet-design ——→ /comet-build ——→ /comet-verify ——→ /comet-archive
   (OpenSpec)      (Superpowers)     (Superpowers)     (Both)          (OpenSpec)
 
 /comet-hotfix (preset path, skips brainstorming)
-  open ──→ build ──→ verify ──→ archive
+  open ——→ build ——→ verify ——→ archive
 
 /comet-tweak (preset path, skips brainstorming and full plan)
-  open ──→ lightweight build ──→ light verify ──→ archive
+  open ——→ lightweight build ——→ light verify ——→ archive
 ```
 
 ### Five Phases
