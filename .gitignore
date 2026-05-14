@@ -1,0 +1,45 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage
+*.lcov
+.nyc_output
+
+# Dependency directories
+node_modules/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Build output
+dist/
+
+# dotenv
+.env
+.env.*
+!.env.example
+
+# npm pack
+*.tgz
+
+# Claude
+.claude/
+CLAUDE.md
+.DS_Store
+
+# Pnpm
+.pnpm-store/
+result
+
+# OpenCode
+.opencode/
+opencode.json

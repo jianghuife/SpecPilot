@@ -1,0 +1,13 @@
+{
+  "version": "0.1.0",
+  "skills": [
+    "comet/SKILL.md",
+    "comet-open/SKILL.md",
+    "comet-design/SKILL.md",
+    "comet-build/SKILL.md",
+    "comet-verify/SKILL.md",
+    "comet-archive/SKILL.md",
+    "comet-hotfix/SKILL.md",
+    "comet-tweak/SKILL.md"
+  ]
+}

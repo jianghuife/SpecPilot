@@ -1,0 +1,50 @@
+{
+  "name": "@rpamis/comet",
+  "version": "0.1.0",
+  "description": "OpenSpec + Superpowers dual-star development workflow for Claude Code",
+  "keywords": [
+    "comet",
+    "openspec",
+    "superpowers",
+    "claude-code",
+    "skills",
+    "workflow"
+  ],
+  "license": "MIT",
+  "author": "benym",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "comet": "./bin/comet.js"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "assets",
+    "scripts/postinstall.js",
+    "!dist/**/*.test.js",
+    "!dist/**/__tests__"
+  ],
+  "scripts": {
+    "build": "node build.js",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepare": "pnpm run build",
+    "prepublishOnly": "pnpm run build",
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@types/node": "^24.2.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "commander": "^14.0.0"
+  }
+}
