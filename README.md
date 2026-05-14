@@ -1,8 +1,19 @@
 # @rpamis/comet
 
-OpenSpec + Superpowers dual-star development workflow for Claude Code.
+```
+ ██████╗ ██████╗ ███╗   ███╗███████╗████████╗
+██╔════╝██╔═══██╗████╗ ████║██╔════╝╚══██╔══╝
+██║     ██║   ██║██╔████╔██║█████╗     ██║
+██║     ██║   ██║██║╚██╔╝██║██╔══╝     ██║
+╚██████╗╚██████╔╝██║ ╚═╝ ██║███████╗   ██║
+ ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚══════╝   ╚═╝
+```
 
-## Installation
+**OpenSpec + Superpowers dual-star development workflow** — one command from idea to archive.
+
+OpenSpec handles **WHAT** (outlines, proposals, spec lifecycle, archiving). Superpowers handles **HOW** (technical design, planning, execution, wrap-up). Comet chains both into a five-phase automated pipeline.
+
+## Install
 
 ```bash
 npm install -g @rpamis/comet
@@ -16,10 +27,13 @@ comet init
 ```
 
 `comet init` will:
-1. Install Comet skills to `.claude/skills/`
-2. Set up OpenSpec (if not already installed)
-3. Set up Superpowers (if not already installed)
-4. Create `docs/superpowers/` working directories
+
+1. Prompt you to select AI platforms (auto-detects existing configs)
+2. Choose install scope: project-level (current directory) or global (home directory)
+3. Install [OpenSpec](https://github.com/Fission-AI/OpenSpec) skills
+4. Install [Superpowers](https://github.com/obra/superpowers) skills
+5. Deploy Comet skills to selected platforms
+6. Create `docs/superpowers/specs/` and `docs/superpowers/plans/` working directories
 
 ## Commands
 
@@ -29,20 +43,141 @@ comet init
 | `comet --help` | Show help |
 | `comet --version` | Show version |
 
+### init Options
+
+| Option | Description |
+|--------|-------------|
+| `--yes` | Non-interactive mode, auto-select detected platforms |
+| `--skip-existing` | Skip already installed components |
+| `--overwrite` | Overwrite already installed components |
+
+## Supported Platforms
+
+`comet init` supports 28 AI coding platforms:
+
+| Platform | Skills Dir | Platform | Skills Dir |
+|----------|-----------|----------|-----------|
+| Claude Code | `.claude/` | Cursor | `.cursor/` |
+| Codex | `.codex/` | OpenCode | `.opencode/` |
+| Windsurf | `.windsurf/` | Cline | `.cline/` |
+| RooCode | `.roo/` | Continue | `.continue/` |
+| GitHub Copilot | `.github/` | Gemini CLI | `.gemini/` |
+| Amazon Q Developer | `.amazonq/` | Qwen Code | `.qwen/` |
+| Kilo Code | `.kilocode/` | Auggie | `.augment/` |
+| Kiro | `.kiro/` | Lingma | `.lingma/` |
+| Junie | `.junie/` | CodeBuddy | `.codebuddy/` |
+| CoStrict | `.cospec/` | Crush | `.crush/` |
+| Factory Droid | `.factory/` | iFlow | `.iflow/` |
+| Pi | `.pi/` | Qoder | `.qoder/` |
+| Antigravity | `.agent/` | Bob Shell | `.bob/` |
+| ForgeCode | `.forge/` | Trae | `.trae/` |
+
 ## Skills
 
-After `comet init`, these skills are available in Claude Code:
+After `comet init`, three groups of skills are installed to the selected platform's `skills/` directory:
+
+### Comet Skills
 
 | Skill | Description |
 |-------|-------------|
-| `/comet` | Main entry — auto-detects phase and dispatches |
-| `/comet-open` | Phase 1: Open change |
-| `/comet-design` | Phase 2: Deep design |
-| `/comet-build` | Phase 3: Plan and build |
-| `/comet-verify` | Phase 4: Verify and finish |
-| `/comet-archive` | Phase 5: Archive |
-| `/comet-hotfix` | Preset: Bug fix (skip brainstorming) |
-| `/comet-tweak` | Preset: Small change (skip brainstorming and plan) |
+| `/comet` | Main entry — auto-detects phase and dispatches to sub-commands |
+| `/comet-open` | Phase 1: Open a change (proposal, design, task breakdown) |
+| `/comet-design` | Phase 2: Deep design (brainstorming, Design Doc) |
+| `/comet-build` | Phase 3: Plan and build (implementation plan, code commits) |
+| `/comet-verify` | Phase 4: Verify and finish (testing, verification report) |
+| `/comet-archive` | Phase 5: Archive (delta spec sync, status annotation) |
+| `/comet-hotfix` | Preset: Quick bug fix (skips brainstorming) |
+| `/comet-tweak` | Preset: Small change (skips brainstorming and full plan) |
+
+### OpenSpec Skills
+
+Spec lifecycle management: propose, explore, sync, verify, archive, and more.
+
+### Superpowers Skills
+
+Development methodology: brainstorming, TDD, subagent-driven development, code review, plan writing, and more.
+
+## Workflow
+
+```
+/comet
+  ↓ auto-detect
+/comet-open ──→ /comet-design ──→ /comet-build ──→ /comet-verify ──→ /comet-archive
+  (OpenSpec)      (Superpowers)     (Superpowers)     (Both)          (OpenSpec)
+
+/comet-hotfix (preset path, skips brainstorming)
+  open ──→ build ──→ verify ──→ archive
+
+/comet-tweak (preset path, skips brainstorming and full plan)
+  open ──→ lightweight build ──→ light verify ──→ archive
+```
+
+### Five Phases
+
+| Phase | Command | Owner | Artifacts |
+|-------|---------|-------|-----------|
+| 1. Open | `/comet-open` | OpenSpec | proposal.md, design.md, tasks.md |
+| 2. Deep Design | `/comet-design` | Superpowers | Design Doc, delta spec |
+| 3. Plan & Build | `/comet-build` | Superpowers | Implementation plan, code commits |
+| 4. Verify & Finish | `/comet-verify` | Both | Verification report, branch handling |
+| 5. Archive | `/comet-archive` | OpenSpec | delta→main spec sync, archive |
+
+### Core Principles
+
+- **Brainstorming is non-skippable** — every change must go through deep design (except hotfix/tweak)
+- **Delta specs are living documents** — freely editable during Phase 3, synced at archive
+- **Keep tasks.md in sync** — check off each task as completed
+- **Commit frequently** — one commit per task, message reflects design intent
+- **Verify before archive** — `/comet-verify` must pass before `/comet-archive`
+
+## Project Structure
+
+```
+your-project/
+├── .claude/skills/              # Platform skills dir (Comet + OpenSpec + Superpowers)
+│   ├── comet/SKILL.md
+│   ├── comet-*/SKILL.md
+│   ├── openspec-*/SKILL.md
+│   └── brainstorming/SKILL.md
+├── openspec/                    # OpenSpec — WHAT
+│   ├── config.yaml
+│   └── changes/
+│       └── <name>/
+│           ├── .openspec.yaml
+│           ├── proposal.md
+│           ├── design.md
+│           ├── specs/<capability>/spec.md
+│           └── tasks.md
+└── docs/superpowers/            # Superpowers — HOW
+    ├── specs/                   # Design documents
+    └── plans/                   # Implementation plans
+```
+
+## Development
+
+```bash
+# Clone
+git clone https://github.com/benym/comet.git
+cd comet
+
+# Install dependencies
+pnpm install
+
+# Dev mode (watch)
+pnpm dev
+
+# Build
+pnpm build
+
+# Test
+pnpm test
+```
+
+## Security
+
+- Pre-publish scan for API keys, secrets, tokens, and private keys
+- `.npmignore` prevents source code and config files from entering the npm package
+- `.gitignore` covers secrets, credentials, IDE configs, and more
 
 ## License
 
