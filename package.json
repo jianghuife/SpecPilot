@@ -1,12 +1,11 @@
 {
   "name": "@rpamis/comet",
-  "version": "0.1.0",
-  "description": "OpenSpec + Superpowers dual-star development workflow for Claude Code",
+  "version": "0.1.1",
+  "description": "OpenSpec + Superpowers dual-star development workflow",
   "keywords": [
     "comet",
     "openspec",
     "superpowers",
-    "claude-code",
     "skills",
     "workflow"
   ],
@@ -33,7 +32,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "prepare": "pnpm run build",
-    "prepublishOnly": "pnpm run build",
+    "prepublishOnly": "node scripts/prepublish-check.js && pnpm run build",
     "postinstall": "node scripts/postinstall.js"
   },
   "engines": {
@@ -45,6 +44,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@inquirer/prompts": "^8.4.3",
     "commander": "^14.0.0"
   }
 }

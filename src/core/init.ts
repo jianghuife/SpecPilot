@@ -1,16 +1,22 @@
 /**
  * Init Command
  *
- * Sets up Comet workflow: installs OpenSpec, Superpowers, and copies Comet skills.
+ * Interactive setup for Comet workflow: platform selection, scope (global/project),
+ * OpenSpec + Superpowers install, and Comet skill deployment.
  */
 
 import path from 'path';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
-import { copyFile, fileExists, readJson, writeFile, ensureDir } from '../utils/file-system.js';
+import { checkbox, select } from '@inquirer/prompts';
+import { copyFile, fileExists, readJson, ensureDir, readDir } from '../utils/file-system.js';
+import { PLATFORMS, type Platform } from './platforms.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+type InstallScope = 'global' | 'project';
 
 type InitOptions = {
   yes?: boolean;
@@ -23,6 +29,15 @@ type Manifest = {
   skills: string[];
 };
 
+type InstallStatus = 'installed' | 'skipped' | 'failed';
+
+interface PlatformResult {
+  platform: Platform;
+  openspec: InstallStatus;
+  superpowers: InstallStatus;
+  comet: InstallStatus;
+}
+
 /**
  * Resolve the path to the assets directory (shipped with the npm package).
  */
@@ -31,65 +46,169 @@ function getAssetsDir(): string {
 }
 
 /**
- * Check if OpenSpec is installed and configured.
+ * Get the base directory for a given scope.
+ * Global: home directory. Project: project directory.
  */
-async function isOpenSpecInstalled(projectPath: string): Promise<boolean> {
-  const configPath = path.join(projectPath, 'openspec', 'config.yaml');
-  const configYmlPath = path.join(projectPath, 'openspec', 'config.yml');
-  const skillPath = path.join(projectPath, '.claude', 'skills', 'openspec-new-change', 'SKILL.md');
-  return (await fileExists(configPath)) || (await fileExists(configYmlPath)) || (await fileExists(skillPath));
+function getBaseDir(scope: InstallScope, projectPath: string): string {
+  return scope === 'global' ? os.homedir() : projectPath;
 }
 
 /**
- * Check if Superpowers skills are installed.
+ * Detect which platforms have config directories in the project.
  */
-async function isSuperpowersInstalled(projectPath: string): Promise<boolean> {
-  const skillPath = path.join(projectPath, '.claude', 'skills', 'superpowers-brainstorming', 'SKILL.md');
-  return fileExists(skillPath);
+async function detectPlatforms(projectPath: string): Promise<Set<string>> {
+  const detected = new Set<string>();
+
+  for (const platform of PLATFORMS) {
+    if (platform.detectionPaths && platform.detectionPaths.length > 0) {
+      for (const p of platform.detectionPaths) {
+        if (await fileExists(path.join(projectPath, p))) {
+          detected.add(platform.id);
+          break;
+        }
+      }
+    } else {
+      const dirPath = path.join(projectPath, platform.skillsDir);
+      if (await fileExists(dirPath)) {
+        detected.add(platform.id);
+      }
+    }
+  }
+
+  return detected;
 }
 
 /**
- * Check if Comet skills are installed.
+ * Superpowers skill directory names (used for detection).
  */
-async function isCometInstalled(projectPath: string): Promise<boolean> {
-  const skillPath = path.join(projectPath, '.claude', 'skills', 'comet', 'SKILL.md');
-  return fileExists(skillPath);
-}
+const SUPERPOWERS_SKILLS = [
+  'brainstorming',
+  'using-superpowers',
+  'writing-plans',
+  'test-driven-development',
+  'subagent-driven-development',
+];
 
 /**
- * Install OpenSpec globally and initialize it in the project.
+ * Check if skills exist for a component pattern in a platform's skills dir.
  */
-async function installOpenSpec(projectPath: string): Promise<void> {
-  console.log('Installing OpenSpec...');
-  try {
-    execSync('npm install -g @fission-ai/openspec@latest', { stdio: 'inherit' });
-    console.log('Running openspec init...');
-    execSync('openspec init', { cwd: projectPath, stdio: 'inherit' });
-    console.log('OpenSpec installed successfully.');
-  } catch (error) {
-    console.error('Failed to install OpenSpec:', (error as Error).message);
-    console.log('Please install manually: npm install -g @fission-ai/openspec@latest && openspec init');
+async function hasSkills(
+  baseDir: string,
+  platform: Platform,
+  component: 'openspec' | 'superpowers' | 'comet'
+): Promise<boolean> {
+  const skillsDir = path.join(baseDir, platform.skillsDir, 'skills');
+  const entries = await readDir(skillsDir);
+
+  switch (component) {
+    case 'openspec':
+      return entries.some((e) => e.startsWith('openspec-'));
+    case 'superpowers':
+      return SUPERPOWERS_SKILLS.some((name) => entries.includes(name));
+    case 'comet':
+      return entries.some((e) => e.startsWith('comet'));
   }
 }
 
 /**
- * Install Superpowers skills.
+ * Check if a CLI command is available on PATH.
  */
-async function installSuperpowers(projectPath: string): Promise<void> {
-  console.log('Installing Superpowers...');
+function isCommandAvailable(command: string): boolean {
   try {
-    execSync('npx skills add obra/superpowers -g -y', { cwd: projectPath, stdio: 'inherit' });
-    console.log('Superpowers installed successfully.');
-  } catch (error) {
-    console.error('Failed to install Superpowers:', (error as Error).message);
-    console.log('Please install manually: npx skills add obra/superpowers -g -y');
+    const checkCmd = process.platform === 'win32' ? `where ${command}` : `which ${command}`;
+    execSync(checkCmd, { stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
   }
 }
 
 /**
- * Copy Comet skill files from assets to the project's .claude/skills directory.
+ * Ensure OpenSpec CLI is installed, install it if missing.
  */
-async function copyCometSkills(projectPath: string, overwrite: boolean): Promise<number> {
+async function ensureOpenSpecCli(scope: InstallScope, projectPath: string): Promise<boolean> {
+  if (isCommandAvailable('openspec')) {
+    return true;
+  }
+
+  console.log(`    Installing OpenSpec CLI...`);
+  try {
+    const npmCmd = scope === 'global'
+      ? 'npm install -g @fission-ai/openspec@latest'
+      : 'npm install @fission-ai/openspec@latest';
+    execSync(npmCmd, { cwd: projectPath, stdio: 'pipe', timeout: 120_000 });
+    return isCommandAvailable('openspec');
+  } catch (error) {
+    console.error(`    Failed to install OpenSpec CLI: ${(error as Error).message}`);
+    return false;
+  }
+}
+
+/**
+ * Install OpenSpec skills for multiple platforms in one call.
+ */
+async function installOpenSpec(
+  projectPath: string,
+  toolIds: string[],
+  scope: InstallScope
+): Promise<InstallStatus> {
+  const cliReady = await ensureOpenSpecCli(scope, projectPath);
+  if (!cliReady) {
+    console.error(`    OpenSpec CLI not available. Install manually: npm install -g @fission-ai/openspec@latest`);
+    return 'failed';
+  }
+
+  try {
+    const flags = [
+      '--tools', toolIds.join(','),
+      scope === 'global' ? '--global' : '',
+    ].filter(Boolean).join(' ');
+
+    execSync(`openspec init ${flags}`, {
+      cwd: projectPath,
+      stdio: 'pipe',
+      timeout: 120_000,
+    });
+    return 'installed';
+  } catch (error) {
+    console.error(`    OpenSpec init failed: ${(error as Error).message}`);
+    return 'failed';
+  }
+}
+
+/**
+ * Install Superpowers skills for a specific platform.
+ */
+async function installSuperpowersForPlatform(
+  projectPath: string,
+  scope: InstallScope
+): Promise<InstallStatus> {
+  try {
+    const flags = [
+      '-y',
+      scope === 'global' ? '-g' : '',
+    ].filter(Boolean).join(' ');
+
+    execSync(`npx skills add obra/superpowers ${flags}`, {
+      cwd: projectPath,
+      stdio: 'pipe',
+      timeout: 120_000,
+    });
+    return 'installed';
+  } catch (error) {
+    console.error(`    Superpowers install failed: ${(error as Error).message}`);
+    return 'failed';
+  }
+}
+
+/**
+ * Copy Comet skill files from assets to a platform's skills directory.
+ */
+async function copyCometSkillsForPlatform(
+  baseDir: string,
+  platform: Platform,
+  overwrite: boolean
+): Promise<{ copied: number; skipped: number }> {
   const assetsDir = getAssetsDir();
   const manifestPath = path.join(assetsDir, 'manifest.json');
 
@@ -99,12 +218,14 @@ async function copyCometSkills(projectPath: string, overwrite: boolean): Promise
 
   const manifest = await readJson<Manifest>(manifestPath);
   let copied = 0;
+  let skippedCount = 0;
 
   for (const skillRelPath of manifest.skills) {
     const src = path.join(assetsDir, 'skills', skillRelPath);
-    const dest = path.join(projectPath, '.claude', 'skills', skillRelPath);
+    const dest = path.join(baseDir, platform.skillsDir, 'skills', skillRelPath);
 
     if (!overwrite && (await fileExists(dest))) {
+      skippedCount++;
       continue;
     }
 
@@ -112,11 +233,11 @@ async function copyCometSkills(projectPath: string, overwrite: boolean): Promise
     copied++;
   }
 
-  return copied;
+  return { copied, skipped: skippedCount };
 }
 
 /**
- * Create Superpowers working directories.
+ * Create Superpowers working directories (project-level only).
  */
 async function createWorkingDirs(projectPath: string): Promise<void> {
   const dirs = [
@@ -130,60 +251,249 @@ async function createWorkingDirs(projectPath: string): Promise<void> {
 }
 
 /**
+ * Prompt user to choose overwrite strategy for an existing installation.
+ */
+async function promptOverwriteChoice(
+  componentName: string,
+  platformName: string
+): Promise<'overwrite' | 'skip'> {
+  const answer = await select({
+    message: `${componentName} already installed on ${platformName}. What to do?`,
+    choices: [
+      { name: 'Overwrite', value: 'overwrite' as const },
+      { name: 'Skip', value: 'skip' as const },
+    ],
+  });
+  return answer;
+}
+
+/**
+ * Interactive installation scope selection.
+ */
+async function selectScope(options: InitOptions): Promise<InstallScope> {
+  if (options.yes) {
+    return 'project';
+  }
+
+  const scope = await select({
+    message: 'Install scope:',
+    choices: [
+      { name: 'Project (current directory)', value: 'project' as const },
+      { name: 'Global (home directory)', value: 'global' as const },
+    ],
+  });
+
+  return scope;
+}
+
+/**
+ * Interactive platform selection.
+ */
+async function selectPlatforms(
+  detected: Set<string>,
+  options: InitOptions
+): Promise<string[]> {
+  const choices = PLATFORMS.map((p) => ({
+    name: `${p.name}${detected.has(p.id) ? ' (detected)' : ''}`,
+    value: p.id,
+    checked: detected.has(p.id),
+  }));
+
+  if (options.yes) {
+    const selected = [...detected];
+    return selected.length > 0 ? selected : PLATFORMS.map((p) => p.id);
+  }
+
+  const selected = await checkbox({
+    message: 'Select platforms to set up:',
+    choices,
+    required: true,
+  });
+
+  return selected;
+}
+
+/**
+ * Display installation summary.
+ */
+function displaySummary(results: PlatformResult[], scope: InstallScope): void {
+  const scopeLabel = scope === 'global' ? os.homedir() : 'project';
+
+  console.log(`\n  Comet setup complete! (scope: ${scopeLabel})\n`);
+
+  const installed = results.filter(
+    (r) => r.openspec === 'installed' || r.superpowers === 'installed' || r.comet === 'installed'
+  );
+  const skipped = results.filter(
+    (r) => r.openspec === 'skipped' && r.superpowers === 'skipped' && r.comet === 'skipped'
+  );
+  const failed = results.filter(
+    (r) => r.openspec === 'failed' || r.superpowers === 'failed'
+  );
+
+  if (installed.length > 0) {
+    console.log(`  Installed:`);
+    for (const r of installed) {
+      console.log(`    ${r.platform.name} -> ${r.platform.skillsDir}/skills/`);
+    }
+  }
+  if (skipped.length > 0) {
+    console.log(`  Skipped: ${skipped.map((r) => r.platform.name).join(', ')}`);
+  }
+  if (failed.length > 0) {
+    console.log(`  Failed: ${failed.map((r) => r.platform.name).join(', ')}`);
+  }
+
+  if (scope === 'project') {
+    console.log(`\n  Working directories: docs/superpowers/specs/, docs/superpowers/plans/`);
+  }
+
+  console.log(`\n  Get started:`);
+  console.log(`    /comet "your idea"  — Start a new change with full workflow`);
+  console.log(`    /comet-hotfix       — Quick bug fix (skip brainstorming)`);
+  console.log(`    /comet-tweak        — Small change (skip brainstorming and plan)\n`);
+}
+
+/**
+ * Resolve action for a component based on options and existing state.
+ */
+function resolveAction(
+  hasExisting: boolean,
+  options: InitOptions
+): 'overwrite' | 'skip' | 'install' {
+  if (!hasExisting) return 'install';
+  if (options.overwrite) return 'overwrite';
+  if (options.skipExisting) return 'skip';
+  if (options.yes) return 'skip';
+  return 'install'; // will be prompted interactively
+}
+
+/**
  * Main init command.
  */
+const COMET_BANNER = [
+  `   ██████╗ ██████╗ ███╗   ███╗███████╗████████╗`,
+  `  ██╔════╝██╔═══██╗████╗ ████║██╔════╝╚══██╔══╝`,
+  `  ██║     ██║   ██║██╔████╔██║█████╗     ██║   `,
+  `  ██║     ██║   ██║██║╚██╔╝██║██╔══╝     ██║   `,
+  `  ╚██████╗╚██████╔╝██║ ╚═╝ ██║███████╗   ██║   `,
+  `   ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚══════╝   ╚═╝   `,
+  `            OpenSpec + Superpowers Workflow       `,
+].join('\n');
+
 export async function initCommand(targetPath: string, options: InitOptions = {}): Promise<void> {
   const projectPath = path.resolve(targetPath);
 
-  console.log(`Setting up Comet in ${projectPath}...`);
-  console.log();
+  console.log(`\n${COMET_BANNER}\n`);
+  console.log(`  Setting up Comet in ${projectPath}\n`);
 
-  // Detect installed components
-  const hasOpenSpec = await isOpenSpecInstalled(projectPath);
-  const hasSuperpowers = await isSuperpowersInstalled(projectPath);
-  const hasComet = await isCometInstalled(projectPath);
+  // Step 1: Detect available platforms
+  const detected = await detectPlatforms(projectPath);
 
-  // Install OpenSpec if missing
-  if (!hasOpenSpec) {
-    if (options.yes) {
-      await installOpenSpec(projectPath);
-    } else {
-      console.log('OpenSpec not found. Install with: npm install -g @fission-ai/openspec@latest && openspec init');
+  // Step 2: Select scope (global vs project)
+  const scope = await selectScope(options);
+
+  // Step 3: Platform selection
+  const selectedPlatformIds = await selectPlatforms(detected, options);
+
+  if (selectedPlatformIds.length === 0) {
+    console.log('\n  No platforms selected. Exiting.\n');
+    return;
+  }
+
+  const selectedPlatforms = PLATFORMS.filter((p) => selectedPlatformIds.includes(p.id));
+  const baseDir = getBaseDir(scope, projectPath);
+
+  // Step 4: Detect existing installations and determine actions
+  type PlatformPlan = {
+    platform: Platform;
+    osAction: 'overwrite' | 'skip' | 'install';
+    spAction: 'overwrite' | 'skip' | 'install';
+    cmAction: 'overwrite' | 'skip' | 'install';
+  };
+
+  const plans: PlatformPlan[] = [];
+
+  for (const platform of selectedPlatforms) {
+    const hasOS = await hasSkills(baseDir, platform, 'openspec');
+    const hasSP = await hasSkills(baseDir, platform, 'superpowers');
+    const hasCM = await hasSkills(baseDir, platform, 'comet');
+
+    let osAction = resolveAction(hasOS, options);
+    let spAction = resolveAction(hasSP, options);
+    let cmAction = resolveAction(hasCM, options);
+
+    // Interactive prompts for existing components
+    if (!options.yes) {
+      if (osAction === 'install' && hasOS) {
+        osAction = await promptOverwriteChoice('OpenSpec', platform.name);
+      }
+      if (spAction === 'install' && hasSP) {
+        spAction = await promptOverwriteChoice('Superpowers', platform.name);
+      }
+      if (cmAction === 'install' && hasCM) {
+        cmAction = await promptOverwriteChoice('Comet', platform.name);
+      }
     }
-  } else {
-    console.log('OpenSpec: already installed');
+
+    plans.push({ platform, osAction, spAction, cmAction });
   }
 
-  // Install Superpowers if missing
-  if (!hasSuperpowers) {
-    if (options.yes) {
-      await installSuperpowers(projectPath);
+  // Step 5: Install OpenSpec (one call for all platforms that need it)
+  const osToolIds = plans
+    .filter((p) => p.osAction !== 'skip')
+    .map((p) => p.platform.openspecToolId);
+
+  let osGlobalStatus: InstallStatus = 'skipped';
+  if (osToolIds.length > 0) {
+    console.log(`\n  Installing OpenSpec for: ${osToolIds.join(', ')}`);
+    osGlobalStatus = await installOpenSpec(projectPath, osToolIds, scope);
+    console.log(`  OpenSpec: ${osGlobalStatus}`);
+  } else {
+    console.log(`\n  OpenSpec: all skipped`);
+  }
+
+  // Step 6: Install Superpowers (one call, scope-aware)
+  const needsSP = plans.some((p) => p.spAction !== 'skip');
+  let spGlobalStatus: InstallStatus = 'skipped';
+
+  if (needsSP) {
+    console.log(`\n  Installing Superpowers...`);
+    spGlobalStatus = await installSuperpowersForPlatform(projectPath, scope);
+    console.log(`  Superpowers: ${spGlobalStatus}`);
+  } else {
+    console.log(`\n  Superpowers: all skipped`);
+  }
+
+  // Step 7: Copy Comet skills (per-platform)
+  const results: PlatformResult[] = [];
+
+  for (const plan of plans) {
+    const { platform, cmAction } = plan;
+    const skillsPath = `${scope === 'global' ? '~/' : ''}${platform.skillsDir}/skills/`;
+
+    let cmStatus: InstallStatus = 'skipped';
+    if (cmAction !== 'skip') {
+      const { copied } = await copyCometSkillsForPlatform(baseDir, platform, cmAction === 'overwrite');
+      cmStatus = copied > 0 ? 'installed' : 'skipped';
+      console.log(`  Comet -> ${platform.name}: ${cmStatus} (${copied} files) -> ${skillsPath}`);
     } else {
-      console.log('Superpowers not found. Install with: npx skills add obra/superpowers -g -y');
+      console.log(`  Comet -> ${platform.name}: skipped (already exists)`);
     }
-  } else {
-    console.log('Superpowers: already installed');
+
+    results.push({
+      platform,
+      openspec: osToolIds.includes(platform.openspecToolId) ? osGlobalStatus : 'skipped',
+      superpowers: plan.spAction !== 'skip' ? spGlobalStatus : 'skipped',
+      comet: cmStatus,
+    });
   }
 
-  // Copy Comet skills
-  if (hasComet && !options.overwrite && !options.skipExisting) {
-    console.log('Comet skills: already installed (use --overwrite to replace)');
-  } else if (hasComet && options.skipExisting) {
-    console.log('Comet skills: skipped (--skip-existing)');
-  } else {
-    const copied = await copyCometSkills(projectPath, options.overwrite ?? false);
-    console.log(`Comet skills: ${copied} files copied`);
+  // Step 8: Create working directories (project-level only)
+  if (scope === 'project') {
+    await createWorkingDirs(projectPath);
   }
 
-  // Create working directories
-  await createWorkingDirs(projectPath);
-  console.log('Working directories: docs/superpowers/specs/, docs/superpowers/plans/');
-
-  console.log();
-  console.log('Comet setup complete!');
-  console.log();
-  console.log('Get started:');
-  console.log('  /comet "your idea"  — Start a new change with full workflow');
-  console.log('  /comet-hotfix       — Quick bug fix (skip brainstorming)');
-  console.log('  /comet-tweak        — Small change (skip brainstorming and plan)');
+  // Step 9: Summary
+  displaySummary(results, scope);
 }
