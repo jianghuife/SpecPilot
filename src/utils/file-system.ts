@@ -43,3 +43,14 @@ export async function writeFile(filePath: string, content: string): Promise<void
   await ensureDir(path.dirname(filePath));
   await fs.writeFile(filePath, content, 'utf-8');
 }
+
+/**
+ * List entries in a directory. Returns empty array if directory doesn't exist.
+ */
+export async function readDir(dirPath: string): Promise<string[]> {
+  try {
+    return await fs.readdir(dirPath);
+  } catch {
+    return [];
+  }
+}
