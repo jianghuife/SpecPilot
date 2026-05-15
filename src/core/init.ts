@@ -91,23 +91,49 @@ const SUPERPOWERS_SKILLS = [
 
 /**
  * Check if skills exist for a component pattern in a platform's skills dir.
+ * Falls back to checking the global directories of user-selected platforms.
  */
 async function hasSkills(
   baseDir: string,
   platform: Platform,
-  component: 'openspec' | 'superpowers' | 'comet'
+  component: 'openspec' | 'superpowers' | 'comet',
+  selectedPlatforms: Platform[] = []
 ): Promise<boolean> {
   const skillsDir = path.join(baseDir, platform.skillsDir, 'skills');
   const entries = await readDir(skillsDir);
 
   switch (component) {
     case 'openspec':
-      return entries.some((e) => e.startsWith('openspec-'));
+      if (entries.some((e) => e.startsWith('openspec-'))) return true;
+      break;
     case 'superpowers':
-      return SUPERPOWERS_SKILLS.some((name) => entries.includes(name));
+      if (SUPERPOWERS_SKILLS.some((name) => entries.includes(name))) return true;
+      break;
     case 'comet':
-      return entries.some((e) => e.startsWith('comet'));
+      if (entries.some((e) => e.startsWith('comet'))) return true;
+      break;
   }
+
+  // Check global directories of user-selected platforms
+  if (baseDir !== os.homedir()) {
+    for (const sp of selectedPlatforms) {
+      const globalSkillsDir = path.join(os.homedir(), sp.skillsDir, 'skills');
+      const globalEntries = await readDir(globalSkillsDir);
+
+      switch (component) {
+        case 'openspec':
+          if (globalEntries.some((e) => e.startsWith('openspec-'))) return true;
+          break;
+        case 'superpowers':
+          if (SUPERPOWERS_SKILLS.some((name) => globalEntries.includes(name))) return true;
+          break;
+        case 'comet':
+          if (globalEntries.some((e) => e.startsWith('comet'))) return true;
+          break;
+      }
+    }
+  }
+  return false;
 }
 
 /**
@@ -177,16 +203,65 @@ async function installOpenSpec(
 }
 
 /**
- * Install Superpowers skills for a specific platform.
+ * Map platform IDs to skills CLI agent names.
+ * The skills CLI uses specific agent identifiers (e.g. "claude-code" not "claude").
  */
-async function installSuperpowersForPlatform(
+const SKILLS_AGENT_MAP: Record<string, string> = {
+  'claude': 'claude-code',
+  'cursor': 'cursor',
+  'codex': 'codex',
+  'opencode': 'opencode',
+  'windsurf': 'windsurf',
+  'cline': 'cline',
+  'roocode': 'roo-code',
+  'continue': 'continue',
+  'github-copilot': 'github-copilot',
+  'gemini': 'gemini',
+  'amazon-q': 'amazon-q',
+  'qwen': 'qwen',
+  'kilocode': 'kilo-code',
+  'auggie': 'augment',
+  'kiro': 'kiro',
+  'lingma': 'lingma',
+  'junie': 'junie',
+  'codebuddy': 'codebuddy',
+  'costrict': 'costrict',
+  'crush': 'crush',
+  'factory': 'factory',
+  'iflow': 'iflow',
+  'pi': 'pi',
+  'qoder': 'qoder',
+  'antigravity': 'antigravity',
+  'bob': 'bob',
+  'forgecode': 'forge',
+  'trae': 'trae',
+};
+
+/**
+ * Install Superpowers skills for specific platforms only.
+ * Uses --agent flag to target only the selected platforms, preventing
+ * the skills CLI from auto-detecting and installing to all platforms
+ * (which would create unwanted .agents/ directories).
+ */
+async function installSuperpowersForPlatforms(
   projectPath: string,
-  scope: InstallScope
+  scope: InstallScope,
+  platformIds: string[]
 ): Promise<InstallStatus> {
+  const agentNames = platformIds
+    .map((id) => SKILLS_AGENT_MAP[id])
+    .filter(Boolean);
+
+  if (agentNames.length === 0) {
+    console.error(`    No valid agent names resolved for platforms: ${platformIds.join(', ')}`);
+    return 'failed';
+  }
+
   try {
     const flags = [
       '-y',
       scope === 'global' ? '-g' : '',
+      `--agent ${agentNames.join(',')}`,
     ].filter(Boolean).join(' ');
 
     execSync(`npx skills add obra/superpowers ${flags}`, {
@@ -415,9 +490,9 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
   const plans: PlatformPlan[] = [];
 
   for (const platform of selectedPlatforms) {
-    const hasOS = await hasSkills(baseDir, platform, 'openspec');
-    const hasSP = await hasSkills(baseDir, platform, 'superpowers');
-    const hasCM = await hasSkills(baseDir, platform, 'comet');
+    const hasOS = await hasSkills(baseDir, platform, 'openspec', selectedPlatforms);
+    const hasSP = await hasSkills(baseDir, platform, 'superpowers', selectedPlatforms);
+    const hasCM = await hasSkills(baseDir, platform, 'comet', selectedPlatforms);
 
     let osAction = resolveAction(hasOS, options);
     let spAction = resolveAction(hasSP, options);
@@ -453,13 +528,15 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
     console.log(`\n  OpenSpec: all skipped`);
   }
 
-  // Step 6: Install Superpowers (one call, scope-aware)
-  const needsSP = plans.some((p) => p.spAction !== 'skip');
+  // Step 6: Install Superpowers (scoped to selected platforms only)
+  const spPlatformIds = plans
+    .filter((p) => p.spAction !== 'skip')
+    .map((p) => p.platform.id);
   let spGlobalStatus: InstallStatus = 'skipped';
 
-  if (needsSP) {
-    console.log(`\n  Installing Superpowers...`);
-    spGlobalStatus = await installSuperpowersForPlatform(projectPath, scope);
+  if (spPlatformIds.length > 0) {
+    console.log(`\n  Installing Superpowers for: ${spPlatformIds.join(', ')}`);
+    spGlobalStatus = await installSuperpowersForPlatforms(projectPath, scope, spPlatformIds);
     console.log(`  Superpowers: ${spGlobalStatus}`);
   } else {
     console.log(`\n  Superpowers: all skipped`);
