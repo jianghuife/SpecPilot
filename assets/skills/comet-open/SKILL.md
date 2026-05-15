@@ -26,6 +26,7 @@ description: "Comet 阶段 1：开启。用 /comet-open 调用。通过 OpenSpec
 ```
 openspec/changes/<name>/
 ├── .openspec.yaml
+├── .comet.yaml
 ├── proposal.md       # Why + What：问题、目标、范围
 ├── design.md         # How（高层）：架构决策、方案选型
 └── tasks.md          # 任务清单（勾选框）
@@ -53,19 +54,18 @@ cp openspec/specs/<capability>/spec.md openspec/changes/<name>/specs/<capability
 
 ### 3. 初始化 Comet 状态
 
-在 `openspec/changes/<name>/.openspec.yaml` 中写入或合并以下元数据：
+在 `openspec/changes/<name>/` 下创建独立的 `.comet.yaml` 文件：
 
 ```yaml
-comet:
-  workflow: full
-  phase: design
-  design_doc: null
-  plan: null
-  build_mode: null
-  verify_mode: null
-  verify_result: pending
-  verified_at: null
-  archived: false
+workflow: full
+phase: design
+design_doc: null
+plan: null
+build_mode: null
+verify_mode: null
+verify_result: pending
+verified_at: null
+archived: false
 ```
 
 ### 4. 内容完整性检查
