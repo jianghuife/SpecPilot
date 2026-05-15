@@ -13,6 +13,30 @@ description: "Comet 阶段 5：归档。用 /comet-archive 调用。同步 delta
 
 ## 步骤
 
+### 0. 入口状态验证（Entry Check）
+
+在执行任何操作之前，读取并验证当前状态：
+
+**检查清单：**
+1. `openspec/changes/<name>/.comet.yaml` 存在
+2. `phase` 字段的值为 `"archive"`
+3. `verify_result` 字段的值为 `"pass"`
+4. `archived` 字段为 `"false"` 或 null（尚未归档）
+
+**验证方式：**
+- `cat openspec/changes/<name>/.comet.yaml` 读取全部字段
+- 如 `verify_result` 不是 `"pass"`，必须先完成验证
+
+**失败输出：**
+```
+[HARD STOP] Entry check failed for comet-archive
+  Expected: phase=archive, verify_result=pass, archived=false|null
+  Actual:   phase=<实际值>, verify_result=<实际值>, archived=<实际值>
+  Suggestion: Run comet-verify first, or this change was already archived.
+```
+
+验证通过后才进入步骤 1。
+
 ### 1. 执行归档
 
 归档前如 `verify_result` 不是 `pass`，停止归档并返回 `/comet-verify`。
@@ -31,6 +55,11 @@ description: "Comet 阶段 5：归档。用 /comet-archive 调用。同步 delta
 ```bash
 mv openspec/changes/<name>/.comet.yaml openspec/changes/archive/YYYY-MM-DD-<name>/.comet.yaml
 ```
+
+【写入验证】移动完成后必须验证：
+  test -f openspec/changes/archive/YYYY-MM-DD-<name>/.comet.yaml
+  确认归档目录中 .comet.yaml 存在
+  如文件不在预期位置，检查 mv 命令是否成功执行。
 
 ### 2. Delta Spec 同步
 
@@ -110,6 +139,12 @@ brainstorming → delta spec → 实施（增量修改）→ 验证 → 主 spec
 phase: archive
 archived: true
 ```
+
+【写入验证】更新完成后必须验证：
+  cat openspec/changes/archive/YYYY-MM-DD-<name>/.comet.yaml
+  确认 phase 行的值为 "archive"
+  确认 archived 行的值为 "true"
+  如任一字段不匹配，重试写入后再次验证。最多重试 2 次，仍失败则报告错误并终止。
 
 ## 完成
 
