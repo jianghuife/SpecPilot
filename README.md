@@ -208,7 +208,7 @@ your-project/
 
 ```bash
 # Clone
-git clone https://github.com/benym/comet.git
+git clone https://github.com/rpamis/comet
 cd comet
 
 # Install dependencies
