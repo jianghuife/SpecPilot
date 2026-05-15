@@ -153,6 +153,7 @@ Comet uses a decoupled state architecture with separate YAML files:
 - `design_doc`: Path to Superpowers Design Doc
 - `plan`: Path to implementation plan
 - `build_mode`: `subagent-driven-development`, `executing-plans`, or `direct`
+- `isolation`: `branch` or `worktree`, workspace isolation method
 - `verify_mode`: `light` or `full`
 - `verify_result`: `pending`, `pass`, or `fail`
 - `archived`: Boolean indicating if change is archived
@@ -170,8 +171,8 @@ Comet includes three-layer defense to ensure agent execution reliability:
    - Automatic retry mechanism (up to 2 attempts) on mismatch
 
 3. **Schema Validation** — `comet-yaml-validate.sh` ensures data integrity
-   - Validates required fields (9 fields)
-   - Validates enum values (6 enum types)
+   - Validates required fields (10 fields)
+   - Validates enum values (7 enum types)
    - Validates referenced file paths exist
    - Detects unknown/typos fields
 
