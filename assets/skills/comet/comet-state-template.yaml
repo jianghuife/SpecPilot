@@ -1,0 +1,13 @@
+# Comet State Schema Reference
+# 此文件为 .comet.yaml 的字段定义参考，不作为运行时模板复制。
+# 各 workflow（full/hotfix/tweak）的初始值请参见对应 SKILL.md。
+
+workflow: full       # full | hotfix | tweak
+phase: design        # open | design | build | verify | archive
+design_doc: null     # 设计文档路径，如 docs/superpowers/specs/YYYY-MM-DD-topic-design.md
+plan: null           # 实施计划路径，如 docs/superpowers/plans/YYYY-MM-DD-feature.md
+build_mode: null     # subagent-driven-development | executing-plans | direct
+verify_mode: null    # light | full
+verify_result: pending  # pending | pass | fail
+verified_at: null    # ISO 日期，如 2026-05-15
+archived: false      # 是否已归档
