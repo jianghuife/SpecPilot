@@ -39,12 +39,11 @@ Design 摘要: <design.md 架构决策>
 
 ### 2. 更新 Comet 状态
 
-在 `openspec/changes/<name>/.openspec.yaml` 中合并更新：
+在 `openspec/changes/<name>/.comet.yaml` 中更新：
 
 ```yaml
-comet:
-  phase: build
-  design_doc: docs/superpowers/specs/YYYY-MM-DD-topic-design.md
+phase: build
+design_doc: docs/superpowers/specs/YYYY-MM-DD-topic-design.md
 ```
 
 ### 3. 双 Spec 分工
