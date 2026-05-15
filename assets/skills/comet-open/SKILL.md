@@ -19,7 +19,7 @@ description: "Comet 阶段 1：开启。用 /comet-open 调用。通过 OpenSpec
 
 ### 2. 创建 Change 结构
 
-**立即执行：** 使用 Skill 工具加载 `openspec-new-change` 技能（或 `openspec-propose` 如需先提建议）。
+**立即执行：** 使用 Skill 工具加载 `openspec-new-change` 技能。若用户意图未明确、需要先形成建议，改为加载 `openspec-propose`。禁止跳过此步骤。
 
 确认以下产物已创建：
 
@@ -48,9 +48,7 @@ cp openspec/specs/<capability>/spec.md openspec/changes/<name>/specs/<capability
 ```
 
 3. 在复制的 delta spec 中，按 delta 格式组织变更（`## ADDED`、`## MODIFIED`、`## REMOVED`）
-4. 在 proposal.md 中注明 `基于已有 capability: <capability-name>` 
-
-**好处**：避免从零编写 delta spec，确保增量修改有完整上下文。
+4. 在 proposal.md 中注明 `基于已有 capability: <capability-name>`
 
 ### 3. 初始化 Comet 状态
 
