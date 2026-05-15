@@ -1,0 +1,107 @@
+#!/bin/bash
+# Comet YAML Schema Validator — validates .comet.yaml structure
+# Usage: comet-yaml-validate.sh <change-name>
+# Exit 0 = valid, exit 1 = errors found (printed to stderr)
+
+set -euo pipefail
+
+CHANGE="$1"
+YAML="openspec/changes/$CHANGE/.comet.yaml"
+
+red()   { echo -e "\033[31m$1\033[0m" >&2; }
+green() { echo -e "\033[32m$1\033[0m" >&2; }
+warn()  { echo -e "\033[33m$1\033[0m" >&2; }
+
+ERRORS=0
+WARNINGS=0
+
+# Helper: get value of a top-level field (handles null, empty, quoted)
+field_value() {
+  grep "^${1}:" "$YAML" 2>/dev/null | sed "s/^${1}: *//" | tr -d '"' | tr -d "'" || true
+}
+
+fail()  { red "  FAIL: $1"; ERRORS=$((ERRORS + 1)); }
+warn_msg() { warn "  WARN: $1"; WARNINGS=$((WARNINGS + 1)); }
+
+echo "[VALIDATE] $YAML" >&2
+
+# --- Required fields ---
+REQUIRED_FIELDS="workflow phase design_doc plan build_mode verify_mode verify_result verified_at archived"
+for field in $REQUIRED_FIELDS; do
+  if ! grep -q "^${field}:" "$YAML" 2>/dev/null; then
+    fail "missing required field '$field'"
+  fi
+done
+
+# --- Enum validation ---
+validate_enum() {
+  local field="$1" value="$2"
+  shift 2
+  local valid_values="$*"
+
+  # null or empty is always acceptable
+  if [ -z "$value" ] || [ "$value" = "null" ]; then
+    return 0
+  fi
+
+  for v in $valid_values; do
+    if [ "$value" = "$v" ]; then
+      return 0
+    fi
+  done
+  fail "$field='$value' is not valid. Expected: $valid_values"
+}
+
+workflow=$(field_value "workflow")
+phase=$(field_value "phase")
+build_mode=$(field_value "build_mode")
+verify_mode=$(field_value "verify_mode")
+verify_result=$(field_value "verify_result")
+archived=$(field_value "archived")
+design_doc=$(field_value "design_doc")
+plan=$(field_value "plan")
+
+validate_enum "workflow"      "$workflow"      "full hotfix tweak"
+validate_enum "phase"         "$phase"          "design build verify archive"
+validate_enum "build_mode"    "$build_mode"     "subagent-driven-development executing-plans direct"
+validate_enum "verify_mode"   "$verify_mode"    "light full"
+validate_enum "verify_result" "$verify_result"  "pending pass fail"
+validate_enum "archived"      "$archived"       "true false"
+
+# --- Path validation ---
+
+if [ -n "$design_doc" ] && [ "$design_doc" != "null" ]; then
+  if [ ! -f "$design_doc" ]; then
+    fail "design_doc='$design_doc' does not exist on disk"
+  fi
+fi
+
+if [ -n "$plan" ] && [ "$plan" != "null" ]; then
+  if [ ! -f "$plan" ]; then
+    fail "plan='$plan' does not exist on disk"
+  fi
+fi
+
+# --- Unknown keys check ---
+KNOWN_KEYS="workflow phase design_doc plan build_mode verify_mode verify_result verified_at archived"
+while IFS=: read -r key _; do
+  key="${key// /}"
+  [ -z "$key" ] && continue
+  found=0
+  for known in $KNOWN_KEYS; do
+    [ "$key" = "$known" ] && found=1 && break
+  done
+  if [ "$found" -eq 0 ]; then
+    warn_msg "unknown field '$key' found"
+  fi
+done < "$YAML"
+
+# --- Summary ---
+echo "" >&2
+if [ "$ERRORS" -gt 0 ]; then
+  red "$ERRORS error(s), $WARNINGS warning(s) — validation FAILED"
+  exit 1
+else
+  green "0 errors, $WARNINGS warning(s) — validation PASSED"
+  exit 0
+fi
