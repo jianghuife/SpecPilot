@@ -2,7 +2,7 @@
 
 All notable changes to @rpamis/comet will be documented in this file.
 
-## [0.2.0] - 2026-05-15
+## [0.1.3] - 2026-05-15
 
 ### Added
 
@@ -20,16 +20,15 @@ All notable changes to @rpamis/comet will be documented in this file.
 - Improved error messages with specific field values instead of generic placeholders
 - Enhanced project structure documentation
 
-### Fixed
+### Security
 
-- Security vulnerability: Path traversal possible through unvalidated change name inputs
+- Fixed path traversal vulnerability through unvalidated change name inputs
 - Schema validation now catches typos and invalid enum values at entry point
 
-## [0.1.3] - 2026-05-14
+## [0.1.2] - Unreleased
 
 ### Added
 
-- Initial npm package publication
 - Platform selection for 28 AI coding platforms
 - Comet skills: open, design, build, verify, archive, hotfix, tweak
 - Guard scripts for phase transition validation
