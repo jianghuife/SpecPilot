@@ -52,7 +52,30 @@ file_nonempty() {
   [ -f "$1" ] && [ -s "$1" ]
 }
 
+preflight() {
+  local expected_phase="$1"
+
+  if [ ! -d "$CHANGE_DIR" ]; then
+    red "FATAL: change directory not found: $CHANGE_DIR"
+    exit 1
+  fi
+  if [ ! -f "$CHANGE_DIR/.comet.yaml" ]; then
+    red "FATAL: .comet.yaml not found in $CHANGE_DIR"
+    exit 1
+  fi
+
+  local actual_phase
+  actual_phase=$(yaml_field_value "phase" 2>/dev/null || true)
+  if [ "$actual_phase" != "$expected_phase" ]; then
+    red "FATAL: .comet.yaml phase is '$actual_phase', expected '$expected_phase'"
+    exit 1
+  fi
+}
+
 maven_compiles() {
+  if [ "${COMET_SKIP_BUILD:-0}" = "1" ]; then
+    return 0
+  fi
   mvn compile -q 2>/dev/null
 }
 
@@ -60,6 +83,12 @@ verify_result_is_pass() {
   local result
   result=$(yaml_field_value "verify_result" 2>/dev/null || true)
   [ "$result" = "pass" ]
+}
+
+archived_is_true() {
+  local val
+  val=$(yaml_field_value "archived" 2>/dev/null || true)
+  [ "$val" = "true" ]
 }
 
 # --- Phase-specific checks ---
@@ -108,6 +137,7 @@ guard_verify() {
 guard_archive() {
   echo "=== Guard: archive completeness ===" >&2
 
+  check "archived is true" archived_is_true
   check "proposal.md exists" file_nonempty "$CHANGE_DIR/proposal.md"
   check "tasks.md all tasks checked" tasks_all_done
 }
@@ -115,11 +145,11 @@ guard_archive() {
 # --- Main ---
 
 case "$PHASE" in
-  open)     guard_open ;;
-  design)   guard_design ;;
-  build)    guard_build ;;
-  verify)   guard_verify ;;
-  archive)  guard_archive ;;
+  open)     preflight "design"  ; guard_open ;;
+  design)   preflight "build"   ; guard_design ;;
+  build)    preflight "verify"  ; guard_build ;;
+  verify)   preflight "archive" ; guard_verify ;;
+  archive)  preflight "archive" ; guard_archive ;;
   *)
     red "Unknown phase: $PHASE"
     echo "Valid phases: open, design, build, verify, archive" >&2
