@@ -30,10 +30,11 @@ comet init
 
 1. Prompt you to select AI platforms (auto-detects existing configs)
 2. Choose install scope: project-level (current directory) or global (home directory)
-3. Install [OpenSpec](https://github.com/Fission-AI/OpenSpec) skills
-4. Install [Superpowers](https://github.com/obra/superpowers) skills
-5. Deploy Comet skills to selected platforms
-6. Create `docs/superpowers/specs/` and `docs/superpowers/plans/` working directories
+3. Select language for Comet skills: English or 中文
+4. Install [OpenSpec](https://github.com/Fission-AI/OpenSpec) skills
+5. Install [Superpowers](https://github.com/obra/superpowers) skills
+6. Deploy Comet skills (in your chosen language) to selected platforms
+7. Create `docs/superpowers/specs/` and `docs/superpowers/plans/` working directories
 
 ## Commands
 
