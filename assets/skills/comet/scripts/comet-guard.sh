@@ -42,13 +42,13 @@ tasks_has_any() {
 
 yaml_has_field() {
   local field="$1"
-  local yaml="$CHANGE_DIR/.openspec.yaml"
+  local yaml="$CHANGE_DIR/.comet.yaml"
   [ -f "$yaml" ] && grep -q "^${field}:" "$yaml"
 }
 
 yaml_field_value() {
   local field="$1"
-  local yaml="$CHANGE_DIR/.openspec.yaml"
+  local yaml="$CHANGE_DIR/.comet.yaml"
   if [ -f "$yaml" ]; then
     # Escape dots for literal match (YAML field names contain dots)
     local escaped
@@ -67,7 +67,7 @@ maven_compiles() {
 
 verify_result_is_pass() {
   local result
-  result=$(yaml_field_value "comet.verify_result" 2>/dev/null || true)
+  result=$(yaml_field_value "verify_result" 2>/dev/null || true)
   [ "$result" = "pass" ]
 }
 
@@ -86,7 +86,7 @@ guard_design() {
   echo "=== Guard: design → build ===" >&2
 
   local design_doc
-  design_doc=$(yaml_field_value "comet.design_doc" 2>/dev/null || true)
+  design_doc=$(yaml_field_value "design_doc" 2>/dev/null || true)
 
   check "proposal.md exists" file_nonempty "$CHANGE_DIR/proposal.md"
   check "tasks.md exists" file_nonempty "$CHANGE_DIR/tasks.md"
@@ -94,7 +94,7 @@ guard_design() {
   if [ -n "$design_doc" ] && [ "$design_doc" != "null" ]; then
     check "Design Doc ($design_doc) exists" file_nonempty "$design_doc"
   else
-    warn "  [WARN] No design_doc recorded in .openspec.yaml"
+    warn "  [WARN] No design_doc recorded in .comet.yaml"
   fi
 }
 
