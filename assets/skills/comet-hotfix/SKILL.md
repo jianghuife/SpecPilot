@@ -34,19 +34,18 @@ Hotfix 是 Comet 五阶段能力的预设工作流，不是独立的平行流程
   - `tasks.md` — 修复任务清单
 - **无需 delta spec**（除非修复改变了已有 spec 的验收场景）
 
-在 `openspec/changes/<name>/.openspec.yaml` 中写入或合并 hotfix 状态：
+在 `openspec/changes/<name>/` 下创建独立的 `.comet.yaml` 文件：
 
 ```yaml
-comet:
-  workflow: hotfix
-  phase: build
-  design_doc: null
-  plan: null
-  build_mode: direct
-  verify_mode: light
-  verify_result: pending
-  verified_at: null
-  archived: false
+workflow: hotfix
+phase: build
+design_doc: null
+plan: null
+build_mode: direct
+verify_mode: light
+verify_result: pending
+verified_at: null
+archived: false
 ```
 
 ### 2. 直接构建（preset build）
@@ -87,11 +86,11 @@ comet:
 - 回归测试揭示深层架构问题 → 停止 hotfix，升级为 `/comet`
 - 修复需要额外接口变更 → 停止 hotfix，升级为 `/comet`
 
-验证通过后，按 `/comet-verify` 的规则将 `comet.verify_result` 记录为 `pass`，归档前不得跳过该状态。
+验证通过后，按 `/comet-verify` 的规则将 `.comet.yaml` 的 `verify_result` 记录为 `pass`，归档前不得跳过该状态。
 
 ### 4. 归档（preset archive）
 
-复用 `/comet-archive`。归档前必须满足 `comet.verify_result: pass`。
+复用 `/comet-archive`。归档前必须满足 `.comet.yaml` 中 `verify_result: pass`。
 
 **立即执行：** 使用 Skill 工具加载 `comet-archive` 技能进行归档。禁止跳过此步骤。
 如有 delta spec，按 comet-archive 规则同步到 main spec，并处理关联 Design Doc 与 Plan 的归档标注。
