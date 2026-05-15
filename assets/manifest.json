@@ -11,5 +11,9 @@
     "comet-archive/SKILL.md",
     "comet-hotfix/SKILL.md",
     "comet-tweak/SKILL.md"
+  ],
+  "languages": [
+    { "id": "en", "name": "English", "skillsDir": "skills" },
+    { "id": "zh", "name": "中文", "skillsDir": "skills-zh" }
   ]
 }

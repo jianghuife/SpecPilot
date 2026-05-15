@@ -24,9 +24,16 @@ type InitOptions = {
   overwrite?: boolean;
 };
 
+type LanguageConfig = {
+  id: string;
+  name: string;
+  skillsDir: string;
+};
+
 type Manifest = {
   version: string;
   skills: string[];
+  languages?: LanguageConfig[];
 };
 
 type InstallStatus = 'installed' | 'skipped' | 'failed';
@@ -282,7 +289,8 @@ async function installSuperpowersForPlatforms(
 async function copyCometSkillsForPlatform(
   baseDir: string,
   platform: Platform,
-  overwrite: boolean
+  overwrite: boolean,
+  languageSkillsDir: string = 'skills'
 ): Promise<{ copied: number; skipped: number }> {
   const assetsDir = getAssetsDir();
   const manifestPath = path.join(assetsDir, 'manifest.json');
@@ -296,7 +304,11 @@ async function copyCometSkillsForPlatform(
   let skippedCount = 0;
 
   for (const skillRelPath of manifest.skills) {
-    const src = path.join(assetsDir, 'skills', skillRelPath);
+    // Script files are language-agnostic, always from default skills/
+    const isScript = skillRelPath.includes('scripts/');
+    const sourceDir = isScript ? 'skills' : languageSkillsDir;
+
+    const src = path.join(assetsDir, sourceDir, skillRelPath);
     const dest = path.join(baseDir, platform.skillsDir, 'skills', skillRelPath);
 
     if (!overwrite && (await fileExists(dest))) {
@@ -359,6 +371,33 @@ async function selectScope(options: InitOptions): Promise<InstallScope> {
   });
 
   return scope;
+}
+
+/**
+ * Available languages for Comet skills.
+ */
+const LANGUAGES: LanguageConfig[] = [
+  { id: 'en', name: 'English', skillsDir: 'skills' },
+  { id: 'zh', name: '中文', skillsDir: 'skills-zh' },
+];
+
+/**
+ * Interactive language selection for Comet skills.
+ */
+async function selectLanguage(options: InitOptions): Promise<LanguageConfig> {
+  if (options.yes) {
+    return LANGUAGES[0];
+  }
+
+  const langId = await select({
+    message: 'Language for Comet skills:',
+    choices: LANGUAGES.map((lang) => ({
+      name: lang.name,
+      value: lang.id,
+    })),
+  });
+
+  return LANGUAGES.find((l) => l.id === langId) ?? LANGUAGES[0];
 }
 
 /**
@@ -468,6 +507,10 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
   // Step 2: Select scope (global vs project)
   const scope = await selectScope(options);
 
+  // Step 2.5: Select language for Comet skills
+  const language = await selectLanguage(options);
+  console.log(`  Language: ${language.name}`);
+
   // Step 3: Platform selection
   const selectedPlatformIds = await selectPlatforms(detected, options);
 
@@ -551,7 +594,7 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
 
     let cmStatus: InstallStatus = 'skipped';
     if (cmAction !== 'skip') {
-      const { copied } = await copyCometSkillsForPlatform(baseDir, platform, cmAction === 'overwrite');
+      const { copied } = await copyCometSkillsForPlatform(baseDir, platform, cmAction === 'overwrite', language.skillsDir);
       cmStatus = copied > 0 ? 'installed' : 'skipped';
       console.log(`  Comet -> ${platform.name}: ${cmStatus} (${copied} files) -> ${skillsPath}`);
     } else {
