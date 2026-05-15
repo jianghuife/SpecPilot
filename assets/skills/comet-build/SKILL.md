@@ -30,7 +30,7 @@ design-doc: docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md
 
 ### 2. 更新计划状态
 
-在 `openspec/changes/<name>/.comet.yaml` 中更新：
+在 `openspec/changes/<name>/.comet.yaml` 中合并更新以下字段（保留其他字段不变）：
 
 ```yaml
 phase: build
@@ -51,7 +51,7 @@ plan: docs/superpowers/plans/YYYY-MM-DD-feature.md
 - 任务数 ≤ 2 且无跨模块依赖 → 推荐 B
 - 来自 hotfix 路径 → 推荐 B
 
-用户选择后，在 `openspec/changes/<name>/.comet.yaml` 中记录实际执行方式。`build_mode` 只允许以下值之一：
+用户选择后，在 `openspec/changes/<name>/.comet.yaml` 中合并更新 `build_mode`（保留其他字段不变）。`build_mode` 只允许以下值之一：
 
 - `subagent-driven-development`
 - `executing-plans`
@@ -105,7 +105,7 @@ build_mode: executing-plans
 - `.comet.yaml` 中 `phase` 已更新为 `verify`
 - **阶段守卫**：运行 `bash $COMET_GUARD <change-name> build`，全部 PASS 后才允许流转
 
-退出前更新 `.comet.yaml`：
+退出前在 `.comet.yaml` 中合并更新以下字段（保留其他字段不变）：
 
 ```yaml
 phase: verify

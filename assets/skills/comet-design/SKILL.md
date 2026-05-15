@@ -39,7 +39,7 @@ Design 摘要: <design.md 架构决策>
 
 ### 2. 更新 Comet 状态
 
-在 `openspec/changes/<name>/.comet.yaml` 中更新：
+在 `openspec/changes/<name>/.comet.yaml` 中合并更新以下字段（保留其他字段不变）：
 
 ```yaml
 phase: build

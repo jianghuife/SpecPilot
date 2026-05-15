@@ -114,7 +114,7 @@ verify_result: pending
 - `.comet.yaml` 中 `verify_result` 已记录为 `pass`
 - **阶段守卫**：运行 `bash $COMET_GUARD <change-name> verify`，全部 PASS 后才允许流转
 
-退出前更新 `.comet.yaml`：
+退出前在 `.comet.yaml` 中合并更新以下字段（保留其他字段不变）：
 
 ```yaml
 phase: archive
