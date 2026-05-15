@@ -2,7 +2,6 @@
   "version": "0.1.0",
   "skills": [
     "comet/SKILL.md",
-    "comet/comet-state-template.yaml",
     "comet/scripts/comet-guard.sh",
     "comet-open/SKILL.md",
     "comet-design/SKILL.md",
