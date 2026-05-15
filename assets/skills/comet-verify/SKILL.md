@@ -36,14 +36,14 @@ Few-shot 示例：
 # 全部指标命中“小”
 phase: verify
 verify_mode: light
-  verify_result: pending
+verify_result: pending
 ```
 
 ```yaml
 # 任一指标命中“大”
 phase: verify
 verify_mode: full
-  verify_result: pending
+verify_result: pending
 ```
 
 ### 2a. 轻量验证（小改动）
