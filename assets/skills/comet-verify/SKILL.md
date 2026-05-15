@@ -1,148 +1,148 @@
 ---
 name: comet-verify
-description: "Comet 阶段 4：验证与收尾。用 /comet-verify 调用。验证实现符合设计，处理开发分支。"
+description: "Comet Phase 4: Verify and Complete. Invoke with /comet-verify. Verify implementation matches design, handle development branch."
 ---
 
-# Comet 阶段 4：验证与收尾（Verify）
+# Comet Phase 4: Verify and Complete (Verify)
 
-## 前置条件
+## Prerequisites
 
-- 代码已提交（阶段 3 完成）
-- tasks.md 全部任务已完成
+- Code has been committed (Phase 3 complete)
+- All tasks in tasks.md are complete
 
-## 步骤
+## Steps
 
-### 0. 入口状态验证（Entry Check）
+### 0. Entry State Verification (Entry Check)
 
-在执行任何操作之前，读取并验证当前状态：
+Before performing any operations, read and verify the current state:
 
-**检查清单：**
-1. `openspec/changes/<name>/.comet.yaml` 存在
-2. `phase` 字段的值为 `"verify"`
-3. `verify_result` 字段为 `"pending"` 或 null（尚未验证通过）
+**Checklist:**
+1. `openspec/changes/<name>/.comet.yaml` exists
+2. `phase` field value is `"verify"`
+3. `verify_result` field is `"pending"` or null (not yet verified)
 
-**验证方式：**
-- `cat openspec/changes/<name>/.comet.yaml` 读取全部字段
-- 如 `verify_result` 已是 `"pass"`，说明此 change 已验证过
+**Verification method:**
+- `cat openspec/changes/<name>/.comet.yaml` to read all fields
+- If `verify_result` is already `"pass"`, this change has already been verified
 
-**失败输出：**
+**Failure output:**
 ```
 [HARD STOP] Entry check failed for comet-verify
   Expected: phase=verify, verify_result=pending|null
-  Actual:   phase=<实际值>, verify_result=<实际值>
+  Actual:   phase=<actual-value>, verify_result=<actual-value>
   Suggestion: Run comet-build first, or this change was already verified.
 ```
 
-验证通过后才进入步骤 1。
+Proceed to Step 1 only after verification passes.
 
-### 1. 改动规模评估
+### 1. Change Scale Assessment
 
-根据以下指标判定改动规模：
+Determine change scale based on the following metrics:
 
-| 指标 | 小（轻量验证） | 大（完整验证） |
-|------|---------------|---------------|
-| tasks.md 任务数 | ≤ 3 | > 3 |
-| 变更文件数（git diff --stat） | ≤ 5 | > 5 |
-| 是否有 delta spec | 无 | 有 |
-| 是否新增 capability | 否 | 是 |
+| Metric | Small (lightweight verification) | Large (full verification) |
+|------|-------------------------------|--------------------------|
+| tasks.md task count | ≤ 3 | > 3 |
+| Changed file count (git diff --stat) | ≤ 5 | > 5 |
+| Has delta spec | No | Yes |
+| New capability added | No | Yes |
 
-**判定规则**：任一指标命中"大" → 完整验证。全部命中"小" → 轻量验证。
+**Decision rule**: Any metric hitting "large" → full verification. All hitting "small" → lightweight verification.
 
-判定完成后，在 `openspec/changes/<name>/.comet.yaml` 中记录实际验证模式。`verify_mode` 只允许以下值之一：
+After determination, record actual verification mode in `openspec/changes/<name>/.comet.yaml`. `verify_mode` only allows one of the following values:
 
 - `light`
 - `full`
 
-Few-shot 示例：
+Few-shot examples:
 
 ```yaml
-# 全部指标命中“小”
+# All metrics hit "small"
 phase: verify
 verify_mode: light
 verify_result: pending
 ```
 
 ```yaml
-# 任一指标命中”大”
+# Any metric hits "large"
 phase: verify
 verify_mode: full
 verify_result: pending
 ```
 
-【写入验证】更新完成后必须验证：
+【Write verification】After update completion, must verify:
   cat openspec/changes/<name>/.comet.yaml
-  确认 verify_mode 行的值为 “<light 或 full>”
-  如不匹配，重试写入后再次验证。最多重试 2 次，仍失败则报告错误并终止。
+  Confirm verify_mode line value is "<light or full>"
+  If not matching, retry write then verify again. Maximum 2 retries, report error and terminate if still fails.
 
-### 2a. 轻量验证（小改动）
+### 2a. Lightweight Verification (Small Changes)
 
-当规模评估结果为"小"时，跳过 `openspec-verify-change`，直接执行以下检查：
+When scale assessment result is "small", skip `openspec-verify-change`, directly execute the following checks:
 
-1. tasks.md 全部任务已完成 `[x]`
-2. 改动文件与 tasks.md 描述一致（`git diff --stat` 对照 tasks 内容）
-3. 编译通过（Maven 项目先执行 `mvn spotless:apply`，再执行 `mvn compile` 或等效命令）
-4. 相关测试通过
-5. 无明显安全问题（无硬编码密钥、无新增 unsafe 操作）
+1. All tasks in tasks.md completed `[x]`
+2. Changed files consistent with tasks.md description (`git diff --stat`对照 tasks content)
+3. Build passes (for Maven projects, first execute `mvn spotless:apply`, then execute `mvn compile` or equivalent command)
+4. Related tests pass
+5. No obvious security issues (no hardcoded secrets, no new unsafe operations)
 
-**通过标准**：5 项全部 OK，无 CRITICAL 问题。
+**Pass standard**: All 5 items OK, no CRITICAL issues.
 
-**报告格式**：简表列出 5 项检查结果 + PASS/FAIL。
+**Report format**: Brief table listing 5 check results + PASS/FAIL.
 
-**跳过项**（不在轻量验证中检查）：
-- spec scenario 覆盖率
-- design doc 一致性深度比对
-- code pattern consistency 建议
-- delta spec 与 design doc 漂移检测
+**Skipped items** (not checked in lightweight verification):
+- spec scenario coverage
+- design doc consistency deep comparison
+- code pattern consistency recommendations
+- delta spec and design doc drift detection
 
-### 2b. 完整验证（大改动）
+### 2b. Full Verification (Large Changes)
 
-当规模评估结果为"大"时：
+When scale assessment result is "large":
 
-**立即执行：** 使用 Skill 工具加载 `openspec-verify-change` 技能。禁止跳过此步骤。
+**Immediately execute:** Use the Skill tool to load the `openspec-verify-change` skill. Skipping this step is prohibited.
 
-技能加载后，按其指引验证。检查项：
-1. tasks.md 全部任务已完成（`[x]`）
-2. 实现符合 design.md 设计决策
-3. 实现符合 brainstorming 设计文档
-4. 能力规格场景全部通过
-5. proposal.md 目标已满足
-6. delta spec 与 design doc 无矛盾（若 Build 阶段有增量修改 spec，检查 design doc 是否有对应记录）
-7. `docs/superpowers/specs/` 关联的设计文档可定位（文件存在且与当前 change 相关）
+After the skill loads, follow its guidance to verify. Check items:
+1. All tasks in tasks.md completed (`[x]`)
+2. Implementation matches design.md design decisions
+3. Implementation matches brainstorming design document
+4. All capability specification scenarios pass
+5. proposal.md goals satisfied
+6. No contradiction between delta spec and design doc (if Build phase had incremental spec modifications, check if design doc has corresponding records)
+7. `docs/superpowers/specs/` associated design document can be located (file exists and relates to current change)
 
-验证不通过时：报告缺失项，返回阶段 3 补充（调用 `/comet-build`）。
+When verification fails: report missing items, return to Phase 3 to supplement (invoke `/comet-build`).
 
-**Spec 漂移处理**：
-- 若检查项 6 发现矛盾（delta spec 有内容但 design doc 未体现），提示用户：
-  - 选项 A：在 design doc 追加 "Implementation Divergence" 节记录偏差原因
-  - 选项 B：回退到 Build 阶段，补充 brainstorming 更新 design doc
-  - 选项 C：确认偏差可接受，继续验证（归档时 design doc 将标记为 `superseded-by-main-spec`）
+**Spec drift handling**:
+- If check item 6 finds contradiction (delta spec has content but design doc doesn't reflect it), prompt user:
+  - Option A: Append "Implementation Divergence" section to design doc recording deviation reason
+  - Option B: Roll back to Build phase, supplement brainstorming to update design doc
+  - Option C: Confirm deviation acceptable, continue verification (design doc will be marked as `superseded-by-main-spec` during archiving)
 
-### 3. 收尾（Superpowers）
+### 3. Completion (Superpowers)
 
-**立即执行：** 使用 Skill 工具加载 `superpowers:finishing-a-development-branch` 技能。禁止跳过此步骤。
+**Immediately execute:** Use the Skill tool to load the `superpowers:finishing-a-development-branch` skill. Skipping this step is prohibited.
 
-如 `superpowers:finishing-a-development-branch` 不可用，停止流程并提示安装或启用 Superpowers 技能，不要用普通对话替代该步骤。
+If `superpowers:finishing-a-development-branch` is unavailable, stop the process and prompt to install or enable Superpowers skills. Do not substitute this step with normal conversation.
 
-技能加载后，按其指引收尾。分支处理选项：
-1. 本地合并到主分支
-2. 推送并创建 PR
-3. 保持分支（稍后处理）
-4. 丢弃工作
+After the skill loads, follow its guidance to complete. Branch handling options:
+1. Local merge to main branch
+2. Push and create PR
+3. Keep branch (handle later)
+4. Discard work
 
-**确认项**：
-- Maven 测试或构建命令前已执行 `mvn spotless:apply`
-- 全部测试通过
-- 无遗留的 spotless 格式问题
-- 无硬编码密钥或安全问题
+**Confirmation items**:
+- Maven test or build commands have executed `mvn spotless:apply`
+- All tests pass
+- No remaining spotless formatting issues
+- No hardcoded secrets or security issues
 
-## 退出条件
+## Exit Conditions
 
-- 验证报告通过
-- 分支已处理
-- `.comet.yaml` 中 `verify_result` 已记录为 `pass`
-- **阶段守卫**：运行 `bash $COMET_GUARD <change-name> verify`，全部 PASS 后才允许流转
+- Verification report passed
+- Branch handled
+- `.comet.yaml` `verify_result` recorded as `pass`
+- **Phase guard**: Run `bash $COMET_GUARD <change-name> verify`, allow transition only after all PASS
 
-退出前在 `.comet.yaml` 中合并更新以下字段（保留其他字段不变）：
+Before exit, merge and update the following fields in `.comet.yaml` (keep other fields unchanged):
 
 ```yaml
 phase: archive
@@ -150,15 +150,15 @@ verify_result: pass
 verified_at: YYYY-MM-DD
 ```
 
-【写入验证】更新完成后必须验证：
+【Write verification】After update completion, must verify:
   cat openspec/changes/<name>/.comet.yaml
-  确认 phase 行的值为 "archive"
-  确认 verify_result 行的值为 "pass"
-  确认 verified_at 行的值非空（格式为 YYYY-MM-DD）
-  如任一字段不匹配，重试写入后再次验证。最多重试 2 次，仍失败则报告错误并终止。
+  Confirm phase line value is "archive"
+  Confirm verify_result line value is "pass"
+  Confirm verified_at line value is non-empty (format YYYY-MM-DD)
+  If any field does not match, retry write then verify again. Maximum 2 retries, report error and terminate if still fails.
 
-## 自动流转
+## Automatic Transition
 
-退出条件满足后，**无需等待用户再次输入**，直接执行下一阶段：
+After exit conditions are met, **proceed immediately to the next phase without waiting for user input**:
 
-> **REQUIRED NEXT SKILL:** 调用 `comet-archive` skill 进入归档阶段。
+> **REQUIRED NEXT SKILL:** Invoke `comet-archive` skill to enter the archiving phase.

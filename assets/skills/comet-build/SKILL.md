@@ -1,51 +1,51 @@
 ---
 name: comet-build
-description: "Comet 阶段 3：计划与构建。用 /comet-build 调用。制定计划并通过 subagent-driven-development 执行实施。"
+description: "Comet Phase 3: Plan and Build. Invoke with /comet-build. Create plans and execute implementation through subagent-driven-development."
 ---
 
-# Comet 阶段 3：计划与构建（Build）
+# Comet Phase 3: Plan and Build (Build)
 
-## 前置条件
+## Prerequisites
 
-- Design Doc 已创建（阶段 2 完成）
-- 活跃 change 存在
+- Design Doc has been created (Phase 2 complete)
+- Active change exists
 
-## 步骤
+## Steps
 
-### 0. 入口状态验证（Entry Check）
+### 0. Entry State Verification (Entry Check)
 
-在执行任何操作之前，读取并验证当前状态：
+Before performing any operations, read and verify the current state:
 
-**检查清单：**
-1. `openspec/changes/<name>/.comet.yaml` 存在
-2. `phase` 字段的值为 `"build"`
-3. `design_doc` 字段非 null 且非空
-4. `design_doc` 引用的文件存在（例如 `docs/superpowers/specs/YYYY-MM-DD-topic-design.md`）
-5. `openspec/changes/<name>/proposal.md` 存在且非空
-6. `openspec/changes/<name>/tasks.md` 存在且非空
+**Checklist:**
+1. `openspec/changes/<name>/.comet.yaml` exists
+2. `phase` field value is `"build"`
+3. `design_doc` field is non-null and non-empty
+4. File referenced by `design_doc` exists (e.g., `docs/superpowers/specs/YYYY-MM-DD-topic-design.md`)
+5. `openspec/changes/<name>/proposal.md` exists and is non-empty
+6. `openspec/changes/<name>/tasks.md` exists and is non-empty
 
-**验证方式：**
-- `cat openspec/changes/<name>/.comet.yaml` 读取全部字段
-- 用 `ls` 或 `test -f` 确认 design_doc 文件存在
+**Verification method:**
+- `cat openspec/changes/<name>/.comet.yaml` to read all fields
+- Use `ls` or `test -f` to confirm design_doc file exists
 
-**失败输出：**
+**Failure output:**
 ```
 [HARD STOP] Entry check failed for comet-build
   Expected: phase=build, design_doc=<path> exists
-  Actual:   phase=<实际值>, design_doc=<实际值或文件不存在>
+  Actual:   phase=<actual-value>, design_doc=<actual-value or file does not exist>
   Suggestion: Run comet-design first, or verify design_doc file exists.
 ```
 
-验证通过后才进入步骤 1。
+Proceed to Step 1 only after verification passes.
 
-### 1. 制定计划
+### 1. Create Plan
 
-**立即执行：** 使用 Skill 工具加载 `superpowers:writing-plans` 技能。禁止跳过此步骤。
+**Immediately execute:** Use the Skill tool to load the `superpowers:writing-plans` skill. Skipping this step is prohibited.
 
-技能加载后，按其指引制定计划。计划要求：
-- 保存至 `docs/superpowers/plans/YYYY-MM-DD-<feature>.md`
-- 引用设计文档，拆分为可执行任务
-- **Plan 文件头必须包含关联元数据**：
+After the skill loads, follow its guidance to create a plan. Plan requirements:
+- Save to `docs/superpowers/plans/YYYY-MM-DD-<feature>.md`
+- Reference design document, break down into executable tasks
+- **Plan file header must contain associated metadata**:
 
 ```yaml
 ---
@@ -54,108 +54,108 @@ design-doc: docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md
 ---
 ```
 
-### 2. 更新计划状态
+### 2. Update Plan Status
 
-在 `openspec/changes/<name>/.comet.yaml` 中合并更新以下字段（保留其他字段不变）：
+Merge and update the following fields in `openspec/changes/<name>/.comet.yaml` (keep other fields unchanged):
 
 ```yaml
 phase: build
 plan: docs/superpowers/plans/YYYY-MM-DD-feature.md
 ```
 
-【写入验证】更新完成后必须验证：
+【Write verification】After update completion, must verify:
   cat openspec/changes/<name>/.comet.yaml
-  确认 plan 行的值为 "docs/superpowers/plans/YYYY-MM-DD-feature.md"
-  如不匹配，重试写入后再次验证。最多重试 2 次，仍失败则报告错误并终止。
+  Confirm plan line value is "docs/superpowers/plans/YYYY-MM-DD-feature.md"
+  If not matching, retry write then verify again. Maximum 2 retries, report error and terminate if still fails.
 
-### 3. 选择执行方式
+### 3. Select Execution Method
 
-向用户展示计划摘要（任务数、涉及模块），然后询问执行方式：
+Present plan summary to user (task count, involved modules), then ask for execution method:
 
-| 选项 | 技能 | 适用场景 |
-|------|------|---------|
-| A | `superpowers:subagent-driven-development` | 任务独立、复杂度高、需要双阶段审查 |
-| B | `superpowers:executing-plans` | 任务简单、无子agent环境、轻量快速 |
+| Option | Skill | Applicable Scenario |
+|------|------|-------------------|
+| A | `superpowers:subagent-driven-development` | Independent tasks, high complexity, requires two-phase review |
+| B | `superpowers:executing-plans` | Simple tasks, no subagent environment, lightweight and fast |
 
-**推荐规则**：
-- 任务数 ≥ 3 → 推荐 A
-- 任务数 ≤ 2 且无跨模块依赖 → 推荐 B
-- 来自 hotfix 路径 → 推荐 B
+**Recommendation rules**:
+- Task count ≥ 3 → Recommend A
+- Task count ≤ 2 and no cross-module dependencies → Recommend B
+- From hotfix path → Recommend B
 
-用户选择后，在 `openspec/changes/<name>/.comet.yaml` 中合并更新 `build_mode`（保留其他字段不变）。`build_mode` 只允许以下值之一：
+After user selection, merge and update `build_mode` in `openspec/changes/<name>/.comet.yaml` (keep other fields unchanged). `build_mode` only allows one of the following values:
 
 - `subagent-driven-development`
 - `executing-plans`
-- `direct`（仅 hotfix preset 使用）
+- `direct` (only for hotfix preset use)
 
-Few-shot 示例：
+Few-shot examples:
 
 ```yaml
-# 用户选择稳健模式 / A
+# User selects robust mode / A
 build_mode: subagent-driven-development
 ```
 
 ```yaml
-# 用户选择快速模式 / B
+# User selects fast mode / B
 build_mode: executing-plans
 ```
 
-【写入验证】更新完成后必须验证：
+【Write verification】After update completion, must verify:
   cat openspec/changes/<name>/.comet.yaml
-  确认 build_mode 行的值为 "<subagent-driven-development 或 executing-plans 或 direct>"
-  如不匹配，重试写入后再次验证。最多重试 2 次，仍失败则报告错误并终止。
+  Confirm build_mode line value is "<subagent-driven-development or executing-plans or direct>"
+  If not matching, retry write then verify again. Maximum 2 retries, report error and terminate if still fails.
 
-然后，**立即执行：** 使用 Skill 工具加载对应技能。禁止跳过此步骤。
+Then, **immediately execute:** Use the Skill tool to load the corresponding skill. Skipping this step is prohibited.
 
-如所选 Superpowers 技能不可用，停止流程并提示安装或启用对应技能，不要用普通对话替代该步骤。
+If the selected Superpowers skill is unavailable, stop the process and prompt to install or enable the corresponding skill. Do not substitute this step with normal conversation.
 
-技能加载后，按其指引执行：
-- 按计划执行任务
-- 完成 tasks.md 勾选（`- [ ]` → `- [x]`）
-- 每个任务完成后提交代码
+After the skill loads, follow its guidance to execute:
+- Execute tasks according to plan
+- Complete tasks.md check (`- [ ]` → `- [x]`)
+- Commit code after each task completion
 
-### 4. Spec 增量更新
+### 4. Spec Incremental Updates
 
-实施过程中发现初版 spec 不完整时，按变更规模分级处理：
+When the initial spec is found incomplete during implementation, handle by scale:
 
-| 规模 | 触发条件 | 做法 |
-|------|---------|------|
-| 小 | 遗漏验收场景、边界条件 | 直接编辑 delta spec + design.md，追加 tasks.md 任务 |
-| 中 | 接口变更、新增组件、数据流变化 | 重新 `superpowers:brainstorming` 更新 Design Doc + delta spec |
-| 大 | 全新 capability 需求 | `/opsx:new` 创建独立 change |
+| Scale | Trigger Conditions | Approach |
+|------|-------------------|----------|
+| Small | Missing acceptance scenarios, edge cases | Directly edit delta spec + design.md, append tasks.md tasks |
+| Medium | Interface changes, new components, data flow changes | Re-run `superpowers:brainstorming` to update Design Doc + delta spec |
+| Large | Brand-new capability requirements | `/opsx:new` to create independent change |
 
-**50% 阈值判定**：以 tasks.md 初始任务总数为基准，若新增任务数超过该总数的一半，视为超出原计划范围，应考虑拆分为新 change。
+**50% Threshold Determination**: Using initial task count in tasks.md as baseline, if new tasks exceed half of that total, it's considered outside original plan scope, should consider splitting into new change.
 
-**原则**：
-- delta spec 是活文档，本阶段期间随时可修改
-- 每次更新应提交，commit message 说明变更原因
-- 不提前同步到 main spec，归档时统一同步
-- 如增量任务超过原 tasks.md 初始任务总数 50%，考虑拆分为新 change
-- 小规模增量直接改 delta spec 时，应在 commit message 中注明，便于归档时判断 design doc 漂移
+**Principles**:
+- Delta spec is a living document, can be modified at any time during this phase
+- Each update should be committed with commit message explaining the change reason
+- Do not sync to main spec in advance, sync uniformly during archiving
+- If incremental tasks exceed 50% of initial tasks.md total task count, consider splitting into new change
+- For small-scale incremental direct delta spec edits, note in commit message to facilitate design doc drift assessment during archiving
 
-## 退出条件
+## Exit Conditions
 
-- tasks.md 全部勾选
-- 代码已提交
-- 测试通过
-- `.comet.yaml` 中 `phase` 已更新为 `verify`
-- **阶段守卫**：运行 `bash $COMET_GUARD <change-name> build`，全部 PASS 后才允许流转
+- All tasks.md checked
+- Code committed
+- Tests pass
+- `.comet.yaml` `phase` updated to `verify`
+- **Phase guard**: Run `bash $COMET_GUARD <change-name> build`, allow transition only after all PASS
 
-退出前在 `.comet.yaml` 中合并更新以下字段（保留其他字段不变）：
+Before exit, merge and update the following fields in `.comet.yaml` (keep other fields unchanged):
 
 ```yaml
 phase: verify
 verify_result: pending
 ```
 
-【写入验证】更新完成后必须验证：
+【Write verification】After update completion, must verify:
   cat openspec/changes/<name>/.comet.yaml
-  确认 phase 行的值为 "verify"
-  确认 verify_result 行的值为 "pending"
-  如任一字段不匹配，重试写入后再次验证。最多重试 2 次，仍失败则报告错误并终止。
+  Confirm phase line value is "verify"
+  Confirm verify_result line value is "pending"
+  If any field does not match, retry write then verify again. Maximum 2 retries, report error and terminate if still fails.
 
-## 自动流转
+## Automatic Transition
 
-退出条件满足后，**无需等待用户再次输入**，直接执行下一阶段：
+After exit conditions are met, **proceed immediately to the next phase without waiting for user input**:
 
-> **REQUIRED NEXT SKILL:** 调用 `comet-verify` skill 进入验证与收尾阶段。
+> **REQUIRED NEXT SKILL:** Invoke `comet-verify` skill to enter the verification and completion phase.

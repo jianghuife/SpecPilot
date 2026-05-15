@@ -1,96 +1,96 @@
 ---
 name: comet-archive
-description: "Comet 阶段 5：归档。用 /comet-archive 调用。同步 delta spec 到主 spec，归档 change。"
+description: "Comet Phase 5: Archive. Invoke with /comet-archive. Sync delta spec to main spec, archive change."
 ---
 
-# Comet 阶段 5：归档（Archive）
+# Comet Phase 5: Archive (Archive)
 
-## 前置条件
+## Prerequisites
 
-- 验证已通过（阶段 4 完成）
-- 分支已处理
-- `openspec/changes/<name>/.comet.yaml` 中 `verify_result: pass`
+- Verification passed (Phase 4 complete)
+- Branch handled
+- `verify_result: pass` in `openspec/changes/<name>/.comet.yaml`
 
-## 步骤
+## Steps
 
-### 0. 入口状态验证（Entry Check）
+### 0. Entry State Verification (Entry Check)
 
-在执行任何操作之前，读取并验证当前状态：
+Before performing any operations, read and verify the current state:
 
-**检查清单：**
-1. `openspec/changes/<name>/.comet.yaml` 存在
-2. `phase` 字段的值为 `"archive"`
-3. `verify_result` 字段的值为 `"pass"`
-4. `archived` 字段为 `"false"` 或 null（尚未归档）
+**Checklist:**
+1. `openspec/changes/<name>/.comet.yaml` exists
+2. `phase` field value is `"archive"`
+3. `verify_result` field value is `"pass"`
+4. `archived` field is `"false"` or null (not yet archived)
 
-**验证方式：**
-- `cat openspec/changes/<name>/.comet.yaml` 读取全部字段
-- 如 `verify_result` 不是 `"pass"`，必须先完成验证
+**Verification method:**
+- `cat openspec/changes/<name>/.comet.yaml` to read all fields
+- If `verify_result` is not `"pass"`, must complete verification first
 
-**失败输出：**
+**Failure output:**
 ```
 [HARD STOP] Entry check failed for comet-archive
   Expected: phase=archive, verify_result=pass, archived=false|null
-  Actual:   phase=<实际值>, verify_result=<实际值>, archived=<实际值>
+  Actual:   phase=<actual-value>, verify_result=<actual-value>, archived=<actual-value>
   Suggestion: Run comet-verify first, or this change was already archived.
 ```
 
-验证通过后才进入步骤 1。
+Proceed to Step 1 only after verification passes.
 
-### 1. 执行归档
+### 1. Execute Archive
 
-归档前如 `verify_result` 不是 `pass`，停止归档并返回 `/comet-verify`。
+Before archiving, if `verify_result` is not `pass`, stop archiving and return to `/comet-verify`.
 
-**立即执行：** 使用 Skill 工具加载 `openspec-archive-change` 技能。禁止跳过此步骤。
+**Immediately execute:** Use the Skill tool to load the `openspec-archive-change` skill. Skipping this step is prohibited.
 
-技能加载后，按其指引归档。自动检查：
-1. artifact 完成状态（proposal、design、specs、tasks）
-2. 所有任务已标记 `[x]`
-3. delta specs 同步状态
+After the skill loads, follow its guidance to archive. Automatic checks:
+1. Artifact completion status (proposal, design, specs, tasks)
+2. All tasks marked `[x]`
+3. Delta specs sync status
 
-### 1b. 移动 Comet 状态文件
+### 1b. Move Comet State File
 
-`openspec-archive-change` 不感知 `.comet.yaml`，因此 Comet 需要在 OpenSpec 归档完成后自行移动该文件：
+`openspec-archive-change` is not aware of `.comet.yaml`, so Comet needs to move this file itself after OpenSpec archiving completes:
 
 ```bash
 mv openspec/changes/<name>/.comet.yaml openspec/changes/archive/YYYY-MM-DD-<name>/.comet.yaml
 ```
 
-【写入验证】移动完成后必须验证：
+【Write verification】After move completion, must verify:
   test -f openspec/changes/archive/YYYY-MM-DD-<name>/.comet.yaml
-  确认归档目录中 .comet.yaml 存在
-  如文件不在预期位置，检查 mv 命令是否成功执行。
+  Confirm .comet.yaml exists in archive directory
+  If file is not at expected location, check if mv command executed successfully.
 
-### 2. Delta Spec 同步
+### 2. Delta Spec Sync
 
-归档时将 delta specs 同步到主 specs：
+Sync delta specs to main specs during archiving:
 
 ```
 openspec/changes/<name>/specs/<capability>/spec.md
-       ↓ 同步
-openspec/specs/<capability>/spec.md  ← 主 spec（持久化）
+       ↓ sync
+openspec/specs/<capability>/spec.md  ← main spec (persistent)
 ```
 
-### 3. Design Doc & Plan 处理
+### 3. Design Doc & Plan Handling
 
-归档时同步处理 `docs/superpowers/` 下的关联文件。若目标文件已有 YAML frontmatter，将归档字段合并到现有 frontmatter；若没有 frontmatter，才新建一组 frontmatter。
+Handle associated files under `docs/superpowers/` during archiving. If target file already has YAML frontmatter, merge archive fields into existing frontmatter; if no frontmatter, create new frontmatter.
 
-**3a. Design Doc 一致性标注**
+**3a. Design Doc Consistency Annotation**
 
-查找 `docs/superpowers/specs/` 中与当前 change 关联的设计文档：
-- 对比 delta spec 最终版与 design doc 内容
-- 如有偏差（实施过程中 spec 发生了增量修改），在 design doc 的 YAML frontmatter 中设置以下元数据：
+Find design documents associated with current change in `docs/superpowers/specs/`:
+- Compare delta spec final version with design doc content
+- If there are discrepancies (incremental spec modifications during implementation), set the following metadata in design doc's YAML frontmatter:
 
 ```yaml
 ---
 archived-with: YYYY-MM-DD-<name>
 status: superseded-by-main-spec
 implementation-notes: |
-  <简述实施过程中偏离原设计的关键变化>
+  <briefly describe key changes deviating from original design during implementation>
 ---
 ```
 
-- 如完全一致，仅设置：
+- If completely consistent, only set:
 
 ```yaml
 ---
@@ -99,13 +99,13 @@ status: final
 ---
 ```
 
-**3b. Plan 关联标注**
+**3b. Plan Association Annotation**
 
-查找 `docs/superpowers/plans/` 中与当前 change 关联的实施计划，在 YAML frontmatter 中设置相同的 `archived-with` 元数据。
+Find implementation plans associated with current change in `docs/superpowers/plans/`, set the same `archived-with` metadata in YAML frontmatter.
 
-### 4. 归档目录
+### 4. Archive Directory
 
-change 移入归档目录：
+Change moves to archive directory:
 
 ```
 openspec/changes/archive/YYYY-MM-DD-<name>/
@@ -117,35 +117,35 @@ openspec/changes/archive/YYYY-MM-DD-<name>/
 └── tasks.md
 ```
 
-### 5. 生命周期闭环
+### 5. Lifecycle Closed Loop
 
-Spec 生命周期在此完成：
+Spec lifecycle completes here:
 ```
-brainstorming → delta spec → 实施（增量修改）→ 验证 → 主 spec 同步 → design doc 标注 → 归档
+brainstorming → delta spec → implementation (incremental modifications) → verification → main spec sync → design doc annotation → archive
 ```
 
-## 退出条件
+## Exit Conditions
 
-- change 已归档（从活跃列表移除）
-- 主 specs 已更新（delta → main 同步完成）
-- 关联 design doc 已标注归档状态
-- 关联 plan 已标注归档状态
-- `.comet.yaml` 中 `archived` 已记录为 `true`
-- **阶段守卫**：运行 `bash $COMET_GUARD <change-name> archive`，全部 PASS 后确认归档完整
+- Change archived (removed from active list)
+- Main specs updated (delta → main sync complete)
+- Associated design doc annotated with archive status
+- Associated plan annotated with archive status
+- `.comet.yaml` `archived` recorded as `true`
+- **Phase guard**: Run `bash $COMET_GUARD <change-name> archive`, confirm archive complete after all PASS
 
-归档完成后，在归档目录的 `.comet.yaml` 中更新：
+After archiving completes, update `.comet.yaml` in archive directory:
 
 ```yaml
 phase: archive
 archived: true
 ```
 
-【写入验证】更新完成后必须验证：
+【Write verification】After update completion, must verify:
   cat openspec/changes/archive/YYYY-MM-DD-<name>/.comet.yaml
-  确认 phase 行的值为 "archive"
-  确认 archived 行的值为 "true"
-  如任一字段不匹配，重试写入后再次验证。最多重试 2 次，仍失败则报告错误并终止。
+  Confirm phase line value is "archive"
+  Confirm archived line value is "true"
+  If any field does not match, retry write then verify again. Maximum 2 retries, report error and terminate if still fails.
 
-## 完成
+## Complete
 
-Comet 流程全部完成。如需开始新工作，调用 `/comet` 或 `/comet-open`。
+Comet workflow complete. To start new work, invoke `/comet` or `/comet-open`.

@@ -1,108 +1,108 @@
 ---
 name: comet-design
-description: "Comet 阶段 2：深度设计。用 /comet-design 调用。通过 brainstorming 产出 Design Doc 和 delta spec。"
+description: "Comet Phase 2: Deep Design. Invoke with /comet-design. Produce Design Doc and delta spec through brainstorming."
 ---
 
-# Comet 阶段 2：深度设计（Design）
+# Comet Phase 2: Deep Design (Design)
 
-## 前置条件
+## Prerequisites
 
-- 活跃 change 已存在（proposal.md、design.md、tasks.md）
-- 无 Design Doc（`docs/superpowers/specs/` 下无对应文件）
+- Active change exists (proposal.md, design.md, tasks.md)
+- No Design Doc (no corresponding file under `docs/superpowers/specs/`)
 
-## 步骤
+## Steps
 
-### 0. 入口状态验证（Entry Check）
+### 0. Entry State Verification (Entry Check)
 
-在执行任何操作之前，读取并验证当前状态：
+Before performing any operations, read and verify the current state:
 
-**检查清单：**
-1. `openspec/changes/<name>/.comet.yaml` 存在
-2. `phase` 字段的值为 `"design"`
-3. `workflow` 字段的值为 `"full"`
-4. `design_doc` 字段为 `null` 或空
-5. `openspec/changes/<name>/proposal.md` 存在且非空
-6. `openspec/changes/<name>/design.md` 存在且非空
-7. `openspec/changes/<name>/tasks.md` 存在且非空
+**Checklist:**
+1. `openspec/changes/<name>/.comet.yaml` exists
+2. `phase` field value is `"design"`
+3. `workflow` field value is `"full"`
+4. `design_doc` field is `null` or empty
+5. `openspec/changes/<name>/proposal.md` exists and is non-empty
+6. `openspec/changes/<name>/design.md` exists and is non-empty
+7. `openspec/changes/<name>/tasks.md` exists and is non-empty
 
-**验证方式：**
-- `cat openspec/changes/<name>/.comet.yaml` 读取全部字段
-- 逐条比对检查清单
+**Verification method:**
+- `cat openspec/changes/<name>/.comet.yaml` to read all fields
+- Check checklist items one by one
 
-**失败输出：**
+**Failure output:**
 ```
 [HARD STOP] Entry check failed for comet-design
   Expected: phase=design, design_doc=<empty/null>, workflow=full
-  Actual:   phase=<实际值>, design_doc=<实际值>, workflow=<实际值>
+  Actual:   phase=<actual-value>, design_doc=<actual-value>, workflow=<actual-value>
   Suggestion: Run comet-open first, or check if .comet.yaml was modified out of sequence.
 ```
 
-验证通过后才进入步骤 1。
+Proceed to Step 1 only after verification passes.
 
-### 1a. 读取已有上下文
+### 1a. Read Existing Context
 
-读取活跃 change 下的 `proposal.md` 和 `design.md`，将核心内容整理为摘要：
-- **proposal 摘要**：目标、动机、范围
-- **design 摘要**：架构决策、高层设计
+Read `proposal.md` and `design.md` under the active change, organize core content into summaries:
+- **Proposal summary**: goals, motivation, scope
+- **Design summary**: architectural decisions, high-level design
 
-### 1b. 执行 Brainstorming（带上下文）
+### 1b. Execute Brainstorming (With Context)
 
-**立即执行：** 使用 Skill 工具加载 `superpowers:brainstorming` 技能，ARGUMENTS 包含：
+**Immediately execute:** Use the Skill tool to load the `superpowers:brainstorming` skill, ARGUMENTS contains:
 
 ```
 Change: <change-name>
-Proposal 摘要: <proposal 核心内容>
-Design 摘要: <design.md 架构决策>
-跳过上下文探索，直接进入设计提问。
+Proposal summary: <proposal core content>
+Design summary: <design.md architectural decisions>
+Skip context exploration, proceed directly to design questioning.
 ```
 
-禁止跳过此步骤，禁止在未加载该技能的情况下继续。
+Skipping this step is prohibited, and continuing without loading this skill is prohibited.
 
-如 `superpowers:brainstorming` 不可用，停止流程并提示安装或启用 Superpowers 技能，不要用普通对话替代该步骤。
+If `superpowers:brainstorming` is unavailable, stop the process and prompt to install or enable Superpowers skills. Do not substitute this step with normal conversation.
 
-技能加载后，按其指引产出：
-- `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` — 设计文档（技术 RFC）
-- `openspec/changes/<name>/specs/<capability>/spec.md` — 能力规格（delta）
+After the skill loads, follow its guidance to produce:
+- `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` — design document (technical RFC)
+- `openspec/changes/<name>/specs/<capability>/spec.md` — capability specification (delta)
 
-### 2. 更新 Comet 状态
+### 2. Update Comet State
 
-在 `openspec/changes/<name>/.comet.yaml` 中合并更新以下字段（保留其他字段不变）：
+Merge and update the following fields in `openspec/changes/<name>/.comet.yaml` (keep other fields unchanged):
 
 ```yaml
 phase: build
 design_doc: docs/superpowers/specs/YYYY-MM-DD-topic-design.md
 ```
 
-【写入验证】更新完成后必须验证：
+【Write verification】After update completion, must verify:
   cat openspec/changes/<name>/.comet.yaml
-  确认 phase 行的值为 "build"
-  确认 design_doc 行的值为 "docs/superpowers/specs/YYYY-MM-DD-topic-design.md"
-  如任一字段不匹配，重试写入后再次验证。最多重试 2 次，仍失败则报告错误并终止。
+  Confirm phase line value is "build"
+  Confirm design_doc line value is "docs/superpowers/specs/YYYY-MM-DD-topic-design.md"
+  If any field does not match, retry write then verify again. Maximum 2 retries, report error and terminate if still fails.
 
-### 3. 双 Spec 分工
+### 3. Dual Spec Division of Labor
 
-| Spec 类型 | 归属 | 存放位置 | 定义 |
-|-----------|------|---------|------|
-| 能力规格 | OpenSpec | `openspec/changes/<name>/specs/` | 系统应该做什么（需求 + 验收场景） |
-| 设计文档 | Superpowers | `docs/superpowers/specs/` | 怎么构建（技术架构 + 实现细节） |
+| Spec Type | Belongs To | Location | Definition |
+|-----------|-----------|----------|------------|
+| Capability specification | OpenSpec | `openspec/changes/<name>/specs/` | What the system should do (requirements + acceptance scenarios) |
+| Design document | Superpowers | `docs/superpowers/specs/` | How to build (technical architecture + implementation details) |
 
-### 4. 文档层级确认
+### 4. Document Hierarchy Confirmation
 
 ```
-proposal.md（阶段 1）              → Why + What
-design.md（阶段 1，OpenSpec）      → 高层架构决策
-设计文档（阶段 2，Superpowers）     → 深度技术设计
-能力规格（阶段 2，delta）           → 需求 + 验收场景
+proposal.md (Phase 1)              → Why + What
+design.md (Phase 1, OpenSpec)      → High-level architectural decisions
+Design document (Phase 2, Superpowers) → Deep technical design
+Capability specification (Phase 2, delta)  → Requirements + acceptance scenarios
 ```
 
-## 退出条件
+## Exit Conditions
 
-- Design Doc 已创建并保存
-- 如有新能力则 delta spec 已创建
-- **阶段守卫**：运行 `bash $COMET_GUARD <change-name> design`，全部 PASS 后才允许流转
+- Design Doc has been created and saved
+- Delta spec has been created if there are new capabilities
+- **Phase guard**: Run `bash $COMET_GUARD <change-name> design`, allow transition only after all PASS
 
-## 自动流转
+## Automatic Transition
 
-退出条件满足后，**无需等待用户再次输入**，直接执行下一阶段：
+After exit conditions are met, **proceed immediately to the next phase without waiting for user input**:
 
-> **REQUIRED NEXT SKILL:** 调用 `comet-build` skill 进入计划与构建阶段。
+> **REQUIRED NEXT SKILL:** Invoke `comet-build` skill to enter the planning and build phase.
