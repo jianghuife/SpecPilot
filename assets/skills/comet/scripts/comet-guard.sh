@@ -70,6 +70,18 @@ preflight() {
     red "FATAL: .comet.yaml phase is '$actual_phase', expected '$expected_phase'"
     exit 1
   fi
+
+  # Schema validation
+  local script_dir validate_script
+  script_dir="$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")" 2>/dev/null || dirname "$0")"
+  validate_script="$script_dir/comet-yaml-validate.sh"
+  if [ -f "$validate_script" ]; then
+    if ! bash "$validate_script" "$CHANGE" 2>/dev/null; then
+      bash "$validate_script" "$CHANGE"
+      red "FATAL: .comet.yaml schema validation failed"
+      exit 1
+    fi
+  fi
 }
 
 maven_compiles() {
