@@ -40,20 +40,11 @@ tasks_has_any() {
   [ -f "$tasks" ] && grep -q '\- \[' "$tasks"
 }
 
-yaml_has_field() {
-  local field="$1"
-  local yaml="$CHANGE_DIR/.comet.yaml"
-  [ -f "$yaml" ] && grep -q "^${field}:" "$yaml"
-}
-
 yaml_field_value() {
   local field="$1"
   local yaml="$CHANGE_DIR/.comet.yaml"
   if [ -f "$yaml" ]; then
-    # Escape dots for literal match (YAML field names contain dots)
-    local escaped
-    escaped=$(echo "$field" | sed 's/\./\\./g')
-    grep "^${escaped}:" "$yaml" | sed "s/^${escaped}: *//" | tr -d '"' | tr -d "'"
+    grep "^${field}:" "$yaml" | sed "s/^${field}: *//" | tr -d '"' | tr -d "'"
   fi
 }
 
