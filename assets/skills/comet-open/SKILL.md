@@ -30,7 +30,7 @@ description: "Comet 阶段 1：开启。用 /comet-open 调用。通过 OpenSpec
 ```
 [HARD STOP] Entry check failed for comet-open
   Expected: .comet.yaml does not exist, proposal.md + design.md + tasks.md exist
-  Actual:   <实际状态>
+  Actual:   phase=<实际值>, design_doc=<实际值> (或文件不存在)
   Suggestion: Check if another change with the same name is already active.
 ```
 

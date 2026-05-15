@@ -36,7 +36,7 @@ Hotfix 是 Comet 五阶段能力的预设工作流，不是独立的平行流程
 ```
 [HARD STOP] Entry check failed for comet-hotfix
   Expected: openspec/changes/<name>/.comet.yaml does not exist (new change)
-  Actual:   .comet.yaml exists with phase=<phase>
+  Actual:   .comet.yaml exists with phase=<实际值>
   Suggestion: Pick a different change name, or check if an existing hotfix is in progress.
 ```
 

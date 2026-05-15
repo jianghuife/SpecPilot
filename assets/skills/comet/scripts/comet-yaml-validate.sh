@@ -5,12 +5,35 @@
 
 set -euo pipefail
 
-CHANGE="$1"
-YAML="openspec/changes/$CHANGE/.comet.yaml"
-
 red()   { echo -e "\033[31m$1\033[0m" >&2; }
 green() { echo -e "\033[32m$1\033[0m" >&2; }
 warn()  { echo -e "\033[33m$1\033[0m" >&2; }
+
+# Input validation - prevent path traversal
+validate_change_name() {
+  local name="$1"
+  # Reject empty names
+  if [ -z "$name" ]; then
+    red "ERROR: Change name cannot be empty" >&2
+    exit 1
+  fi
+  # Only allow alphanumeric, hyphens, and underscores
+  if [[ ! "$name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    red "ERROR: Invalid change name: '$name'" >&2
+    red "Valid characters: a-z, A-Z, 0-9, -, _" >&2
+    exit 1
+  fi
+  # Reject path traversal attempts
+  if [[ "$name" =~ \.\. ]]; then
+    red "ERROR: Change name cannot contain '..' (path traversal not allowed)" >&2
+    exit 1
+  fi
+}
+
+validate_change_name "$1"
+
+CHANGE="$1"
+YAML="openspec/changes/$CHANGE/.comet.yaml"
 
 ERRORS=0
 WARNINGS=0

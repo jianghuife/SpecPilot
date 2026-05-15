@@ -32,7 +32,7 @@ description: "Comet 阶段 2：深度设计。用 /comet-design 调用。通过 
 **失败输出：**
 ```
 [HARD STOP] Entry check failed for comet-design
-  Expected: phase=design, design_doc=<empty>, workflow=full
+  Expected: phase=design, design_doc=<empty/null>, workflow=full
   Actual:   phase=<实际值>, design_doc=<实际值>, workflow=<实际值>
   Suggestion: Run comet-open first, or check if .comet.yaml was modified out of sequence.
 ```
