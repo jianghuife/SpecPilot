@@ -1,0 +1,34 @@
+# Changelog
+
+All notable changes to @rpamis/comet will be documented in this file.
+
+## [0.1.3] - 2026-05-15
+
+### Added
+
+- **State File Separation**: Comet workflow state now stored in independent `.comet.yaml` file instead of `.openspec.yaml` subtree
+- **Three-Layer Reliability Defense**:
+  - Entry verification for all phases with `[HARD STOP]` diagnostics
+  - Write-then-verify pattern for all state mutations
+  - Schema validator script (`comet-yaml-validate.sh`) with field, enum, and path validation
+- **Path Traversal Protection**: Input validation for change names to prevent directory traversal attacks
+- **Guard Script Integration**: Automatic schema validation during phase transitions
+
+### Changed
+
+- Updated all 9 Comet skills to use `.comet.yaml` instead of `.openspec.yaml` comet: subtree
+- Improved error messages with specific field values instead of generic placeholders
+- Enhanced project structure documentation
+
+### Security
+
+- Fixed path traversal vulnerability through unvalidated change name inputs
+- Schema validation now catches typos and invalid enum values at entry point
+
+## [0.1.2] - Unreleased
+
+### Added
+
+- Platform selection for 28 AI coding platforms
+- Comet skills: open, design, build, verify, archive, hotfix, tweak
+- Guard scripts for phase transition validation

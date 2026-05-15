@@ -6,13 +6,36 @@
 
 set -euo pipefail
 
-CHANGE="$1"
-PHASE="$2"
-CHANGE_DIR="openspec/changes/$CHANGE"
-
 red() { echo -e "\033[31m$1\033[0m" >&2; }
 green() { echo -e "\033[32m$1\033[0m" >&2; }
 warn() { echo -e "\033[33m$1\033[0m" >&2; }
+
+# Input validation - prevent path traversal
+validate_change_name() {
+  local name="$1"
+  # Reject empty names
+  if [ -z "$name" ]; then
+    red "ERROR: Change name cannot be empty" >&2
+    exit 1
+  fi
+  # Only allow alphanumeric, hyphens, and underscores
+  if [[ ! "$name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    red "ERROR: Invalid change name: '$name'" >&2
+    red "Valid characters: a-z, A-Z, 0-9, -, _" >&2
+    exit 1
+  fi
+  # Reject path traversal attempts
+  if [[ "$name" =~ \.\. ]]; then
+    red "ERROR: Change name cannot contain '..' (path traversal not allowed)" >&2
+    exit 1
+  fi
+}
+
+validate_change_name "$1"
+
+CHANGE="$1"
+PHASE="$2"
+CHANGE_DIR="openspec/changes/$CHANGE"
 
 BLOCK=0
 check() {
@@ -40,20 +63,11 @@ tasks_has_any() {
   [ -f "$tasks" ] && grep -q '\- \[' "$tasks"
 }
 
-yaml_has_field() {
-  local field="$1"
-  local yaml="$CHANGE_DIR/.openspec.yaml"
-  [ -f "$yaml" ] && grep -q "^${field}:" "$yaml"
-}
-
 yaml_field_value() {
   local field="$1"
-  local yaml="$CHANGE_DIR/.openspec.yaml"
+  local yaml="$CHANGE_DIR/.comet.yaml"
   if [ -f "$yaml" ]; then
-    # Escape dots for literal match (YAML field names contain dots)
-    local escaped
-    escaped=$(echo "$field" | sed 's/\./\\./g')
-    grep "^${escaped}:" "$yaml" | sed "s/^${escaped}: *//" | tr -d '"' | tr -d "'"
+    grep "^${field}:" "$yaml" | sed "s/^${field}: *//" | tr -d '"' | tr -d "'"
   fi
 }
 
@@ -61,14 +75,55 @@ file_nonempty() {
   [ -f "$1" ] && [ -s "$1" ]
 }
 
+preflight() {
+  local expected_phase="$1"
+
+  if [ ! -d "$CHANGE_DIR" ]; then
+    red "FATAL: change directory not found: $CHANGE_DIR"
+    exit 1
+  fi
+  if [ ! -f "$CHANGE_DIR/.comet.yaml" ]; then
+    red "FATAL: .comet.yaml not found in $CHANGE_DIR"
+    exit 1
+  fi
+
+  local actual_phase
+  actual_phase=$(yaml_field_value "phase" 2>/dev/null || true)
+  if [ "$actual_phase" != "$expected_phase" ]; then
+    red "FATAL: .comet.yaml phase is '$actual_phase', expected '$expected_phase'"
+    exit 1
+  fi
+
+  # Schema validation
+  local script_dir validate_script
+  script_dir="$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")" 2>/dev/null || dirname "$0")"
+  validate_script="$script_dir/comet-yaml-validate.sh"
+  if [ -f "$validate_script" ]; then
+    if ! bash "$validate_script" "$CHANGE" 2>/dev/null; then
+      bash "$validate_script" "$CHANGE"
+      red "FATAL: .comet.yaml schema validation failed"
+      exit 1
+    fi
+  fi
+}
+
 maven_compiles() {
+  if [ "${COMET_SKIP_BUILD:-0}" = "1" ]; then
+    return 0
+  fi
   mvn compile -q 2>/dev/null
 }
 
 verify_result_is_pass() {
   local result
-  result=$(yaml_field_value "comet.verify_result" 2>/dev/null || true)
+  result=$(yaml_field_value "verify_result" 2>/dev/null || true)
   [ "$result" = "pass" ]
+}
+
+archived_is_true() {
+  local val
+  val=$(yaml_field_value "archived" 2>/dev/null || true)
+  [ "$val" = "true" ]
 }
 
 # --- Phase-specific checks ---
@@ -86,7 +141,7 @@ guard_design() {
   echo "=== Guard: design → build ===" >&2
 
   local design_doc
-  design_doc=$(yaml_field_value "comet.design_doc" 2>/dev/null || true)
+  design_doc=$(yaml_field_value "design_doc" 2>/dev/null || true)
 
   check "proposal.md exists" file_nonempty "$CHANGE_DIR/proposal.md"
   check "tasks.md exists" file_nonempty "$CHANGE_DIR/tasks.md"
@@ -94,7 +149,7 @@ guard_design() {
   if [ -n "$design_doc" ] && [ "$design_doc" != "null" ]; then
     check "Design Doc ($design_doc) exists" file_nonempty "$design_doc"
   else
-    warn "  [WARN] No design_doc recorded in .openspec.yaml"
+    warn "  [WARN] No design_doc recorded in .comet.yaml"
   fi
 }
 
@@ -117,6 +172,7 @@ guard_verify() {
 guard_archive() {
   echo "=== Guard: archive completeness ===" >&2
 
+  check "archived is true" archived_is_true
   check "proposal.md exists" file_nonempty "$CHANGE_DIR/proposal.md"
   check "tasks.md all tasks checked" tasks_all_done
 }
@@ -124,11 +180,11 @@ guard_archive() {
 # --- Main ---
 
 case "$PHASE" in
-  open)     guard_open ;;
-  design)   guard_design ;;
-  build)    guard_build ;;
-  verify)   guard_verify ;;
-  archive)  guard_archive ;;
+  open)     preflight "design"  ; guard_open ;;
+  design)   preflight "build"   ; guard_design ;;
+  build)    preflight "verify"  ; guard_build ;;
+  verify)   preflight "archive" ; guard_verify ;;
+  archive)  preflight "archive" ; guard_archive ;;
   *)
     red "Unknown phase: $PHASE"
     echo "Valid phases: open, design, build, verify, archive" >&2

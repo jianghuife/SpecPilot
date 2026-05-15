@@ -20,6 +20,28 @@ Hotfix 是 Comet 五阶段能力的预设工作流，不是独立的平行流程
 
 ## 流程（preset workflow，4 阶段）
 
+### 0. 入口状态验证（Entry Check）
+
+在执行任何操作之前，验证当前状态：
+
+**检查清单：**
+1. `openspec/changes/<name>/` 目录不存在，或目录存在但 `.comet.yaml` 不存在（无冲突）
+
+**验证方式：**
+- `test -d openspec/changes/<name>` 检查目录
+- 如目录存在，`test -f openspec/changes/<name>/.comet.yaml` 检查配置文件
+- 如 `.comet.yaml` 已存在，读取 `phase` 检查是否为未完成的 hotfix
+
+**失败输出（有冲突）：**
+```
+[HARD STOP] Entry check failed for comet-hotfix
+  Expected: openspec/changes/<name>/.comet.yaml does not exist (new change)
+  Actual:   .comet.yaml exists with phase=<实际值>
+  Suggestion: Pick a different change name, or check if an existing hotfix is in progress.
+```
+
+验证通过后才进入流程步骤。
+
 执行链路：open → build → verify → archive。Hotfix 为每个阶段提供默认决策：精简开启、直接构建、按规模验证、验证通过后归档。
 
 ### 1. 快速开启（preset open）
@@ -34,20 +56,32 @@ Hotfix 是 Comet 五阶段能力的预设工作流，不是独立的平行流程
   - `tasks.md` — 修复任务清单
 - **无需 delta spec**（除非修复改变了已有 spec 的验收场景）
 
-在 `openspec/changes/<name>/.openspec.yaml` 中写入或合并 hotfix 状态：
+在 `openspec/changes/<name>/` 下创建独立的 `.comet.yaml` 文件：
 
 ```yaml
-comet:
-  workflow: hotfix
-  phase: build
-  design_doc: null
-  plan: null
-  build_mode: direct
-  verify_mode: light
-  verify_result: pending
-  verified_at: null
-  archived: false
+workflow: hotfix
+phase: build
+design_doc: null
+plan: null
+build_mode: direct
+verify_mode: light
+verify_result: pending
+verified_at: null
+archived: false
 ```
+
+【写入验证】创建完成后必须验证：
+  cat openspec/changes/<name>/.comet.yaml
+  确认 workflow 行的值为 "hotfix"
+  确认 phase 行的值为 "build"
+  确认 design_doc 行的值为 "null"
+  确认 plan 行的值为 "null"
+  确认 build_mode 行的值为 "direct"
+  确认 verify_mode 行的值为 "light"
+  确认 verify_result 行的值为 "pending"
+  确认 verified_at 行的值为 "null"
+  确认 archived 行的值为 "false"
+  如任一字段不匹配，重试写入后再次验证。最多重试 2 次，仍失败则报告错误并终止。
 
 ### 2. 直接构建（preset build）
 
@@ -87,11 +121,11 @@ comet:
 - 回归测试揭示深层架构问题 → 停止 hotfix，升级为 `/comet`
 - 修复需要额外接口变更 → 停止 hotfix，升级为 `/comet`
 
-验证通过后，按 `/comet-verify` 的规则将 `comet.verify_result` 记录为 `pass`，归档前不得跳过该状态。
+验证通过后，按 `/comet-verify` 的规则将 `.comet.yaml` 的 `verify_result` 记录为 `pass`，归档前不得跳过该状态。
 
 ### 4. 归档（preset archive）
 
-复用 `/comet-archive`。归档前必须满足 `comet.verify_result: pass`。
+复用 `/comet-archive`。归档前必须满足 `.comet.yaml` 中 `verify_result: pass`。
 
 **立即执行：** 使用 Skill 工具加载 `comet-archive` 技能进行归档。禁止跳过此步骤。
 如有 delta spec，按 comet-archive 规则同步到 main spec，并处理关联 Design Doc 与 Plan 的归档标注。

@@ -89,6 +89,13 @@ After `comet init`, three groups of skills are installed to the selected platfor
 | `/comet-hotfix` | Preset: Quick bug fix (skips brainstorming) |
 | `/comet-tweak` | Preset: Small change (skips brainstorming and full plan) |
 
+### Guard Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `comet-guard.sh` | Phase transition guard — validates exit conditions before phase transitions |
+| `comet-yaml-validate.sh` | Schema validator — validates `.comet.yaml` structure and field values |
+
 ### OpenSpec Skills
 
 Spec lifecycle management: propose, explore, sync, verify, archive, and more.
@@ -130,12 +137,54 @@ Development methodology: brainstorming, TDD, subagent-driven development, code r
 - **Commit frequently** — one commit per task, message reflects design intent
 - **Verify before archive** — `/comet-verify` must pass before `/comet-archive`
 
+### State Management
+
+Comet uses a decoupled state architecture with separate YAML files:
+
+| File | Owner | Purpose |
+|------|-------|---------|
+| `.openspec.yaml` | OpenSpec | Spec lifecycle, change metadata |
+| `.comet.yaml` | Comet | Workflow phase, execution mode, verification status |
+
+**Key Fields in `.comet.yaml`:**
+- `workflow`: `full`, `hotfix`, or `tweak`
+- `phase`: `design`, `build`, `verify`, `archive`
+- `design_doc`: Path to Superpowers Design Doc
+- `plan`: Path to implementation plan
+- `build_mode`: `subagent-driven-development`, `executing-plans`, or `direct`
+- `verify_mode`: `light` or `full`
+- `verify_result`: `pending`, `pass`, or `fail`
+- `archived`: Boolean indicating if change is archived
+
+### Reliability Features
+
+Comet includes three-layer defense to ensure agent execution reliability:
+
+1. **Entry Verification** — Each phase validates preconditions before execution
+   - Checks file existence, state consistency, and phase transitions
+   - Outputs `[HARD STOP]` with actionable suggestions if validation fails
+
+2. **Write-Then-Verify** — Every state write is immediately verified
+   - After updating `.comet.yaml`, agents must verify field values
+   - Automatic retry mechanism (up to 2 attempts) on mismatch
+
+3. **Schema Validation** — `comet-yaml-validate.sh` ensures data integrity
+   - Validates required fields (9 fields)
+   - Validates enum values (6 enum types)
+   - Validates referenced file paths exist
+   - Detects unknown/typos fields
+
+**Security**: Path traversal protection on all change name inputs
+
 ## Project Structure
 
 ```
 your-project/
 ├── .claude/skills/              # Platform skills dir (Comet + OpenSpec + Superpowers)
 │   ├── comet/SKILL.md
+│   │   └── scripts/
+│   │       ├── comet-guard.sh       # Phase transition guard
+│   │       └── comet-yaml-validate.sh # Schema validator
 │   ├── comet-*/SKILL.md
 │   ├── openspec-*/SKILL.md
 │   └── brainstorming/SKILL.md
@@ -143,7 +192,8 @@ your-project/
 │   ├── config.yaml
 │   └── changes/
 │       └── <name>/
-│           ├── .openspec.yaml
+│           ├── .openspec.yaml       # OpenSpec state
+│           ├── .comet.yaml          # Comet workflow state (decoupled)
 │           ├── proposal.md
 │           ├── design.md
 │           ├── specs/<capability>/spec.md
@@ -172,6 +222,8 @@ pnpm build
 # Test
 pnpm test
 ```
+
+See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 
 ## Security
 

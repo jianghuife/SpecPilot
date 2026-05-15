@@ -9,13 +9,37 @@ description: "Comet 阶段 5：归档。用 /comet-archive 调用。同步 delta
 
 - 验证已通过（阶段 4 完成）
 - 分支已处理
-- `openspec/changes/<name>/.openspec.yaml` 中 `comet.verify_result: pass`
+- `openspec/changes/<name>/.comet.yaml` 中 `verify_result: pass`
 
 ## 步骤
 
+### 0. 入口状态验证（Entry Check）
+
+在执行任何操作之前，读取并验证当前状态：
+
+**检查清单：**
+1. `openspec/changes/<name>/.comet.yaml` 存在
+2. `phase` 字段的值为 `"archive"`
+3. `verify_result` 字段的值为 `"pass"`
+4. `archived` 字段为 `"false"` 或 null（尚未归档）
+
+**验证方式：**
+- `cat openspec/changes/<name>/.comet.yaml` 读取全部字段
+- 如 `verify_result` 不是 `"pass"`，必须先完成验证
+
+**失败输出：**
+```
+[HARD STOP] Entry check failed for comet-archive
+  Expected: phase=archive, verify_result=pass, archived=false|null
+  Actual:   phase=<实际值>, verify_result=<实际值>, archived=<实际值>
+  Suggestion: Run comet-verify first, or this change was already archived.
+```
+
+验证通过后才进入步骤 1。
+
 ### 1. 执行归档
 
-归档前如 `comet.verify_result` 不是 `pass`，停止归档并返回 `/comet-verify`。
+归档前如 `verify_result` 不是 `pass`，停止归档并返回 `/comet-verify`。
 
 **立即执行：** 使用 Skill 工具加载 `openspec-archive-change` 技能。禁止跳过此步骤。
 
@@ -23,6 +47,19 @@ description: "Comet 阶段 5：归档。用 /comet-archive 调用。同步 delta
 1. artifact 完成状态（proposal、design、specs、tasks）
 2. 所有任务已标记 `[x]`
 3. delta specs 同步状态
+
+### 1b. 移动 Comet 状态文件
+
+`openspec-archive-change` 不感知 `.comet.yaml`，因此 Comet 需要在 OpenSpec 归档完成后自行移动该文件：
+
+```bash
+mv openspec/changes/<name>/.comet.yaml openspec/changes/archive/YYYY-MM-DD-<name>/.comet.yaml
+```
+
+【写入验证】移动完成后必须验证：
+  test -f openspec/changes/archive/YYYY-MM-DD-<name>/.comet.yaml
+  确认归档目录中 .comet.yaml 存在
+  如文件不在预期位置，检查 mv 命令是否成功执行。
 
 ### 2. Delta Spec 同步
 
@@ -73,6 +110,7 @@ change 移入归档目录：
 ```
 openspec/changes/archive/YYYY-MM-DD-<name>/
 ├── .openspec.yaml
+├── .comet.yaml
 ├── proposal.md
 ├── design.md
 ├── specs/<capability>/spec.md
@@ -92,16 +130,21 @@ brainstorming → delta spec → 实施（增量修改）→ 验证 → 主 spec
 - 主 specs 已更新（delta → main 同步完成）
 - 关联 design doc 已标注归档状态
 - 关联 plan 已标注归档状态
-- `.openspec.yaml` 中 `comet.archived` 已记录为 `true`
+- `.comet.yaml` 中 `archived` 已记录为 `true`
 - **阶段守卫**：运行 `bash $COMET_GUARD <change-name> archive`，全部 PASS 后确认归档完整
 
-归档完成后，在归档目录的 `.openspec.yaml` 中合并更新：
+归档完成后，在归档目录的 `.comet.yaml` 中更新：
 
 ```yaml
-comet:
-  phase: archive
-  archived: true
+phase: archive
+archived: true
 ```
+
+【写入验证】更新完成后必须验证：
+  cat openspec/changes/archive/YYYY-MM-DD-<name>/.comet.yaml
+  确认 phase 行的值为 "archive"
+  确认 archived 行的值为 "true"
+  如任一字段不匹配，重试写入后再次验证。最多重试 2 次，仍失败则报告错误并终止。
 
 ## 完成
 
