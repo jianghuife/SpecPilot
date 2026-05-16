@@ -39,112 +39,37 @@ Proceed to Step 1 only after verification passes.
 
 ### 1. Execute Archive
 
-Before archiving, if `verify_result` is not `pass`, stop archiving and return to `/comet-verify`.
-
-**Immediately execute:** Use the Skill tool to load the `openspec-archive-change` skill. Skipping this step is prohibited.
-
-After the skill loads, follow its guidance to archive. Automatic checks:
-1. Artifact completion status (proposal, design, specs, tasks)
-2. All tasks marked `[x]`
-3. Delta specs sync status
-
-### 1b. Move Comet State File
-
-`openspec-archive-change` is not aware of `.comet.yaml`, so Comet needs to move this file itself after OpenSpec archiving completes:
+Run the archive script to automatically complete all steps:
 
 ```bash
-mv openspec/changes/<name>/.comet.yaml openspec/changes/archive/YYYY-MM-DD-<name>/.comet.yaml
+COMET_ARCHIVE=$(find . -path '*/comet/scripts/comet-archive.sh' -type f -print -quit)
+bash "$COMET_ARCHIVE" "<change-name>"
 ```
 
-【Write verification】After move completion, must verify:
-  test -f openspec/changes/archive/YYYY-MM-DD-<name>/.comet.yaml
-  Confirm .comet.yaml exists in archive directory
-  If file is not at expected location, check if mv command executed successfully.
+The script automatically executes:
+1. Entry state validation (phase=archive, verify_result=pass, archived=false)
+2. Delta spec sync to main spec (overwrite)
+3. Design doc frontmatter annotation (archived-with, status)
+4. Plan frontmatter annotation (archived-with)
+5. Move change to archive directory
+6. Update archived: true
 
-### 2. Delta Spec Sync
+If script returns non-zero exit code, report error and stop.
+If script returns zero exit code, archive is complete.
 
-Sync delta specs to main specs during archiving:
+Use `--dry-run` flag to preview without executing.
 
-```
-openspec/changes/<name>/specs/<capability>/spec.md
-       ↓ sync
-openspec/specs/<capability>/spec.md  ← main spec (persistent)
-```
-
-### 3. Design Doc & Plan Handling
-
-Handle associated files under `docs/superpowers/` during archiving. If target file already has YAML frontmatter, merge archive fields into existing frontmatter; if no frontmatter, create new frontmatter.
-
-**3a. Design Doc Consistency Annotation**
-
-Find design documents associated with current change in `docs/superpowers/specs/`:
-- Compare delta spec final version with design doc content
-- If there are discrepancies (incremental spec modifications during implementation), set the following metadata in design doc's YAML frontmatter:
-
-```yaml
----
-archived-with: YYYY-MM-DD-<name>
-status: superseded-by-main-spec
-implementation-notes: |
-  <briefly describe key changes deviating from original design during implementation>
----
-```
-
-- If completely consistent, only set:
-
-```yaml
----
-archived-with: YYYY-MM-DD-<name>
-status: final
----
-```
-
-**3b. Plan Association Annotation**
-
-Find implementation plans associated with current change in `docs/superpowers/plans/`, set the same `archived-with` metadata in YAML frontmatter.
-
-### 4. Archive Directory
-
-Change moves to archive directory:
-
-```
-openspec/changes/archive/YYYY-MM-DD-<name>/
-├── .openspec.yaml
-├── .comet.yaml
-├── proposal.md
-├── design.md
-├── specs/<capability>/spec.md
-└── tasks.md
-```
-
-### 5. Lifecycle Closed Loop
+### 2. Lifecycle Closed Loop
 
 Spec lifecycle completes here:
 ```
-brainstorming → delta spec → implementation (incremental modifications) → verification → main spec sync → design doc annotation → archive
+brainstorming → delta spec → implementation → verification → main spec overwrite → design doc annotation → archive
 ```
 
 ## Exit Conditions
 
-- Change archived (removed from active list)
-- Main specs updated (delta → main sync complete)
-- Associated design doc annotated with archive status
-- Associated plan annotated with archive status
-- `.comet.yaml` `archived` recorded as `true`
+- Archive script executed successfully (exit code 0)
 - **Phase guard**: Run `bash $COMET_GUARD <change-name> archive`, confirm archive complete after all PASS
-
-After archiving completes, update `.comet.yaml` in archive directory:
-
-```yaml
-phase: archive
-archived: true
-```
-
-【Write verification】After update completion, must verify:
-  cat openspec/changes/archive/YYYY-MM-DD-<name>/.comet.yaml
-  Confirm phase line value is "archive"
-  Confirm archived line value is "true"
-  If any field does not match, retry write then verify again. Maximum 2 retries, report error and terminate if still fails.
 
 ## Complete
 

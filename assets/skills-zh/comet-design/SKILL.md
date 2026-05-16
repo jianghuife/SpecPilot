@@ -66,18 +66,17 @@ Design 摘要: <design.md 架构决策>
 
 ### 2. 更新 Comet 状态
 
-在 `openspec/changes/<name>/.comet.yaml` 中合并更新以下字段（保留其他字段不变）：
+先记录 design_doc 路径，再运行 guard 自动流转：
 
-```yaml
-phase: build
-design_doc: docs/superpowers/specs/YYYY-MM-DD-topic-design.md
+```bash
+# 记录 design_doc 路径
+sed -i 's|^design_doc:.*|design_doc: docs/superpowers/specs/YYYY-MM-DD-topic-design.md|' openspec/changes/<name>/.comet.yaml
+
+# 自动流转到下一阶段
+bash $COMET_GUARD <change-name> design --apply
 ```
 
-【写入验证】更新完成后必须验证：
-  cat openspec/changes/<name>/.comet.yaml
-  确认 phase 行的值为 "build"
-  确认 design_doc 行的值为 "docs/superpowers/specs/YYYY-MM-DD-topic-design.md"
-  如任一字段不匹配，重试写入后再次验证。最多重试 2 次，仍失败则报告错误并终止。
+状态文件自动更新，无需手动编辑其他字段。
 
 ### 3. 双 Spec 分工
 

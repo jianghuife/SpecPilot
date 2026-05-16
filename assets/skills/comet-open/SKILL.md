@@ -57,24 +57,6 @@ openspec/changes/<name>/
 └── tasks.md          # Task checklist (checkboxes)
 ```
 
-### 2b. Incrementally Modify Existing Capability (Optional)
-
-**Trigger condition:** proposal.md mentions modifying an existing capability, or user explicitly requests incremental modification.
-
-**Applicable scenario:** Incremental modification to archived functionality (not a brand-new capability).
-
-When proposal.md goals involve modifying an existing capability:
-1. Check if `openspec/specs/<capability>/spec.md` main spec already exists
-2. If it exists, copy the main spec as a delta spec baseline:
-
-```bash
-mkdir -p openspec/changes/<name>/specs/<capability>/
-cp openspec/specs/<capability>/spec.md openspec/changes/<name>/specs/<capability>/spec.md
-```
-
-3. In the copied delta spec, organize changes in delta format (`## ADDED`, `## MODIFIED`, `## REMOVED`)
-4. Note in proposal.md: `based on existing capability: <capability-name>`
-
 ### 3. Initialize Comet State
 
 Create an independent `.comet.yaml` file under `openspec/changes/<name>/`:
@@ -90,19 +72,6 @@ verify_result: pending
 verified_at: null
 archived: false
 ```
-
-【Write verification】After creation, must verify:
-  cat openspec/changes/<name>/.comet.yaml
-  Confirm workflow line value is "full"
-  Confirm phase line value is "design"
-  Confirm design_doc line value is "null"
-  Confirm plan line value is "null"
-  Confirm build_mode line value is "null"
-  Confirm verify_mode line value is "null"
-  Confirm verify_result line value is "pending"
-  Confirm verified_at line value is "null"
-  Confirm archived line value is "false"
-  If any field does not match, retry write then verify again. Maximum 2 retries, report error and terminate if still fails.
 
 ### 4. Content Completeness Check
 

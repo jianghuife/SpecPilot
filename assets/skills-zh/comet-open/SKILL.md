@@ -57,24 +57,6 @@ openspec/changes/<name>/
 └── tasks.md          # 任务清单（勾选框）
 ```
 
-### 2b. 增量修改已有 Capability（可选）
-
-**触发条件**：proposal.md 中提到修改已有 capability，或用户明确要求增量修改。
-
-**适用场景**：对已归档功能做增量修改（而非全新 capability）。
-
-当 proposal.md 目标涉及修改已有 capability 时：
-1. 查找 `openspec/specs/<capability>/spec.md` 是否已存在主 spec
-2. 如已存在，将主 spec 复制为 delta spec 基线：
-
-```bash
-mkdir -p openspec/changes/<name>/specs/<capability>/
-cp openspec/specs/<capability>/spec.md openspec/changes/<name>/specs/<capability>/spec.md
-```
-
-3. 在复制的 delta spec 中，按 delta 格式组织变更（`## ADDED`、`## MODIFIED`、`## REMOVED`）
-4. 在 proposal.md 中注明 `基于已有 capability: <capability-name>`
-
 ### 3. 初始化 Comet 状态
 
 在 `openspec/changes/<name>/` 下创建独立的 `.comet.yaml` 文件：
@@ -90,19 +72,6 @@ verify_result: pending
 verified_at: null
 archived: false
 ```
-
-【写入验证】创建完成后必须验证：
-  cat openspec/changes/<name>/.comet.yaml
-  确认 workflow 行的值为 "full"
-  确认 phase 行的值为 "design"
-  确认 design_doc 行的值为 "null"
-  确认 plan 行的值为 "null"
-  确认 build_mode 行的值为 "null"
-  确认 verify_mode 行的值为 "null"
-  确认 verify_result 行的值为 "pending"
-  确认 verified_at 行的值为 "null"
-  确认 archived 行的值为 "false"
-  如任一字段不匹配，重试写入后再次验证。最多重试 2 次，仍失败则报告错误并终止。
 
 ### 4. 内容完整性检查
 

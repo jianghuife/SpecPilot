@@ -56,17 +56,13 @@ design-doc: docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md
 
 ### 2. 更新计划状态
 
-在 `openspec/changes/<name>/.comet.yaml` 中合并更新以下字段（保留其他字段不变）：
+先记录 plan 路径：
 
-```yaml
-phase: build
-plan: docs/superpowers/plans/YYYY-MM-DD-feature.md
+```bash
+sed -i 's|^plan:.*|plan: docs/superpowers/plans/YYYY-MM-DD-feature.md|' openspec/changes/<name>/.comet.yaml
 ```
 
-【写入验证】更新完成后必须验证：
-  cat openspec/changes/<name>/.comet.yaml
-  确认 plan 行的值为 "docs/superpowers/plans/YYYY-MM-DD-feature.md"
-  如不匹配，重试写入后再次验证。最多重试 2 次，仍失败则报告错误并终止。
+无需手动更新 phase，guard 会在退出条件满足后自动流转。
 
 ### 3. 工作区隔离
 
@@ -81,27 +77,10 @@ plan: docs/superpowers/plans/YYYY-MM-DD-feature.md
 - 变更涉及 ≤ 3 个文件 → 推荐 A
 - 需要并行开发、当前分支有未提交工作 → 推荐 B
 
-用户选择后，在 `openspec/changes/<name>/.comet.yaml` 中合并更新 `isolation`（保留其他字段不变）。`isolation` 只允许以下值之一：
+用户选择后，在 `openspec/changes/<name>/.comet.yaml` 中更新 `isolation`。`isolation` 只允许以下值之一：
 
 - `branch`
 - `worktree`
-
-Few-shot 示例：
-
-```yaml
-# 用户选择创建分支 / A
-isolation: branch
-```
-
-```yaml
-# 用户选择创建 worktree / B
-isolation: worktree
-```
-
-【写入验证】更新完成后必须验证：
-  cat openspec/changes/<name>/.comet.yaml
-  确认 isolation 行的值为 "<branch 或 worktree>"
-  如不匹配，重试写入后再次验证。最多重试 2 次，仍失败则报告错误并终止。
 
 **执行隔离**：
 
@@ -124,28 +103,11 @@ isolation: worktree
 - 任务数 ≤ 2 且无跨模块依赖 → 推荐 B
 - 来自 hotfix 路径 → 推荐 B
 
-用户选择后，在 `openspec/changes/<name>/.comet.yaml` 中合并更新 `build_mode`（保留其他字段不变）。`build_mode` 只允许以下值之一：
+用户选择后，在 `openspec/changes/<name>/.comet.yaml` 中更新 `build_mode`。`build_mode` 只允许以下值之一：
 
 - `subagent-driven-development`
 - `executing-plans`
 - `direct`（仅 hotfix preset 使用）
-
-Few-shot 示例：
-
-```yaml
-# 用户选择稳健模式 / A
-build_mode: subagent-driven-development
-```
-
-```yaml
-# 用户选择快速模式 / B
-build_mode: executing-plans
-```
-
-【写入验证】更新完成后必须验证：
-  cat openspec/changes/<name>/.comet.yaml
-  确认 build_mode 行的值为 "<subagent-driven-development 或 executing-plans 或 direct>"
-  如不匹配，重试写入后再次验证。最多重试 2 次，仍失败则报告错误并终止。
 
 然后，**立即执行：** 使用 Skill 工具加载对应技能。禁止跳过此步骤。
 
@@ -183,18 +145,13 @@ build_mode: executing-plans
 - `.comet.yaml` 中 `phase` 已更新为 `verify`
 - **阶段守卫**：运行 `bash $COMET_GUARD <change-name> build`，全部 PASS 后才允许流转
 
-退出前在 `.comet.yaml` 中合并更新以下字段（保留其他字段不变）：
+退出前运行 guard 自动流转：
 
-```yaml
-phase: verify
-verify_result: pending
+```bash
+bash $COMET_GUARD <change-name> build --apply
 ```
 
-【写入验证】更新完成后必须验证：
-  cat openspec/changes/<name>/.comet.yaml
-  确认 phase 行的值为 "verify"
-  确认 verify_result 行的值为 "pending"
-  如任一字段不匹配，重试写入后再次验证。最多重试 2 次，仍失败则报告错误并终止。
+状态文件自动更新为 `phase: verify`、`verify_result: pending`。
 
 ## 自动流转
 

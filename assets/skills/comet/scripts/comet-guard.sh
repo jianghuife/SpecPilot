@@ -1,6 +1,6 @@
 #!/bin/bash
 # Comet Phase Guard — validates exit conditions before phase transitions
-# Usage: comet-guard.sh <change-name> <from-phase>
+# Usage: comet-guard.sh <change-name> <current-phase> [--apply]
 # Phases: open, design, build, verify, archive
 # Exit 0 = all checks pass, exit 1 = blocked (reasons printed to stderr)
 
@@ -35,6 +35,10 @@ validate_change_name "$1"
 
 CHANGE="$1"
 PHASE="$2"
+APPLY=0
+if [[ "${3:-}" == "--apply" ]]; then
+  APPLY=1
+fi
 CHANGE_DIR="openspec/changes/$CHANGE"
 
 BLOCK=0
@@ -177,6 +181,33 @@ guard_archive() {
   check "tasks.md all tasks checked" tasks_all_done
 }
 
+apply_state_update() {
+  local yaml="$CHANGE_DIR/.comet.yaml"
+  local p="$1"
+
+  case "$p" in
+    open)
+      sed -i 's/^phase:.*/phase: design/' "$yaml"
+      ;;
+    design)
+      sed -i 's/^phase:.*/phase: build/' "$yaml"
+      ;;
+    build)
+      sed -i 's/^phase:.*/phase: verify/' "$yaml"
+      sed -i 's/^verify_result:.*/verify_result: pending/' "$yaml"
+      ;;
+    verify)
+      sed -i 's/^phase:.*/phase: archive/' "$yaml"
+      sed -i 's/^verify_result:.*/verify_result: pass/' "$yaml"
+      if ! grep -q '^verified_at:' "$yaml" 2>/dev/null; then
+        echo "verified_at: $(date +%Y-%m-%d)" >> "$yaml"
+      else
+        sed -i "s/^verified_at:.*/verified_at: $(date +%Y-%m-%d)/" "$yaml"
+      fi
+      ;;
+  esac
+}
+
 # --- Main ---
 
 case "$PHASE" in
@@ -199,5 +230,14 @@ if [ "$BLOCK" -eq 1 ]; then
 else
   echo "" >&2
   green "ALL CHECKS PASSED — ready for next phase"
+  if [ "$APPLY" -eq 1 ]; then
+    apply_state_update "$PHASE"
+    case "$PHASE" in
+      open)   green "  [APPLY] .comet.yaml updated: phase=design" ;;
+      design) green "  [APPLY] .comet.yaml updated: phase=build" ;;
+      build)  green "  [APPLY] .comet.yaml updated: phase=verify, verify_result=pending" ;;
+      verify) green "  [APPLY] .comet.yaml updated: phase=archive, verify_result=pass" ;;
+    esac
+  fi
   exit 0
 fi

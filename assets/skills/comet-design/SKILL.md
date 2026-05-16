@@ -66,18 +66,17 @@ After the skill loads, follow its guidance to produce:
 
 ### 2. Update Comet State
 
-Merge and update the following fields in `openspec/changes/<name>/.comet.yaml` (keep other fields unchanged):
+Record design_doc path, then run guard to auto-transition:
 
-```yaml
-phase: build
-design_doc: docs/superpowers/specs/YYYY-MM-DD-topic-design.md
+```bash
+# Record design_doc path
+sed -i 's|^design_doc:.*|design_doc: docs/superpowers/specs/YYYY-MM-DD-topic-design.md|' openspec/changes/<name>/.comet.yaml
+
+# Auto-transition to next phase
+bash $COMET_GUARD <change-name> design --apply
 ```
 
-【Write verification】After update completion, must verify:
-  cat openspec/changes/<name>/.comet.yaml
-  Confirm phase line value is "build"
-  Confirm design_doc line value is "docs/superpowers/specs/YYYY-MM-DD-topic-design.md"
-  If any field does not match, retry write then verify again. Maximum 2 retries, report error and terminate if still fails.
+State file is updated automatically. No manual editing of other fields required.
 
 ### 3. Dual Spec Division of Labor
 

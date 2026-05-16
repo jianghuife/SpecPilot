@@ -161,12 +161,25 @@ If metadata conflicts with file state, use verifiable file state as source of tr
 
 ### Script Location
 
-Comet phase guard script `comet-guard.sh` is distributed with the skill package, located in `comet/scripts/` directory.
+Comet phase guard script `comet-guard.sh` and archive script `comet-archive.sh` are distributed with the skill package, located in `comet/scripts/` directory.
 **Do not hardcode platform paths**, self-locate at runtime with:
 
 ```bash
 COMET_GUARD=$(find . -path '*/comet/scripts/comet-guard.sh' -type f -print -quit)
 bash "$COMET_GUARD" <change-name> <phase>
+```
+
+**Auto state update**: Guard supports `--apply` flag, automatically updating `.comet.yaml` state fields after checks pass:
+
+```bash
+bash "$COMET_GUARD" <change-name> <phase> --apply
+```
+
+**Archive script**: Complete all archive steps in one command:
+
+```bash
+COMET_ARCHIVE=$(find . -path '*/comet/scripts/comet-archive.sh' -type f -print -quit)
+bash "$COMET_ARCHIVE" <change-name>
 ```
 
 In subsequent documentation, `bash $COMET_GUARD <change> <phase>` refers to this command. After loading comet, agents should cache `COMET_GUARD` path in shell environment to avoid repeated `find`.
@@ -185,7 +198,7 @@ openspec/                              # OpenSpec — WHAT
 │   │   ├── specs/<capability>/spec.md # Delta capability spec
 │   │   └── tasks.md                   # Task checklist
 │   └── archive/YYYY-MM-DD-<name>/     # Archived
-└── specs/<capability>/spec.md         # Main specs (sync from delta at archive)
+└── specs/<capability>/spec.md         # Main specs (overwritten from delta at archive)
 
 docs/superpowers/                      # Superpowers — HOW
 ├── specs/YYYY-MM-DD-<topic>-design.md # Design doc (technical RFC, mark status at archive)
@@ -202,5 +215,5 @@ docs/superpowers/                      # Superpowers — HOW
 6. **Classify incremental updates** — Small edits, medium brainstorming, large new changes
 7. **Plan must associate with change** — File header contains `change:` and `design-doc:` metadata
 8. **Archive closure** — design doc and plan must mark `archived-with` status
-9. **Incremental modification of existing features** — Create delta spec baseline based on main spec, not from scratch
+9. **Modifying existing features** — Just open a new change; brainstorming reads existing specs as context naturally
 10. **Preset has limits** — Switch to full workflow promptly when hotfix/tweak meet upgrade conditions

@@ -53,27 +53,6 @@ After determination, record actual verification mode in `openspec/changes/<name>
 - `light`
 - `full`
 
-Few-shot examples:
-
-```yaml
-# All metrics hit "small"
-phase: verify
-verify_mode: light
-verify_result: pending
-```
-
-```yaml
-# Any metric hits "large"
-phase: verify
-verify_mode: full
-verify_result: pending
-```
-
-【Write verification】After update completion, must verify:
-  cat openspec/changes/<name>/.comet.yaml
-  Confirm verify_mode line value is "<light or full>"
-  If not matching, retry write then verify again. Maximum 2 retries, report error and terminate if still fails.
-
 ### 2a. Lightweight Verification (Small Changes)
 
 When scale assessment result is "small", skip `openspec-verify-change`, directly execute the following checks:
@@ -142,20 +121,13 @@ After the skill loads, follow its guidance to complete. Branch handling options:
 - `.comet.yaml` `verify_result` recorded as `pass`
 - **Phase guard**: Run `bash $COMET_GUARD <change-name> verify`, allow transition only after all PASS
 
-Before exit, merge and update the following fields in `.comet.yaml` (keep other fields unchanged):
+Before exit, run guard to auto-transition:
 
-```yaml
-phase: archive
-verify_result: pass
-verified_at: YYYY-MM-DD
+```bash
+bash $COMET_GUARD <change-name> verify --apply
 ```
 
-【Write verification】After update completion, must verify:
-  cat openspec/changes/<name>/.comet.yaml
-  Confirm phase line value is "archive"
-  Confirm verify_result line value is "pass"
-  Confirm verified_at line value is non-empty (format YYYY-MM-DD)
-  If any field does not match, retry write then verify again. Maximum 2 retries, report error and terminate if still fails.
+State file is automatically updated to `phase: archive`, `verify_result: pass`, `verified_at: YYYY-MM-DD`.
 
 ## Automatic Transition
 

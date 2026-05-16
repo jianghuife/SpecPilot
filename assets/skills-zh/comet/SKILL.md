@@ -161,12 +161,25 @@ archived: false
 
 ### 脚本定位
 
-Comet 阶段守卫脚本 `comet-guard.sh` 随 skill 包分发，位于 `comet/scripts/` 目录。
+Comet 阶段守卫脚本 `comet-guard.sh` 和归档脚本 `comet-archive.sh` 随 skill 包分发，位于 `comet/scripts/` 目录。
 **不硬编码平台路径**，运行时通过以下命令自定位：
 
 ```bash
 COMET_GUARD=$(find . -path '*/comet/scripts/comet-guard.sh' -type f -print -quit)
 bash "$COMET_GUARD" <change-name> <phase>
+```
+
+**自动状态更新**：guard 支持 `--apply` 参数，验证通过后自动更新 `.comet.yaml` 状态字段：
+
+```bash
+bash "$COMET_GUARD" <change-name> <phase> --apply
+```
+
+**归档脚本**：一键完成归档全部步骤：
+
+```bash
+COMET_ARCHIVE=$(find . -path '*/comet/scripts/comet-archive.sh' -type f -print -quit)
+bash "$COMET_ARCHIVE" <change-name>
 ```
 
 后续文档中 `bash $COMET_GUARD <change> <phase>` 均指此命令。加载 comet 后，agent 应在 shell 环境中缓存 `COMET_GUARD` 路径，避免重复 `find`。
@@ -185,7 +198,7 @@ openspec/                              # OpenSpec — WHAT
 │   │   ├── specs/<capability>/spec.md # Delta 能力规格
 │   │   └── tasks.md                   # 任务清单
 │   └── archive/YYYY-MM-DD-<name>/     # 已归档
-└── specs/<capability>/spec.md         # 主 specs（归档时从 delta 同步）
+└── specs/<capability>/spec.md         # 主 specs（归档时从 delta 覆盖）
 
 docs/superpowers/                      # Superpowers — HOW
 ├── specs/YYYY-MM-DD-<topic>-design.md # 设计文档（技术 RFC，归档时标注状态）
@@ -202,5 +215,5 @@ docs/superpowers/                      # Superpowers — HOW
 6. **增量更新分级** — 小编辑、中重 brainstorming、大新 change
 7. **Plan 必须关联 change** — 文件头包含 `change:` 和 `design-doc:` 元数据
 8. **归档闭环** — design doc 和 plan 必须标注 `archived-with` 状态
-9. **增量修改已有功能** — 基于 main spec 创建 delta spec 基线，不从零编写
+9. **增量修改已有功能** — 直接 open 新 change，brainstorming 会读取已有 main spec 作为上下文
 10. **Preset 有上限** — hotfix/tweak 满足升级条件时及时切换到完整流程

@@ -56,17 +56,13 @@ design-doc: docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md
 
 ### 2. Update Plan Status
 
-Merge and update the following fields in `openspec/changes/<name>/.comet.yaml` (keep other fields unchanged):
+Record plan path:
 
-```yaml
-phase: build
-plan: docs/superpowers/plans/YYYY-MM-DD-feature.md
+```bash
+sed -i 's|^plan:.*|plan: docs/superpowers/plans/YYYY-MM-DD-feature.md|' openspec/changes/<name>/.comet.yaml
 ```
 
-【Write verification】After update completion, must verify:
-  cat openspec/changes/<name>/.comet.yaml
-  Confirm plan line value is "docs/superpowers/plans/YYYY-MM-DD-feature.md"
-  If not matching, retry write then verify again. Maximum 2 retries, report error and terminate if still fails.
+No manual phase update needed — guard auto-transitions when exit conditions are met.
 
 ### 3. Workspace Isolation
 
@@ -81,27 +77,10 @@ Plan has been written to the current branch. Before starting execution, choose w
 - Change involves ≤ 3 files → Recommend A
 - Need parallel development, current branch has uncommitted work → Recommend B
 
-After user selection, merge and update `isolation` in `openspec/changes/<name>/.comet.yaml` (keep other fields unchanged). `isolation` only allows one of the following values:
+After user selection, update `isolation` in `openspec/changes/<name>/.comet.yaml`. `isolation` only allows one of the following values:
 
 - `branch`
 - `worktree`
-
-Few-shot examples:
-
-```yaml
-# User selects create branch / A
-isolation: branch
-```
-
-```yaml
-# User selects create worktree / B
-isolation: worktree
-```
-
-【Write verification】After update completion, must verify:
-  cat openspec/changes/<name>/.comet.yaml
-  Confirm isolation line value is "<branch or worktree>"
-  If not matching, retry write then verify again. Maximum 2 retries, report error and terminate if still fails.
 
 **Execute isolation**:
 
@@ -124,28 +103,11 @@ Present plan summary to user (task count, involved modules), then ask for execut
 - Task count ≤ 2 and no cross-module dependencies → Recommend B
 - From hotfix path → Recommend B
 
-After user selection, merge and update `build_mode` in `openspec/changes/<name>/.comet.yaml` (keep other fields unchanged). `build_mode` only allows one of the following values:
+After user selection, update `build_mode` in `openspec/changes/<name>/.comet.yaml`. `build_mode` only allows one of the following values:
 
 - `subagent-driven-development`
 - `executing-plans`
 - `direct` (only for hotfix preset use)
-
-Few-shot examples:
-
-```yaml
-# User selects robust mode / A
-build_mode: subagent-driven-development
-```
-
-```yaml
-# User selects fast mode / B
-build_mode: executing-plans
-```
-
-【Write verification】After update completion, must verify:
-  cat openspec/changes/<name>/.comet.yaml
-  Confirm build_mode line value is "<subagent-driven-development or executing-plans or direct>"
-  If not matching, retry write then verify again. Maximum 2 retries, report error and terminate if still fails.
 
 Then, **immediately execute:** Use the Skill tool to load the corresponding skill. Skipping this step is prohibited.
 
@@ -183,18 +145,13 @@ When the initial spec is found incomplete during implementation, handle by scale
 - `.comet.yaml` `phase` updated to `verify`
 - **Phase guard**: Run `bash $COMET_GUARD <change-name> build`, allow transition only after all PASS
 
-Before exit, merge and update the following fields in `.comet.yaml` (keep other fields unchanged):
+Before exit, run guard to auto-transition:
 
-```yaml
-phase: verify
-verify_result: pending
+```bash
+bash $COMET_GUARD <change-name> build --apply
 ```
 
-【Write verification】After update completion, must verify:
-  cat openspec/changes/<name>/.comet.yaml
-  Confirm phase line value is "verify"
-  Confirm verify_result line value is "pending"
-  If any field does not match, retry write then verify again. Maximum 2 retries, report error and terminate if still fails.
+State file is automatically updated to `phase: verify`, `verify_result: pending`.
 
 ## Automatic Transition
 
