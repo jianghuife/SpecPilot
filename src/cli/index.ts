@@ -1,6 +1,9 @@
 import { Command } from 'commander';
 import { createRequire } from 'module';
-import { initCommand } from '../core/init.js';
+import { initCommand } from '../commands/init.js';
+import { statusCommand } from '../commands/status.js';
+import { doctorCommand } from '../commands/doctor.js';
+import { updateCommand } from '../commands/update.js';
 
 const require = createRequire(import.meta.url);
 const { version } = require('../../package.json');
@@ -18,8 +21,35 @@ program
   .option('--yes', 'Auto-install missing components, skip existing')
   .option('--skip-existing', 'Never overwrite existing components')
   .option('--overwrite', 'Overwrite manifest-managed files')
+  .option('--json', 'Output as JSON')
   .action(async (targetPath = '.', options) => {
     await initCommand(targetPath, options);
+  });
+
+program
+  .command('status [path]')
+  .description('Show active changes and workflow status')
+  .option('--json', 'Output as JSON')
+  .action(async (targetPath = '.', options) => {
+    await statusCommand(targetPath, options);
+  });
+
+program
+  .command('doctor [path]')
+  .description('Diagnose Comet installation health')
+  .option('--json', 'Output as JSON')
+  .action(async (targetPath = '.', options) => {
+    await doctorCommand(targetPath, options);
+  });
+
+program
+  .command('update [path]')
+  .description('Update comet skill files to latest version')
+  .option('--json', 'Output as JSON')
+  .option('--language <lang>', 'Language for skills (en, zh)')
+  .option('--scope <scope>', 'Install scope (global, project)')
+  .action(async (targetPath = '.', options) => {
+    await updateCommand(targetPath, options);
   });
 
 program.parse();

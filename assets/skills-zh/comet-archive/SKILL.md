@@ -18,7 +18,7 @@ description: "Comet 阶段 5：归档。用 /comet-archive 调用。同步 delta
 执行入口验证：
 
 ```bash
-COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
 bash "$COMET_STATE" check <name> archive
 ```
 
@@ -29,7 +29,7 @@ bash "$COMET_STATE" check <name> archive
 运行归档脚本，自动完成以下全部步骤：
 
 ```bash
-COMET_ARCHIVE=$(find . -path '*/comet/scripts/comet-archive.sh' -type f -print -quit)
+COMET_ARCHIVE="${COMET_ARCHIVE:-$(find . -path '*/comet/scripts/comet-archive.sh' -type f -print -quit)}"
 bash "$COMET_ARCHIVE" "<change-name>"
 ```
 

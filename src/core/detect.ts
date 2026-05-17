@@ -1,0 +1,84 @@
+import path from 'path';
+import os from 'os';
+
+import { fileExists, readDir } from '../utils/file-system.js';
+import { PLATFORMS, type Platform } from './platforms.js';
+
+import type { InstallScope } from './types.js';
+
+const SUPERPOWERS_SKILLS = [
+  'brainstorming',
+  'using-superpowers',
+  'writing-plans',
+  'test-driven-development',
+  'subagent-driven-development',
+];
+
+function getBaseDir(scope: InstallScope, projectPath: string): string {
+  return scope === 'global' ? os.homedir() : projectPath;
+}
+
+async function detectPlatforms(projectPath: string): Promise<Set<string>> {
+  const detected = new Set<string>();
+
+  for (const platform of PLATFORMS) {
+    if (platform.detectionPaths && platform.detectionPaths.length > 0) {
+      for (const p of platform.detectionPaths) {
+        if (await fileExists(path.join(projectPath, p))) {
+          detected.add(platform.id);
+          break;
+        }
+      }
+    } else {
+      const dirPath = path.join(projectPath, platform.skillsDir);
+      if (await fileExists(dirPath)) {
+        detected.add(platform.id);
+      }
+    }
+  }
+
+  return detected;
+}
+
+async function hasSkills(
+  baseDir: string,
+  platform: Platform,
+  component: 'openspec' | 'superpowers' | 'comet',
+  _selectedPlatforms: Platform[] = [],
+): Promise<boolean> {
+  const skillsDir = path.join(baseDir, platform.skillsDir, 'skills');
+  const entries = await readDir(skillsDir);
+
+  switch (component) {
+    case 'openspec':
+      if (entries.some((e) => e.startsWith('openspec-'))) return true;
+      break;
+    case 'superpowers':
+      if (SUPERPOWERS_SKILLS.some((name) => entries.includes(name))) return true;
+      break;
+    case 'comet':
+      if (entries.some((e) => e.startsWith('comet'))) return true;
+      break;
+  }
+
+  if (baseDir !== os.homedir()) {
+    const globalSkillsDir = path.join(os.homedir(), platform.skillsDir, 'skills');
+    const globalEntries = await readDir(globalSkillsDir);
+
+    switch (component) {
+      case 'openspec':
+        if (globalEntries.some((e) => e.startsWith('openspec-'))) return true;
+        break;
+      case 'superpowers':
+        if (SUPERPOWERS_SKILLS.some((name) => globalEntries.includes(name))) return true;
+        break;
+      case 'comet':
+        if (globalEntries.some((e) => e.startsWith('comet'))) return true;
+        break;
+    }
+  }
+  return false;
+}
+
+export { detectPlatforms, hasSkills, getBaseDir };
+export type { InstallScope };

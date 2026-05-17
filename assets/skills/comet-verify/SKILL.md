@@ -17,7 +17,7 @@ description: "Comet Phase 4: Verify and Complete. Invoke with /comet-verify. Ver
 Execute entry verification:
 
 ```bash
-COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
 bash "$COMET_STATE" check <name> verify
 ```
 
@@ -39,7 +39,7 @@ When scale assessment result is "small", skip `openspec-verify-change`, directly
 
 1. All tasks in tasks.md completed `[x]`
 2. Changed files consistent with tasks.md description (`git diff --stat`对照 tasks content)
-3. Build passes (for Maven projects, first execute `mvn spotless:apply`, then execute `mvn compile` or equivalent command)
+3. Build passes (run project-appropriate build command, e.g., `npm run build`, `mvn compile`, `cargo build`)
 4. Related tests pass
 5. No obvious security issues (no hardcoded secrets, no new unsafe operations)
 
@@ -89,9 +89,7 @@ After the skill loads, follow its guidance to complete. Branch handling options:
 4. Discard work
 
 **Confirmation items**:
-- Maven test or build commands have executed `mvn spotless:apply`
 - All tests pass
-- No remaining spotless formatting issues
 - No hardcoded secrets or security issues
 
 ## Exit Conditions

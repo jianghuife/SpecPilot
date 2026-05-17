@@ -17,7 +17,7 @@ description: "Comet 阶段 2：深度设计。用 /comet-design 调用。通过 
 执行入口验证：
 
 ```bash
-COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
 bash "$COMET_STATE" check <name> design
 ```
 

@@ -9,6 +9,8 @@
  ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚══════╝   ╚═╝
 ```
 
+> 中文版：[README-zh.md](README-zh.md)
+
 **OpenSpec + Superpowers dual-star development workflow** — one command from idea to archive.
 
 OpenSpec handles **WHAT** (outlines, proposals, spec lifecycle, archiving). Superpowers handles **HOW** (technical design, planning, execution, wrap-up). Comet chains both into a five-phase automated pipeline.
@@ -41,6 +43,9 @@ comet init
 | Command | Description |
 |---------|-------------|
 | `comet init [path]` | Initialize Comet workflow |
+| `comet status [path]` | Show active changes and workflow status |
+| `comet doctor [path]` | Diagnose Comet installation health |
+| `comet update [path]` | Update comet skills to latest version |
 | `comet --help` | Show help |
 | `comet --version` | Show version |
 
@@ -51,6 +56,15 @@ comet init
 | `--yes` | Non-interactive mode, auto-select detected platforms |
 | `--skip-existing` | Skip already installed components |
 | `--overwrite` | Overwrite already installed components |
+| `--json` | Output structured JSON |
+
+### status / doctor / update Options
+
+| Option | Applies to | Description |
+|--------|-----------|-------------|
+| `--json` | `status`, `doctor` | Output structured JSON |
+| `--language <lang>` | `update` | Language for skills (`en`, `zh`) |
+| `--scope <scope>` | `update` | Install scope (`global`, `project`)|
 
 ## Supported Platforms
 
@@ -112,14 +126,14 @@ Development methodology: brainstorming, TDD, subagent-driven development, code r
 ```
 /comet
   ↓ auto-detect
-/comet-open ——→ /comet-design ——→ /comet-build ——→ /comet-verify ——→ /comet-archive
-  (OpenSpec)      (Superpowers)     (Superpowers)     (Both)          (OpenSpec)
+/comet-open  -->  /comet-design  -->  /comet-build  -->  /comet-verify  -->  /comet-archive
+(OpenSpec)         (Superpowers)       (Superpowers)       (Both)           (OpenSpec)
 
 /comet-hotfix (preset path, skips brainstorming)
-  open ——→ build ——→ verify ——→ archive
+  open  -->  build  -->  verify  -->  archive
 
 /comet-tweak (preset path, skips brainstorming and full plan)
-  open ——→ lightweight build ——→ light verify ——→ archive
+  open  -->  lightweight build  -->  light verify  -->  archive
 ```
 
 ### Five Phases
@@ -233,8 +247,14 @@ pnpm dev
 # Build
 pnpm build
 
-# Test
+# Test (unit + coverage)
 pnpm test
+pnpm test:coverage
+pnpm test:shell         # bats shell tests
+
+# Lint & format
+pnpm lint
+pnpm format
 ```
 
 See [CHANGELOG.md](CHANGELOG.md) for version history and updates.

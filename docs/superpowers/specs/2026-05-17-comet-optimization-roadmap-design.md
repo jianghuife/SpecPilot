@@ -2,7 +2,7 @@
 name: comet-optimization-roadmap
 description: "Comet 全面优化路线图：三层架构覆盖 Skill 可靠性、CLI 完善、工程化三个维度"
 date: 2026-05-17
-status: approved
+status: completed
 ---
 
 # Comet 全面优化路线图设计

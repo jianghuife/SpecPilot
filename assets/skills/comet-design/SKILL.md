@@ -17,7 +17,7 @@ description: "Comet Phase 2: Deep Design. Invoke with /comet-design. Produce Des
 Execute entry verification:
 
 ```bash
-COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
 bash "$COMET_STATE" check <name> design
 ```
 

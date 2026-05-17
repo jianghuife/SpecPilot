@@ -25,7 +25,7 @@ Applicable for bug fixes, hotfixes, small-scale behavior corrections. Does not i
 Execute entry verification:
 
 ```bash
-COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
 bash "$COMET_STATE" check <name> open
 ```
 
@@ -60,7 +60,7 @@ Use hotfix defaults: `build_mode: direct`. Skip `superpowers:brainstorming` and 
 1. Read `openspec/changes/<name>/tasks.md`, get incomplete task list
 2. For each incomplete task:
    - Modify code according to task description
-   - Run `mvn spotless:apply` to format
+   - Run project formatter (e.g., `mvn spotless:apply`, `npm run format`)
    - Run related tests to confirm pass
    - Check corresponding `- [ ]` to `- [x]` in tasks.md
    - Commit code, commit message format: `fix: <brief fix description>`
@@ -114,12 +114,15 @@ After each phase completes, immediately enter next phase, no need for user input
 
 ## Upgrade Conditions
 
-When the following situations occur during fix process, stop hotfix workflow, upgrade to full `/comet`:
+Upgrade to full `/comet` when **any** of the following conditions are met:
 
-1. Root cause discovered involves architecture defects
-2. Fix requires new interfaces or components
-3. Impact scope expands to > 10 files
-4. Needs new capability spec
+| Condition | Explanation |
+|-----------|-------------|
+| Change involves **3+ files** | Exceeds single-point fix scope |
+| Architecture changes | New modules, new interfaces, new dependencies |
+| Database schema changes | Structural adjustments |
+| Introduces new public API | Fix creates new external interface |
+| Fix scope exceeds single function/module | Requires coordinated changes |
 
 Upgrade method: On current change basis, supplement Design Doc (execute `/comet-design`), then proceed normally with full workflow.
 

@@ -16,7 +16,7 @@ description: "Comet 阶段 1：开启。用 /comet-open 调用。通过 OpenSpec
 执行入口验证：
 
 ```bash
-COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
 bash "$COMET_STATE" check <name> open
 ```
 

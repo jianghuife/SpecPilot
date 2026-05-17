@@ -18,7 +18,7 @@ description: "Comet Phase 5: Archive. Invoke with /comet-archive. Sync delta spe
 Execute entry verification:
 
 ```bash
-COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
 bash "$COMET_STATE" check <name> archive
 ```
 
@@ -29,7 +29,7 @@ Proceed to Step 1 after verification passes. The script outputs specific failure
 Run the archive script to automatically complete all steps:
 
 ```bash
-COMET_ARCHIVE=$(find . -path '*/comet/scripts/comet-archive.sh' -type f -print -quit)
+COMET_ARCHIVE="${COMET_ARCHIVE:-$(find . -path '*/comet/scripts/comet-archive.sh' -type f -print -quit)}"
 bash "$COMET_ARCHIVE" "<change-name>"
 ```
 

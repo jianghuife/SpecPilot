@@ -25,7 +25,7 @@ Hotfix 是 Comet 五阶段能力的预设工作流，不是独立的平行流程
 执行入口验证：
 
 ```bash
-COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
 bash "$COMET_STATE" check <name> open
 ```
 
@@ -60,7 +60,7 @@ bash "$COMET_STATE" init <name> hotfix
 1. 读取 `openspec/changes/<name>/tasks.md`，获取未完成任务列表
 2. 对每个未完成任务：
    - 根据任务描述修改代码
-   - 运行 `mvn spotless:apply` 格式化
+   - 运行项目格式化命令（如 `mvn spotless:apply`、`npm run format` 等）
    - 运行相关测试确认通过
    - 将 tasks.md 中对应 `- [ ]` 勾选为 `- [x]`
    - 提交代码，commit message 格式：`fix: <简述修复>`
@@ -114,12 +114,15 @@ Hotfix 流程为 **一次性连续执行**。调用 `/comet-hotfix` 后，agent 
 
 ## 升级条件
 
-修复过程中出现以下情况时，停止 hotfix 流程，升级为完整 `/comet`：
+满足以下**任一**条件时，停止 hotfix 流程，升级为完整 `/comet`：
 
-1. 发现根因涉及架构缺陷
-2. 修复需要新增接口或组件
-3. 影响范围扩大到 > 10 个文件
-4. 需要新 capability 的 spec
+| 条件 | 说明 |
+|------|------|
+| 改动涉及 **3+ 文件** | 超出单点修复范围 |
+| 架构变更 | 新模块、新接口、新依赖 |
+| 数据库 schema 变更 | 结构性调整 |
+| 引入新的 public API | 修复产生了新的对外接口 |
+| 修复范围超出单一函数/模块 | 需要多处协调修改 |
 
 升级方式：在当前 change 基础上补充 Design Doc（执行 `/comet-design`），后续正常走完整流程。
 

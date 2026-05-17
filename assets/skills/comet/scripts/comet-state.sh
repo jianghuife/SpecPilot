@@ -117,6 +117,7 @@ cmd_init() {
 
   # Write .comet.yaml
   cat > "$yaml_file" <<EOF
+workflow: $workflow
 phase: $phase
 build_mode: $build_mode
 isolation: $isolation

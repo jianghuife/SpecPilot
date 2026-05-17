@@ -16,7 +16,7 @@ description: "Comet Phase 1: Open. Invoke with /comet-open. Explore ideas throug
 Execute entry verification:
 
 ```bash
-COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
 bash "$COMET_STATE" check <name> open
 ```
 

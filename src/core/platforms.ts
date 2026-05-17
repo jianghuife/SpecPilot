@@ -26,7 +26,12 @@ export const PLATFORMS: Platform[] = [
     id: 'github-copilot',
     name: 'GitHub Copilot',
     skillsDir: '.github',
-    detectionPaths: ['.github/copilot-instructions.md', '.github/instructions', '.github/prompts', '.github/skills'],
+    detectionPaths: [
+      '.github/copilot-instructions.md',
+      '.github/instructions',
+      '.github/prompts',
+      '.github/skills',
+    ],
     openspecToolId: 'github-copilot',
   },
   { id: 'gemini', name: 'Gemini CLI', skillsDir: '.gemini', openspecToolId: 'gemini' },

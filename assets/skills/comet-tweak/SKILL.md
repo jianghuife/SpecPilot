@@ -26,7 +26,7 @@ Applicable for small-scale non-bug changes, such as copy adjustments, configurat
 Execute entry verification:
 
 ```bash
-COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
 bash "$COMET_STATE" check <name> open
 ```
 
@@ -61,7 +61,7 @@ Use tweak defaults: `build_mode: direct`. Skip `superpowers:brainstorming` and `
 1. Read `openspec/changes/<name>/tasks.md`, get incomplete task list
 2. For each incomplete task:
    - Modify target file according to task description
-   - Run `mvn spotless:apply` to format
+   - Run project formatter (e.g., `mvn spotless:apply`, `npm run format`)
    - Run related tests to confirm pass
    - Check corresponding `- [ ]` to `- [x]` in tasks.md
    - Commit code, commit message format: `tweak: <brief change description>`
@@ -99,14 +99,16 @@ After each phase completes, immediately enter next phase, no need for user input
 
 ## Upgrade Conditions
 
-When the following situations occur during execution, stop tweak workflow, upgrade to full `/comet`:
+Upgrade to full `/comet` when **any** of the following conditions are met:
 
-1. Need new capability
-2. Need architecture adjustments
-3. Need interface changes
-4. Impact scope expands to > 5 files
-5. Task count exceeds 3
-6. Need delta spec
+| Condition | Explanation |
+|-----------|-------------|
+| Change involves **5+ files** | Exceeds small change scope |
+| Cross-module coordination required | Needs coordination across components |
+| **5+** new test cases needed | Change complexity increasing |
+| Config item additions or deletions | Non-value config changes |
+| New capability needed | Exceeds local optimization |
+| Delta spec needed | Affects existing specifications |
 
 Upgrade method: On current change basis, supplement Design Doc (execute `/comet-design`), then proceed normally with full workflow.
 
