@@ -15,27 +15,14 @@ description: "Comet 阶段 5：归档。用 /comet-archive 调用。同步 delta
 
 ### 0. 入口状态验证（Entry Check）
 
-在执行任何操作之前，读取并验证当前状态：
+执行入口验证：
 
-**检查清单：**
-1. `openspec/changes/<name>/.comet.yaml` 存在
-2. `phase` 字段的值为 `"archive"`
-3. `verify_result` 字段的值为 `"pass"`
-4. `archived` 字段为 `"false"` 或 null（尚未归档）
-
-**验证方式：**
-- `cat openspec/changes/<name>/.comet.yaml` 读取全部字段
-- 如 `verify_result` 不是 `"pass"`，必须先完成验证
-
-**失败输出：**
-```
-[HARD STOP] Entry check failed for comet-archive
-  Expected: phase=archive, verify_result=pass, archived=false|null
-  Actual:   phase=<实际值>, verify_result=<实际值>, archived=<实际值>
-  Suggestion: Run comet-verify first, or this change was already archived.
+```bash
+COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+bash "$COMET_STATE" check <name> archive
 ```
 
-验证通过后才进入步骤 1。
+验证通过后继续 Step 1。验证失败时脚本会输出具体失败原因。
 
 ### 1. 执行归档
 
