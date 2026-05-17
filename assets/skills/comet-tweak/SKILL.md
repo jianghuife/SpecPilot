@@ -23,25 +23,14 @@ Applicable for small-scale non-bug changes, such as copy adjustments, configurat
 
 ### 0. Entry State Verification (Entry Check)
 
-Before performing any operations, verify current state:
+Execute entry verification:
 
-**Checklist:**
-1. `openspec/changes/<name>/` directory does not exist, or directory exists but `.comet.yaml` does not exist (no conflict)
-
-**Verification method:**
-- `test -d openspec/changes/<name>` to check directory
-- If directory exists, `test -f openspec/changes/<name>/.comet.yaml` to check config file
-- If `.comet.yaml` exists, read `phase` to check if it's an incomplete tweak
-
-**Failure output (has conflict):**
-```
-[HARD STOP] Entry check failed for comet-tweak
-  Expected: openspec/changes/<name>/.comet.yaml does not exist (new change)
-  Actual:   .comet.yaml exists with phase=<actual-value>
-  Suggestion: Pick a different change name, or check if an existing tweak is in progress.
+```bash
+COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+bash "$COMET_STATE" check <name> open
 ```
 
-Proceed to process steps only after verification passes.
+Proceed to process steps after verification passes. The script outputs specific failure reasons when verification fails.
 
 Execution chain: open → lightweight build → light verify → archive. Tweak provides default decisions for each phase: streamlined open, lightweight build, lightweight verification, archive after verification passes.
 
@@ -57,34 +46,11 @@ After the skill loads, follow its guidance to create streamlined artifacts:
   - `tasks.md` — not exceeding 3 tasks
 - **No delta spec needed** (unless change changes existing spec acceptance scenarios; once delta spec needed, upgrade to full `/comet`)
 
-Create independent `.comet.yaml` file under `openspec/changes/<name>/`:
+Initialize Comet state file:
 
-```yaml
-workflow: tweak
-phase: build
-design_doc: null
-plan: null
-build_mode: direct
-isolation: branch
-verify_mode: light
-verify_result: pending
-verified_at: null
-archived: false
+```bash
+bash "$COMET_STATE" init <name> tweak
 ```
-
-【Write verification】After creation completion, must verify:
-  cat openspec/changes/<name>/.comet.yaml
-  Confirm workflow line value is "tweak"
-  Confirm phase line value is "build"
-  Confirm design_doc line value is "null"
-  Confirm plan line value is "null"
-  Confirm build_mode line value is "direct"
-  Confirm isolation line value is "branch"
-  Confirm verify_mode line value is "light"
-  Confirm verify_result line value is "pending"
-  Confirm verified_at line value is "null"
-  Confirm archived line value is "false"
-  If any field does not match, retry write then verify again. Maximum 2 retries, report error and terminate if still fails.
 
 ### 2. Lightweight Build (preset build)
 

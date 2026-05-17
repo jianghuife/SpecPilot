@@ -14,30 +14,14 @@ description: "Comet Phase 2: Deep Design. Invoke with /comet-design. Produce Des
 
 ### 0. Entry State Verification (Entry Check)
 
-Before performing any operations, read and verify the current state:
+Execute entry verification:
 
-**Checklist:**
-1. `openspec/changes/<name>/.comet.yaml` exists
-2. `phase` field value is `"design"`
-3. `workflow` field value is `"full"`
-4. `design_doc` field is `null` or empty
-5. `openspec/changes/<name>/proposal.md` exists and is non-empty
-6. `openspec/changes/<name>/design.md` exists and is non-empty
-7. `openspec/changes/<name>/tasks.md` exists and is non-empty
-
-**Verification method:**
-- `cat openspec/changes/<name>/.comet.yaml` to read all fields
-- Check checklist items one by one
-
-**Failure output:**
-```
-[HARD STOP] Entry check failed for comet-design
-  Expected: phase=design, design_doc=<empty/null>, workflow=full
-  Actual:   phase=<actual-value>, design_doc=<actual-value>, workflow=<actual-value>
-  Suggestion: Run comet-open first, or check if .comet.yaml was modified out of sequence.
+```bash
+COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+bash "$COMET_STATE" check <name> design
 ```
 
-Proceed to Step 1 only after verification passes.
+Proceed to Step 1 after verification passes. The script outputs specific failure reasons when verification fails.
 
 ### 1a. Read Existing Context
 
@@ -70,7 +54,7 @@ Record design_doc path, then run guard to auto-transition:
 
 ```bash
 # Record design_doc path
-sed -i 's|^design_doc:.*|design_doc: docs/superpowers/specs/YYYY-MM-DD-topic-design.md|' openspec/changes/<name>/.comet.yaml
+bash "$COMET_STATE" set <name> design_doc docs/superpowers/specs/YYYY-MM-DD-topic-design.md
 
 # Auto-transition to next phase
 bash $COMET_GUARD <change-name> design --apply

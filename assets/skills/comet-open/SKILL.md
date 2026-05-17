@@ -13,28 +13,14 @@ description: "Comet Phase 1: Open. Invoke with /comet-open. Explore ideas throug
 
 ### 0. Entry State Verification (Entry Check)
 
-Before performing any operations, read and verify the current state:
+Execute entry verification:
 
-**Checklist:**
-1. `openspec/changes/<name>/` directory exists (created by openspec-new-change)
-2. `openspec/changes/<name>/.comet.yaml` file does not exist (not yet initialized)
-3. `openspec/changes/<name>/proposal.md` exists and is non-empty
-4. `openspec/changes/<name>/design.md` exists and is non-empty
-5. `openspec/changes/<name>/tasks.md` exists and is non-empty
-
-**Verification method:**
-- Read the above paths to confirm existence/non-existence
-- If `.comet.yaml` already exists, read its `phase` field: if phase is not empty, output `[HARD STOP]` and prompt that there may already be an active change
-
-**Failure output:**
-```
-[HARD STOP] Entry check failed for comet-open
-  Expected: .comet.yaml does not exist, proposal.md + design.md + tasks.md exist
-  Actual:   phase=<actual-value>, design_doc=<actual-value> (or file does not exist)
-  Suggestion: Check if another change with the same name is already active.
+```bash
+COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+bash "$COMET_STATE" check <name> open
 ```
 
-Proceed to Step 1 only after verification passes.
+Proceed to Step 1 after verification passes. The script outputs specific failure reasons when verification fails.
 
 ### 1. Explore Idea
 
@@ -59,18 +45,10 @@ openspec/changes/<name>/
 
 ### 3. Initialize Comet State
 
-Create an independent `.comet.yaml` file under `openspec/changes/<name>/`:
+Initialize Comet state file:
 
-```yaml
-workflow: full
-phase: design
-design_doc: null
-plan: null
-build_mode: null
-verify_mode: null
-verify_result: pending
-verified_at: null
-archived: false
+```bash
+bash "$COMET_STATE" init <name> full
 ```
 
 ### 4. Content Completeness Check

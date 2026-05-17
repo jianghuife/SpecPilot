@@ -14,29 +14,14 @@ description: "Comet Phase 3: Plan and Build. Invoke with /comet-build. Create pl
 
 ### 0. Entry State Verification (Entry Check)
 
-Before performing any operations, read and verify the current state:
+Execute entry verification:
 
-**Checklist:**
-1. `openspec/changes/<name>/.comet.yaml` exists
-2. `phase` field value is `"build"`
-3. `design_doc` field is non-null and non-empty
-4. File referenced by `design_doc` exists (e.g., `docs/superpowers/specs/YYYY-MM-DD-topic-design.md`)
-5. `openspec/changes/<name>/proposal.md` exists and is non-empty
-6. `openspec/changes/<name>/tasks.md` exists and is non-empty
-
-**Verification method:**
-- `cat openspec/changes/<name>/.comet.yaml` to read all fields
-- Use `ls` or `test -f` to confirm design_doc file exists
-
-**Failure output:**
-```
-[HARD STOP] Entry check failed for comet-build
-  Expected: phase=build, design_doc=<path> exists
-  Actual:   phase=<actual-value>, design_doc=<actual-value or file does not exist>
-  Suggestion: Run comet-design first, or verify design_doc file exists.
+```bash
+COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+bash "$COMET_STATE" check <name> build
 ```
 
-Proceed to Step 1 only after verification passes.
+Proceed to Step 1 after verification passes. The script outputs specific failure reasons when verification fails.
 
 ### 1. Create Plan
 
@@ -59,7 +44,7 @@ design-doc: docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md
 Record plan path:
 
 ```bash
-sed -i 's|^plan:.*|plan: docs/superpowers/plans/YYYY-MM-DD-feature.md|' openspec/changes/<name>/.comet.yaml
+bash "$COMET_STATE" set <name> plan docs/superpowers/plans/YYYY-MM-DD-feature.md
 ```
 
 No manual phase update needed — guard auto-transitions when exit conditions are met.
@@ -77,7 +62,11 @@ Plan has been written to the current branch. Before starting execution, choose w
 - Change involves ≤ 3 files → Recommend A
 - Need parallel development, current branch has uncommitted work → Recommend B
 
-After user selection, update `isolation` in `openspec/changes/<name>/.comet.yaml`. `isolation` only allows one of the following values:
+After user selection, update `isolation` field. `isolation` only allows one of the following values:
+
+```bash
+bash "$COMET_STATE" set <name> isolation <value>
+```
 
 - `branch`
 - `worktree`
@@ -103,7 +92,11 @@ Present plan summary to user (task count, involved modules), then ask for execut
 - Task count ≤ 2 and no cross-module dependencies → Recommend B
 - From hotfix path → Recommend B
 
-After user selection, update `build_mode` in `openspec/changes/<name>/.comet.yaml`. `build_mode` only allows one of the following values:
+After user selection, update `build_mode` field. `build_mode` only allows one of the following values:
+
+```bash
+bash "$COMET_STATE" set <name> build_mode <value>
+```
 
 - `subagent-driven-development`
 - `executing-plans`

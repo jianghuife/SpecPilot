@@ -22,25 +22,14 @@ Applicable for bug fixes, hotfixes, small-scale behavior corrections. Does not i
 
 ### 0. Entry State Verification (Entry Check)
 
-Before performing any operations, verify current state:
+Execute entry verification:
 
-**Checklist:**
-1. `openspec/changes/<name>/` directory does not exist, or directory exists but `.comet.yaml` does not exist (no conflict)
-
-**Verification method:**
-- `test -d openspec/changes/<name>` to check directory
-- If directory exists, `test -f openspec/changes/<name>/.comet.yaml` to check config file
-- If `.comet.yaml` exists, read `phase` to check if it's an incomplete hotfix
-
-**Failure output (has conflict):**
-```
-[HARD STOP] Entry check failed for comet-hotfix
-  Expected: openspec/changes/<name>/.comet.yaml does not exist (new change)
-  Actual:   .comet.yaml exists with phase=<actual-value>
-  Suggestion: Pick a different change name, or check if an existing hotfix is in progress.
+```bash
+COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+bash "$COMET_STATE" check <name> open
 ```
 
-Proceed to process steps only after verification passes.
+Proceed to process steps after verification passes. The script outputs specific failure reasons when verification fails.
 
 Execution chain: open → build → verify → archive. Hotfix provides default decisions for each phase: streamlined open, direct build, scale-based verification, archive after verification passes.
 
@@ -56,34 +45,11 @@ After the skill loads, follow its guidance to create streamlined artifacts:
   - `tasks.md` — fix task list
 - **No delta spec needed** (unless fix changes existing spec acceptance scenarios)
 
-Create independent `.comet.yaml` file under `openspec/changes/<name>/`:
+Initialize Comet state file:
 
-```yaml
-workflow: hotfix
-phase: build
-design_doc: null
-plan: null
-build_mode: direct
-isolation: branch
-verify_mode: light
-verify_result: pending
-verified_at: null
-archived: false
+```bash
+bash "$COMET_STATE" init <name> hotfix
 ```
-
-【Write verification】After creation completion, must verify:
-  cat openspec/changes/<name>/.comet.yaml
-  Confirm workflow line value is "hotfix"
-  Confirm phase line value is "build"
-  Confirm design_doc line value is "null"
-  Confirm plan line value is "null"
-  Confirm build_mode line value is "direct"
-  Confirm isolation line value is "branch"
-  Confirm verify_mode line value is "light"
-  Confirm verify_result line value is "pending"
-  Confirm verified_at line value is "null"
-  Confirm archived line value is "false"
-  If any field does not match, retry write then verify again. Maximum 2 retries, report error and terminate if still fails.
 
 ### 2. Direct Build (preset build)
 

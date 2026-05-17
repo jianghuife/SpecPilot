@@ -15,27 +15,14 @@ description: "Comet Phase 5: Archive. Invoke with /comet-archive. Sync delta spe
 
 ### 0. Entry State Verification (Entry Check)
 
-Before performing any operations, read and verify the current state:
+Execute entry verification:
 
-**Checklist:**
-1. `openspec/changes/<name>/.comet.yaml` exists
-2. `phase` field value is `"archive"`
-3. `verify_result` field value is `"pass"`
-4. `archived` field is `"false"` or null (not yet archived)
-
-**Verification method:**
-- `cat openspec/changes/<name>/.comet.yaml` to read all fields
-- If `verify_result` is not `"pass"`, must complete verification first
-
-**Failure output:**
-```
-[HARD STOP] Entry check failed for comet-archive
-  Expected: phase=archive, verify_result=pass, archived=false|null
-  Actual:   phase=<actual-value>, verify_result=<actual-value>, archived=<actual-value>
-  Suggestion: Run comet-verify first, or this change was already archived.
+```bash
+COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+bash "$COMET_STATE" check <name> archive
 ```
 
-Proceed to Step 1 only after verification passes.
+Proceed to Step 1 after verification passes. The script outputs specific failure reasons when verification fails.
 
 ### 1. Execute Archive
 

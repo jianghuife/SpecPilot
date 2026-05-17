@@ -14,44 +14,24 @@ description: "Comet Phase 4: Verify and Complete. Invoke with /comet-verify. Ver
 
 ### 0. Entry State Verification (Entry Check)
 
-Before performing any operations, read and verify the current state:
+Execute entry verification:
 
-**Checklist:**
-1. `openspec/changes/<name>/.comet.yaml` exists
-2. `phase` field value is `"verify"`
-3. `verify_result` field is `"pending"` or null (not yet verified)
-
-**Verification method:**
-- `cat openspec/changes/<name>/.comet.yaml` to read all fields
-- If `verify_result` is already `"pass"`, this change has already been verified
-
-**Failure output:**
-```
-[HARD STOP] Entry check failed for comet-verify
-  Expected: phase=verify, verify_result=pending|null
-  Actual:   phase=<actual-value>, verify_result=<actual-value>
-  Suggestion: Run comet-build first, or this change was already verified.
+```bash
+COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+bash "$COMET_STATE" check <name> verify
 ```
 
-Proceed to Step 1 only after verification passes.
+Proceed to Step 1 after verification passes. The script outputs specific failure reasons when verification fails.
 
 ### 1. Change Scale Assessment
 
-Determine change scale based on the following metrics:
+Execute scale assessment:
 
-| Metric | Small (lightweight verification) | Large (full verification) |
-|------|-------------------------------|--------------------------|
-| tasks.md task count | ≤ 3 | > 3 |
-| Changed file count (git diff --stat) | ≤ 5 | > 5 |
-| Has delta spec | No | Yes |
-| New capability added | No | Yes |
+```bash
+bash "$COMET_STATE" scale <name>
+```
 
-**Decision rule**: Any metric hitting "large" → full verification. All hitting "small" → lightweight verification.
-
-After determination, record actual verification mode in `openspec/changes/<name>/.comet.yaml`. `verify_mode` only allows one of the following values:
-
-- `light`
-- `full`
+Script automatically counts tasks, delta specs, and changed files to determine whether to use light or full verification mode, and sets the verify_mode field.
 
 ### 2a. Lightweight Verification (Small Changes)
 
