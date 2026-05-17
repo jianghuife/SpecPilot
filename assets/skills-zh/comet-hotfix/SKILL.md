@@ -22,25 +22,14 @@ Hotfix 是 Comet 五阶段能力的预设工作流，不是独立的平行流程
 
 ### 0. 入口状态验证（Entry Check）
 
-在执行任何操作之前，验证当前状态：
+执行入口验证：
 
-**检查清单：**
-1. `openspec/changes/<name>/` 目录不存在，或目录存在但 `.comet.yaml` 不存在（无冲突）
-
-**验证方式：**
-- `test -d openspec/changes/<name>` 检查目录
-- 如目录存在，`test -f openspec/changes/<name>/.comet.yaml` 检查配置文件
-- 如 `.comet.yaml` 已存在，读取 `phase` 检查是否为未完成的 hotfix
-
-**失败输出（有冲突）：**
-```
-[HARD STOP] Entry check failed for comet-hotfix
-  Expected: openspec/changes/<name>/.comet.yaml does not exist (new change)
-  Actual:   .comet.yaml exists with phase=<实际值>
-  Suggestion: Pick a different change name, or check if an existing hotfix is in progress.
+```bash
+COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+bash "$COMET_STATE" check <name> open
 ```
 
-验证通过后才进入流程步骤。
+验证通过后继续流程步骤。验证失败时脚本会输出具体失败原因。
 
 执行链路：open → build → verify → archive。Hotfix 为每个阶段提供默认决策：精简开启、直接构建、按规模验证、验证通过后归档。
 
@@ -56,34 +45,11 @@ Hotfix 是 Comet 五阶段能力的预设工作流，不是独立的平行流程
   - `tasks.md` — 修复任务清单
 - **无需 delta spec**（除非修复改变了已有 spec 的验收场景）
 
-在 `openspec/changes/<name>/` 下创建独立的 `.comet.yaml` 文件：
+初始化 Comet 状态文件：
 
-```yaml
-workflow: hotfix
-phase: build
-design_doc: null
-plan: null
-build_mode: direct
-isolation: branch
-verify_mode: light
-verify_result: pending
-verified_at: null
-archived: false
+```bash
+bash "$COMET_STATE" init <name> hotfix
 ```
-
-【写入验证】创建完成后必须验证：
-  cat openspec/changes/<name>/.comet.yaml
-  确认 workflow 行的值为 "hotfix"
-  确认 phase 行的值为 "build"
-  确认 design_doc 行的值为 "null"
-  确认 plan 行的值为 "null"
-  确认 build_mode 行的值为 "direct"
-  确认 isolation 行的值为 "branch"
-  确认 verify_mode 行的值为 "light"
-  确认 verify_result 行的值为 "pending"
-  确认 verified_at 行的值为 "null"
-  确认 archived 行的值为 "false"
-  如任一字段不匹配，重试写入后再次验证。最多重试 2 次，仍失败则报告错误并终止。
 
 ### 2. 直接构建（preset build）
 
