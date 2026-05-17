@@ -5,9 +5,11 @@
 # Subcommands:
 #   init <change-name> <workflow>  — Initialize .comet.yaml with workflow defaults
 #   get <change-name> <field>       — Read a field value from .comet.yaml
-#   set <change-name> <field> <val> — Update a field value (Task 2)
+#   set <change-name> <field> <val> — Update a field value
+#   check <phase> <change-name>    — Verify entry requirements for a phase
 #
 # Workflows: full, hotfix, tweak
+# Phases for check: open, design, build, verify, archive
 
 set -euo pipefail
 
@@ -217,6 +219,161 @@ cmd_set() {
   green "[SET] ${field}=${value}"
 }
 
+# --- Check helpers for entry verification ---
+
+CHECK_BLOCK=0
+
+check_pass() {
+  local msg="$1"
+  echo "  $(green "[PASS]") $msg"
+}
+
+check_fail() {
+  local msg="$1"
+  echo "  $(red "[FAIL]") $msg"
+  CHECK_BLOCK=1
+}
+
+check_nonempty() {
+  local desc="$1"
+  local path="$1"
+  if file_nonempty "$path"; then
+    check_pass "$desc non-empty"
+  else
+    check_fail "$desc missing or empty"
+  fi
+}
+
+check_yaml_is() {
+  local field="$1"
+  local expected="$2"
+  local change_name="$3"
+  local actual
+  actual=$(cmd_get "$change_name" "$field")
+  if [ "$actual" = "$expected" ]; then
+    check_pass "${field}=${actual} (expected: ${expected})"
+  else
+    check_fail "${field}=${actual} (expected: ${expected})"
+  fi
+}
+
+check_yaml_empty() {
+  local field="$1"
+  local change_name="$2"
+  local value
+  value=$(cmd_get "$change_name" "$field")
+  if [ -z "$value" ] || [ "$value" = "null" ]; then
+    check_pass "${field} is empty/null"
+  else
+    check_fail "${field}=${value} (expected: empty/null)"
+  fi
+}
+
+check_file_not_exists() {
+  local desc="$1"
+  local path="$2"
+  if [ ! -f "$path" ]; then
+    check_pass "$desc does not exist"
+  else
+    check_fail "$desc exists (should not exist)"
+  fi
+}
+
+cmd_check() {
+  local phase="$1"
+  local change_name="$2"
+
+  validate_change_name "$change_name"
+  validate_enum "$phase" "open" "design" "build" "verify" "archive"
+
+  local change_dir="openspec/changes/$change_name"
+  local yaml_file="$change_dir/.comet.yaml"
+  local proposal_file="$change_dir/proposal.md"
+  local design_file="$change_dir/design.md"
+  local tasks_file="$change_dir/tasks.md"
+
+  echo "=== Entry Check: comet-${phase} ==="
+
+  # For non-open phases, .comet.yaml must exist
+  if [ "$phase" != "open" ]; then
+    if [ ! -f "$yaml_file" ]; then
+      red "ERROR: .comet.yaml not found at $yaml_file"
+      exit 1
+    fi
+  fi
+
+  # Phase-specific checks
+  case "$phase" in
+    open)
+      check_file_not_exists ".comet.yaml" "$yaml_file"
+      check_nonempty "proposal.md" "$proposal_file"
+      check_nonempty "design.md" "$design_file"
+      check_nonempty "tasks.md" "$tasks_file"
+      ;;
+    design)
+      check_pass ".comet.yaml exists"
+      check_yaml_is "phase" "design" "$change_name"
+      check_yaml_is "workflow" "full" "$change_name"
+      check_yaml_empty "design_doc" "$change_name"
+      check_nonempty "proposal.md" "$proposal_file"
+      check_nonempty "design.md" "$design_file"
+      check_nonempty "tasks.md" "$tasks_file"
+      ;;
+    build)
+      check_pass ".comet.yaml exists"
+      check_yaml_is "phase" "build" "$change_name"
+      # Check design_doc is non-null and file exists
+      local design_doc
+      design_doc=$(cmd_get "$change_name" "design_doc")
+      if [ -n "$design_doc" ] && [ "$design_doc" != "null" ] && [ -f "$change_dir/$design_doc" ]; then
+        check_pass "design_doc=${design_doc} (file exists)"
+      else
+        check_fail "design_doc=${design_doc} (expected: non-null and file exists)"
+      fi
+      check_nonempty "proposal.md" "$proposal_file"
+      check_nonempty "tasks.md" "$tasks_file"
+      ;;
+    verify)
+      check_pass ".comet.yaml exists"
+      check_yaml_is "phase" "verify" "$change_name"
+      # Check verify_result is pending or null
+      local verify_result
+      verify_result=$(cmd_get "$change_name" "verify_result")
+      if [ "$verify_result" = "pending" ] || [ -z "$verify_result" ] || [ "$verify_result" = "null" ]; then
+        check_pass "verify_result=${verify_result} (expected: pending or null)"
+      else
+        check_fail "verify_result=${verify_result} (expected: pending or null)"
+      fi
+      ;;
+    archive)
+      check_pass ".comet.yaml exists"
+      check_yaml_is "phase" "archive" "$change_name"
+      check_yaml_is "verify_result" "pass" "$change_name"
+      # Check archived is NOT true
+      local archived
+      archived=$(cmd_get "$change_name" "archived")
+      if [ "$archived" != "true" ]; then
+        check_pass "archived=${archived} (expected: not true)"
+      else
+        check_fail "archived=${archived} (expected: not true)"
+      fi
+      ;;
+    *)
+      red "ERROR: Unknown phase for check: $phase"
+      exit 1
+      ;;
+  esac
+
+  echo ""
+  if [ "$CHECK_BLOCK" -eq 1 ]; then
+    red "BLOCKED — fix failing checks before proceeding"
+    exit 1
+  else
+    green "ALL CHECKS PASSED — ready to proceed"
+    exit 0
+  fi
+}
+
 # --- Main ---
 
 SUBCOMMAND="${1:-}"
@@ -245,6 +402,14 @@ case "$SUBCOMMAND" in
     fi
     cmd_set "$@"
     ;;
+  check)
+    if [ $# -lt 2 ]; then
+      red "Usage: comet-state.sh check <phase> <change-name>" >&2
+      red "Phases: open, design, build, verify, archive" >&2
+      exit 1
+    fi
+    cmd_check "$@"
+    ;;
   *)
     red "Unknown subcommand: $SUBCOMMAND" >&2
     echo "" >&2
@@ -254,8 +419,10 @@ case "$SUBCOMMAND" in
     echo "  init <change-name> <workflow>  — Initialize .comet.yaml with workflow defaults" >&2
     echo "  get <change-name> <field>       — Read a field value from .comet.yaml" >&2
     echo "  set <change-name> <field> <val> — Update a field value in .comet.yaml" >&2
+    echo "  check <phase> <change-name>    — Verify entry requirements for a phase" >&2
     echo "" >&2
     echo "Workflows: full, hotfix, tweak" >&2
+    echo "Phases for check: open, design, build, verify, archive" >&2
     exit 1
     ;;
 esac
