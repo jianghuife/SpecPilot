@@ -1,37 +1,37 @@
-# Comet State Unification Design
+# Comet 状态统一设计
 
-> Unify all `.comet.yaml` state operations into a single script, eliminating manual YAML editing by agents.
+> 将所有 `.comet.yaml` 状态操作统一收拢到单一脚本，彻底消除 agent 手动编辑 YAML。
 
-## Problem
+## 问题
 
-Agents currently edit `.comet.yaml` through raw `sed -i` commands and manual YAML file creation. This creates multiple failure modes:
+Agent 当前通过原始 `sed -i` 命令和手动创建 YAML 文件来编辑 `.comet.yaml`。这带来多种故障模式：
 
-1. **Field typos** — `sed -i 's|^build_mode:.*|build_mode: subagent-dev|'` silently writes an invalid enum value
-2. **Missing fields** — agent forgets a field during initial `.comet.yaml` creation
-3. **Format errors** — inconsistent quoting, spacing, or line endings
-4. **Entry verification drift** — each skill's Step 0 checklist is a text description that agents must interpret and implement independently; implementations diverge from the spec over time
-5. **Scale assessment ambiguity** — comet-verify's light/full decision rules are prose that agents interpret inconsistently
+1. **字段拼写错误** — `sed -i 's|^build_mode:.*|build_mode: subagent-dev|'` 会静默写入无效枚举值
+2. **字段遗漏** — agent 在创建 `.comet.yaml` 时忘记某个字段
+3. **格式错误** — 引号、空格、行尾不一致
+4. **入口验证漂移** — 各 skill 的 Step 0 检查清单是文字描述，agent 需自行解读并实现；随着时间推移，实现与规范产生偏差
+5. **规模评估歧义** — comet-verify 的 light/full 判断规则是自然语言，agent 解读不一致
 
-## Solution
+## 方案
 
-Introduce `comet-state.sh` — a single script that serves as the **exclusive interface** for all `.comet.yaml` state interactions. Agents never directly `sed`, `echo >`, or `cat | grep` the YAML file.
+引入 `comet-state.sh` — 单一脚本作为所有 `.comet.yaml` 状态交互的**唯一接口**。Agent 不再直接使用 `sed`、`echo >` 或 `cat | grep` 操作 YAML 文件。
 
-## Script Design
+## 脚本设计
 
-### Location
+### 位置
 
 `assets/skills/comet/scripts/comet-state.sh`
 
-### Subcommands
+### 子命令
 
-#### `init <change-name> <workflow>`
+#### `init <变更名> <工作流>`
 
-Creates `.comet.yaml` with workflow-appropriate defaults.
+根据工作流类型创建 `.comet.yaml`，自动填入合理的默认值。
 
-**Workflow defaults:**
+**各工作流默认值：**
 
-| Field | `full` | `hotfix` | `tweak` |
-|-------|--------|----------|---------|
+| 字段 | `full` | `hotfix` | `tweak` |
+|------|--------|----------|---------|
 | `workflow` | full | hotfix | tweak |
 | `phase` | design | build | build |
 | `design_doc` | null | null | null |
@@ -43,19 +43,19 @@ Creates `.comet.yaml` with workflow-appropriate defaults.
 | `verified_at` | null | null | null |
 | `archived` | false | false | false |
 
-**Behavior:**
-- Validates change name (alphanumeric + hyphens + underscores, no path traversal)
-- Fails if `.comet.yaml` already exists
-- Outputs creation confirmation with field summary
+**行为：**
+- 验证变更名称（仅允许字母数字 + 连字符 + 下划线，拒绝路径遍历）
+- 如果 `.comet.yaml` 已存在则报错退出
+- 输出创建确认及字段摘要
 
-#### `set <change-name> <field> <value>`
+#### `set <变更名> <字段> <值>`
 
-Updates a single field with built-in validation.
+更新单个字段，内置枚举验证。
 
-**Enum validation table:**
+**枚举验证表：**
 
-| Field | Allowed Values |
-|-------|---------------|
+| 字段 | 允许值 |
+|------|--------|
 | `workflow` | `full`, `hotfix`, `tweak` |
 | `phase` | `design`, `build`, `verify`, `archive` |
 | `build_mode` | `subagent-driven-development`, `executing-plans`, `direct` |
@@ -64,42 +64,42 @@ Updates a single field with built-in validation.
 | `verify_result` | `pending`, `pass`, `fail` |
 | `archived` | `true`, `false` |
 
-**Path fields** (`design_doc`, `plan`):
-- Accept any non-empty string
-- Optionally validate file existence (flag: `--check-exists`)
+**路径类字段**（`design_doc`, `plan`）：
+- 接受任意非空字符串
+- 可选验证文件是否存在（通过 `--check-exists` 标志）
 
-**Behavior:**
-- Fails if `.comet.yaml` doesn't exist
-- Fails if field name is unknown
-- Fails if value violates enum constraint
-- On success: writes value, outputs `[SET] field=value` confirmation
+**行为：**
+- `.comet.yaml` 不存在时报错退出
+- 字段名未知时报错退出
+- 值违反枚举约束时报错退出
+- 成功时：写入值，输出 `[SET] field=value` 确认
 
-#### `get <change-name> <field>`
+#### `get <变更名> <字段>`
 
-Reads a single field value to stdout.
+读取单个字段值输出到 stdout。
 
-**Behavior:**
-- Outputs empty string for null/missing fields
-- Fails (stderr + exit 1) if file doesn't exist
-- No validation on read — raw value output
+**行为：**
+- null 或缺失字段输出空字符串
+- 文件不存在时输出错误到 stderr，exit 1
+- 读取不做验证 — 原值输出
 
-#### `check <change-name> <phase>`
+#### `check <变更名> <阶段>`
 
-Validates entry conditions for a phase. Replaces each skill's Step 0 text checklist.
+验证某阶段的入口条件。替代各 skill 的 Step 0 文字检查清单。
 
-**Phase-specific rules (extracted from current skill checklists):**
+**各阶段规则（从现有 skill 检查清单提取）：**
 
-| Phase | Checks |
-|-------|--------|
-| `open` | `.comet.yaml` does NOT exist, change directory may or may not exist |
-| `design` | `.comet.yaml` exists, `phase=design`, `workflow=full`, `design_doc` is null/empty, `proposal.md` exists and non-empty, `design.md` exists and non-empty |
-| `build` | `.comet.yaml` exists, `phase=build`, `design_doc` is non-null and file exists, `proposal.md` exists and non-empty, `tasks.md` exists and non-empty |
-| `verify` | `.comet.yaml` exists, `phase=verify`, `verify_result` is pending or null |
-| `archive` | `.comet.yaml` exists, `phase=archive`, `verify_result=pass`, `archived` is not true |
+| 阶段 | 检查项 |
+|------|--------|
+| `open` | `.comet.yaml` 不存在，变更目录可存在也可不存在 |
+| `design` | `.comet.yaml` 存在，`phase=design`，`workflow=full`，`design_doc` 为 null/空，`proposal.md` 存在且非空，`design.md` 存在且非空 |
+| `build` | `.comet.yaml` 存在，`phase=build`，`design_doc` 非空且文件存在，`proposal.md` 存在且非空，`tasks.md` 存在且非空 |
+| `verify` | `.comet.yaml` 存在，`phase=verify`，`verify_result` 为 pending 或 null |
+| `archive` | `.comet.yaml` 存在，`phase=archive`，`verify_result=pass`，`archived` 不为 true |
 
-**Output format:**
+**输出格式：**
 ```
-=== Entry Check: comet-<phase> ===
+=== Entry Check: comet-<阶段> ===
   [PASS] .comet.yaml exists
   [PASS] phase=build (expected: build)
   [FAIL] design_doc file does not exist: docs/superpowers/specs/xxx.md
@@ -108,29 +108,29 @@ Validates entry conditions for a phase. Replaces each skill's Step 0 text checkl
 BLOCKED — fix failing checks before proceeding
 ```
 
-Exit 0 = all pass, exit 1 = any fail.
+Exit 0 = 全部通过，exit 1 = 有失败项。
 
-#### `scale <change-name>`
+#### `scale <变更名>`
 
-Assesses change scale for verification mode. Replaces comet-verify's prose decision rules.
+评估变更规模以确定验证模式。替代 comet-verify 的自然语言判断规则。
 
-**Metrics read:**
-- Task count from `tasks.md` (count `- [ ]` + `- [x]` lines)
-- Delta spec count from `openspec/changes/<name>/specs/*/spec.md`
-- Changed file count from git diff (if in git repo)
+**读取指标：**
+- 任务数量，从 `tasks.md` 统计（`- [ ]` + `- [x]` 行数）
+- 增量规格数量，从 `openspec/changes/<name>/specs/*/spec.md` 统计
+- 变更文件数量，从 git diff 统计（如果在 git 仓库中）
 
-**Decision rules (same logic as current, just scripted):**
+**判断规则（与当前逻辑一致，仅脚本化）：**
 
-| Metric | Threshold | Result |
-|--------|-----------|--------|
-| Tasks | > 3 | `full` |
-| Delta specs | > 1 capability | `full` |
-| Changed files | > 5 | `full` |
-| All below thresholds | — | `light` |
+| 指标 | 阈值 | 结果 |
+|------|------|------|
+| 任务数 | > 3 | `full` |
+| 增量规格 | > 1 个能力 | `full` |
+| 变更文件 | > 5 | `full` |
+| 全部低于阈值 | — | `light` |
 
-Any single metric hitting "large" → full. All "small" → light.
+任一指标达到"大"→ full。全部"小"→ light。
 
-**Output:**
+**输出：**
 ```
 === Scale Assessment: <name> ===
   Tasks: 5 (threshold: 3)
@@ -138,103 +138,103 @@ Any single metric hitting "large" → full. All "small" → light.
   → Result: full
 ```
 
-**Side effect:** Automatically sets `verify_mode` field in `.comet.yaml`.
+**副作用：** 自动设置 `.comet.yaml` 中的 `verify_mode` 字段。
 
-## Skill Transformations
+## Skill 改造方案
 
 ### comet-open
 
 ```bash
-# Before: manual YAML creation (~15 lines of content)
-# After:
+# 改造前：手动创建 YAML（约 15 行内容）
+# 改造后：
 bash $COMET_STATE init <name> full
 ```
 
 ### comet-design
 
 ```bash
-# Before: sed -i 's|^design_doc:.*|design_doc: ...|' .comet.yaml
-# After:
+# 改造前：sed -i 's|^design_doc:.*|design_doc: ...|' .comet.yaml
+# 改造后：
 bash $COMET_STATE set <name> design_doc docs/superpowers/specs/YYYY-MM-DD-topic-design.md
 ```
 
 ### comet-build
 
 ```bash
-# Record plan path
+# 记录计划路径
 bash $COMET_STATE set <name> plan docs/superpowers/plans/YYYY-MM-DD-feature.md
 
-# User selects isolation → record choice
+# 用户选择隔离方式 → 记录选择
 bash $COMET_STATE set <name> isolation branch
 
-# User selects build_mode → record choice
+# 用户选择构建模式 → 记录选择
 bash $COMET_STATE set <name> build_mode subagent-driven-development
 ```
 
-Note: isolation and build_mode remain **user-selectable** choices. The script only handles recording the selection with validation.
+注意：isolation 和 build_mode 保持**用户可选**。脚本只负责带验证地记录选择结果。
 
 ### comet-verify
 
 ```bash
-# Entry check
+# 入口检查
 bash $COMET_STATE check <name> verify
 
-# Scale assessment (auto-sets verify_mode)
+# 规模评估（自动设置 verify_mode）
 bash $COMET_STATE scale <name>
 
-# After verification passes
+# 验证通过后
 bash $COMET_STATE set <name> verify_result pass
 ```
 
 ### comet-archive
 
-Internal `comet-archive.sh` refactored to use `comet-state.sh get/set` instead of direct `grep`/`sed` on YAML.
+`comet-archive.sh` 内部改造为使用 `comet-state.sh get/set` 替代直接 `grep`/`sed` 操作 YAML。
 
 ### comet-hotfix / comet-tweak
 
 ```bash
-# Before: manual YAML creation with preset values
-# After:
-bash $COMET_STATE init <name> hotfix  # or tweak
+# 改造前：手动创建带预设值的 YAML
+# 改造后：
+bash $COMET_STATE init <name> hotfix  # 或 tweak
 ```
 
-### comet (main entry)
+### comet（主入口）
 
-Self-healing logic uses `set` instead of raw `sed`:
+自修复逻辑使用 `set` 替代原始 `sed`：
 ```bash
 bash $COMET_STATE set <name> phase <correct-phase>
 ```
 
-## Architecture
+## 架构
 
-Three-layer script hierarchy:
+三层脚本体系：
 
 ```
-comet-state.sh          ← agent's exclusive state interface (CRUD + check + scale)
-  ├── calls internally → comet-yaml-validate.sh  ← schema validation
-  └── called by        → comet-guard.sh          ← phase transition (uses state.sh set internally)
-                         comet-archive.sh         ← archive flow (uses state.sh get/set internally)
+comet-state.sh          ← agent 唯一的状态交互接口（CRUD + 检查 + 评估）
+  ├── 内部调用 → comet-yaml-validate.sh  ← schema 校验
+  └── 被调用 → comet-guard.sh           ← 阶段流转（内部使用 state.sh set）
+                comet-archive.sh          ← 归档流程（内部使用 state.sh get/set）
 ```
 
-- **comet-state.sh** is the public API for agents
-- **comet-guard.sh** and **comet-archive.sh** use state.sh internally for their own state operations
-- **comet-yaml-validate.sh** remains the low-level schema checker, called by state.sh after writes
+- **comet-state.sh** 是面向 agent 的公共 API
+- **comet-guard.sh** 和 **comet-archive.sh** 内部使用 state.sh 完成各自的状态操作
+- **comet-yaml-validate.sh** 保持底层 schema 校验角色，被 state.sh 在写入后调用
 
-## Impact on SKILL.md Files
+## 对 SKILL.md 文件的影响
 
-All 8 skill files updated:
+全部 8 个 skill 文件更新：
 
-1. **Step 0 (entry verification)** — text checklist replaced with single `bash $COMET_STATE check <name> <phase>` command
-2. **State creation** — YAML template blocks replaced with `bash $COMET_STATE init <name> <workflow>`
-3. **Field updates** — `sed -i` commands replaced with `bash $COMET_STATE set <name> <field> <value>`
-4. **Field reads** — `grep`/`sed` parsing replaced with `bash $COMET_STATE get <name> <field>`
-5. **Scale assessment** — prose rules replaced with `bash $COMET_STATE scale <name>`
+1. **Step 0（入口验证）** — 文字检查清单替换为单条 `bash $COMET_STATE check <name> <phase>` 命令
+2. **状态创建** — YAML 模板块替换为 `bash $COMET_STATE init <name> <workflow>`
+3. **字段更新** — `sed -i` 命令替换为 `bash $COMET_STATE set <name> <field> <value>`
+4. **字段读取** — `grep`/`sed` 解析替换为 `bash $COMET_STATE get <name> <field>`
+5. **规模评估** — 自然语言规则替换为 `bash $COMET_STATE scale <name>`
 
-Both English (`assets/skills/`) and Chinese (`assets/skills-zh/`) versions updated.
+英文版（`assets/skills/`）和中文版（`assets/skills-zh/`）同步更新。
 
-## Out of Scope
+## 不在范围内
 
-- Changing guard `--apply` behavior — it continues to handle phase transitions, now using state.sh internally
-- Adding new phases or fields to `.comet.yaml`
-- Changing the archive flow logic — only internal implementation uses state.sh
-- Auto-selecting isolation/build_mode — these remain user choices
+- 修改 guard `--apply` 行为 — 继续处理阶段流转，内部改为使用 state.sh
+- 新增阶段或字段到 `.comet.yaml`
+- 修改归档流程逻辑 — 仅内部实现改用 state.sh
+- 自动选择 isolation/build_mode — 保持用户选择
