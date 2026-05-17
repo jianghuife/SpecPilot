@@ -90,12 +90,14 @@ After `comet init`, three groups of skills are installed to the selected platfor
 | `/comet-hotfix` | Preset: Quick bug fix (skips brainstorming) |
 | `/comet-tweak` | Preset: Small change (skips brainstorming and full plan) |
 
-### Guard Scripts
+### Guard & Automation Scripts
 
 | Script | Purpose |
 |--------|---------|
-| `comet-guard.sh` | Phase transition guard — validates exit conditions before phase transitions |
+| `comet-guard.sh` | Phase transition guard — validates exit conditions, `--apply` auto-updates `.comet.yaml` |
+| `comet-archive.sh` | One-command archive — validates state, syncs specs, moves to archive, updates status |
 | `comet-yaml-validate.sh` | Schema validator — validates `.comet.yaml` structure and field values |
+| `comet-state.sh` | Unified state management — init/set/get/check/scale, agents' exclusive YAML interface |
 
 ### OpenSpec Skills
 
@@ -160,21 +162,29 @@ Comet uses a decoupled state architecture with separate YAML files:
 
 ### Reliability Features
 
-Comet includes three-layer defense to ensure agent execution reliability:
+Comet ensures agent execution reliability through automated state transitions:
 
 1. **Entry Verification** — Each phase validates preconditions before execution
    - Checks file existence, state consistency, and phase transitions
    - Outputs `[HARD STOP]` with actionable suggestions if validation fails
 
-2. **Write-Then-Verify** — Every state write is immediately verified
-   - After updating `.comet.yaml`, agents must verify field values
-   - Automatic retry mechanism (up to 2 attempts) on mismatch
+2. **Automated State Transitions** — `comet-guard.sh --apply` updates `.comet.yaml` automatically
+   - All phase transitions (design → build → verify → archive) use `guard --apply`
+   - No manual state editing required — eliminates write-verification errors
+   - `comet-state.sh` is the agents' exclusive interface for state operations
+   - Guard and archive scripts use `comet-state.sh` internally for state management
 
 3. **Schema Validation** — `comet-yaml-validate.sh` ensures data integrity
    - Validates required fields (10 fields)
    - Validates enum values (7 enum types)
    - Validates referenced file paths exist
    - Detects unknown/typos fields
+
+4. **Archive Automation** — `comet-archive.sh` handles the full archive flow in one command
+   - Validates entry state, syncs delta specs to main specs
+   - Annotates design doc and plan frontmatter
+   - Moves change to archive directory and updates `archived: true`
+   - Supports `--dry-run` for preview
 
 **Security**: Path traversal protection on all change name inputs
 
@@ -185,8 +195,10 @@ your-project/
 ├── .claude/skills/              # Platform skills dir (Comet + OpenSpec + Superpowers)
 │   ├── comet/SKILL.md
 │   │   └── scripts/
-│   │       ├── comet-guard.sh       # Phase transition guard
-│   │       └── comet-yaml-validate.sh # Schema validator
+│   │       ├── comet-guard.sh       # Phase transition guard (--apply auto-updates state)
+│   │       ├── comet-archive.sh     # One-command archive automation
+│   │       ├── comet-yaml-validate.sh # Schema validator
+│   │       └── comet-state.sh       # Unified state management (init/set/get/check/scale)
 │   ├── comet-*/SKILL.md
 │   ├── openspec-*/SKILL.md
 │   └── brainstorming/SKILL.md
