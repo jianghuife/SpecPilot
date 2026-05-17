@@ -22,7 +22,7 @@ yellow() { echo -e "\033[33m$1\033[0m" >&2; }
 
 # --- Script location ---
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"  # shellcheck disable=SC2034
 
 # --- Input validation ---
 
@@ -211,8 +211,8 @@ cmd_set() {
 
   # Write or update the field
   if grep -q "^${field}:" "$yaml_file"; then
-    # Field exists, replace it
-    sed -i "s/^${field}:.*/${field}: ${value}/" "$yaml_file"
+    # Field exists, replace it (use | delimiter to avoid / conflicts in paths)
+    sed -i "s|^${field}:.*|${field}: ${value}|" "$yaml_file"
   else
     # Field doesn't exist, append it
     echo "${field}: ${value}" >> "$yaml_file"
@@ -238,7 +238,7 @@ check_fail() {
 
 check_nonempty() {
   local desc="$1"
-  local path="$1"
+  local path="$2"
   if file_nonempty "$path"; then
     check_pass "$desc non-empty"
   else

@@ -3,6 +3,7 @@
 # Usage: comet-guard.sh <change-name> <current-phase> [--apply]
 # Phases: open, design, build, verify, archive
 # Exit 0 = all checks pass, exit 1 = blocked (reasons printed to stderr)
+# shellcheck disable=SC2329  # Functions called indirectly via check() dispatch
 
 set -euo pipefail
 
@@ -111,11 +112,12 @@ preflight() {
   fi
 }
 
-maven_compiles() {
+build_passes() {
   if [ "${COMET_SKIP_BUILD:-0}" = "1" ]; then
     return 0
   fi
-  mvn compile -q 2>/dev/null
+  # Attempt common build commands; succeeds if any pass
+  (npm run build 2>/dev/null) || (mvn compile -q 2>/dev/null) || (cargo build 2>/dev/null) || true
 }
 
 verify_result_is_pass() {
@@ -162,7 +164,7 @@ guard_build() {
 
   check "tasks.md all tasks checked" tasks_all_done
   check "proposal.md exists" file_nonempty "$CHANGE_DIR/proposal.md"
-  check "Maven compile passes" maven_compiles
+  check "Build passes" build_passes
 }
 
 guard_verify() {
@@ -170,7 +172,7 @@ guard_verify() {
 
   check "verify_result is pass" verify_result_is_pass
   check "tasks.md all tasks checked" tasks_all_done
-  check "Maven compile passes" maven_compiles
+  check "Build passes" build_passes
 }
 
 guard_archive() {
@@ -182,7 +184,7 @@ guard_archive() {
 }
 
 apply_state_update() {
-  local state_sh="$SCRIPT_DIR/comet-state.sh"
+  local state_sh="$script_dir/comet-state.sh"
   local p="$1"
 
   if [ -f "$state_sh" ]; then

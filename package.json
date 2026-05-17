@@ -41,6 +41,7 @@
     "prepublishOnly": "node scripts/prepublish-check.js && pnpm run build",
     "postinstall": "node scripts/postinstall.js"
   },
+  "packageManager": "pnpm@10.18.3",
   "engines": {
     "node": ">=18"
   },
