@@ -13,28 +13,14 @@ description: "Comet 阶段 1：开启。用 /comet-open 调用。通过 OpenSpec
 
 ### 0. 入口状态验证（Entry Check）
 
-在执行任何操作之前，读取并验证当前状态：
+执行入口验证：
 
-**检查清单：**
-1. `openspec/changes/<name>/` 目录已存在（由 openspec-new-change 创建）
-2. `openspec/changes/<name>/.comet.yaml` 文件不存在（尚未初始化）
-3. `openspec/changes/<name>/proposal.md` 存在且非空
-4. `openspec/changes/<name>/design.md` 存在且非空
-5. `openspec/changes/<name>/tasks.md` 存在且非空
-
-**验证方式：**
-- 读取以上路径确认存在/不存在
-- 如 `.comet.yaml` 已存在，读取其 `phase` 字段：如 phase 不为空，输出 `[HARD STOP]` 并提示可能已有活跃 change
-
-**失败输出：**
-```
-[HARD STOP] Entry check failed for comet-open
-  Expected: .comet.yaml does not exist, proposal.md + design.md + tasks.md exist
-  Actual:   phase=<实际值>, design_doc=<实际值> (或文件不存在)
-  Suggestion: Check if another change with the same name is already active.
+```bash
+COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+bash "$COMET_STATE" check <name> open
 ```
 
-验证通过后才进入步骤 1。
+验证通过后继续 Step 1。验证失败时脚本会输出具体失败原因。
 
 ### 1. 探索想法
 
@@ -59,18 +45,10 @@ openspec/changes/<name>/
 
 ### 3. 初始化 Comet 状态
 
-在 `openspec/changes/<name>/` 下创建独立的 `.comet.yaml` 文件：
+初始化 Comet 状态文件：
 
-```yaml
-workflow: full
-phase: design
-design_doc: null
-plan: null
-build_mode: null
-verify_mode: null
-verify_result: pending
-verified_at: null
-archived: false
+```bash
+bash "$COMET_STATE" init <name> full
 ```
 
 ### 4. 内容完整性检查
