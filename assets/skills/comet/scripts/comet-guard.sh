@@ -182,30 +182,40 @@ guard_archive() {
 }
 
 apply_state_update() {
-  local yaml="$CHANGE_DIR/.comet.yaml"
+  local state_sh="$SCRIPT_DIR/comet-state.sh"
   local p="$1"
 
-  case "$p" in
-    open)
-      sed -i 's/^phase:.*/phase: design/' "$yaml"
-      ;;
-    design)
-      sed -i 's/^phase:.*/phase: build/' "$yaml"
-      ;;
-    build)
-      sed -i 's/^phase:.*/phase: verify/' "$yaml"
-      sed -i 's/^verify_result:.*/verify_result: pending/' "$yaml"
-      ;;
-    verify)
-      sed -i 's/^phase:.*/phase: archive/' "$yaml"
-      sed -i 's/^verify_result:.*/verify_result: pass/' "$yaml"
-      if ! grep -q '^verified_at:' "$yaml" 2>/dev/null; then
-        echo "verified_at: $(date +%Y-%m-%d)" >> "$yaml"
-      else
-        sed -i "s/^verified_at:.*/verified_at: $(date +%Y-%m-%d)/" "$yaml"
-      fi
-      ;;
-  esac
+  if [ -f "$state_sh" ]; then
+    case "$p" in
+      open)   bash "$state_sh" set "$CHANGE" phase design ;;
+      design) bash "$state_sh" set "$CHANGE" phase build ;;
+      build)
+        bash "$state_sh" set "$CHANGE" phase verify
+        bash "$state_sh" set "$CHANGE" verify_result pending
+        ;;
+      verify)
+        bash "$state_sh" set "$CHANGE" phase archive
+        bash "$state_sh" set "$CHANGE" verify_result pass
+        bash "$state_sh" set "$CHANGE" verified_at "$(date +%Y-%m-%d)"
+        ;;
+    esac
+  else
+    local yaml="$CHANGE_DIR/.comet.yaml"
+    case "$p" in
+      open)   sed -i 's/^phase:.*/phase: design/' "$yaml" ;;
+      design) sed -i 's/^phase:.*/phase: build/' "$yaml" ;;
+      build)  sed -i 's/^phase:.*/phase: verify/' "$yaml"; sed -i 's/^verify_result:.*/verify_result: pending/' "$yaml" ;;
+      verify)
+        sed -i 's/^phase:.*/phase: archive/' "$yaml"
+        sed -i 's/^verify_result:.*/verify_result: pass/' "$yaml"
+        if ! grep -q '^verified_at:' "$yaml" 2>/dev/null; then
+          echo "verified_at: $(date +%Y-%m-%d)" >> "$yaml"
+        else
+          sed -i "s/^verified_at:.*/verified_at: $(date +%Y-%m-%d)/" "$yaml"
+        fi
+        ;;
+    esac
+  fi
 }
 
 # --- Main ---
