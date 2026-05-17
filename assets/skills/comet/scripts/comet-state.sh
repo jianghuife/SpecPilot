@@ -7,6 +7,7 @@
 #   get <change-name> <field>       — Read a field value from .comet.yaml
 #   set <change-name> <field> <val> — Update a field value
 #   check <phase> <change-name>    — Verify entry requirements for a phase
+#   scale <change-name>             — Assess and set verification mode based on metrics
 #
 # Workflows: full, hotfix, tweak
 # Phases for check: open, design, build, verify, archive
@@ -374,6 +375,64 @@ cmd_check() {
   fi
 }
 
+cmd_scale() {
+  local change_name="$1"
+
+  validate_change_name "$change_name"
+
+  local change_dir="openspec/changes/$change_name"
+  local yaml_file="$change_dir/.comet.yaml"
+
+  # Verify .comet.yaml exists
+  if [ ! -f "$yaml_file" ]; then
+    red "ERROR: .comet.yaml not found at $yaml_file"
+    exit 1
+  fi
+
+  # Read metrics
+  # 1. Task count: count lines matching `- [` in tasks.md
+  local tasks_file="$change_dir/tasks.md"
+  local task_count=0
+  if [ -f "$tasks_file" ]; then
+    task_count=$(grep -c '^\- \[' "$tasks_file" 2>/dev/null || echo "0")
+  fi
+
+  # 2. Delta spec count: count files named spec.md under specs/*/spec.md
+  local delta_spec_count=0
+  if [ -d "$change_dir/specs" ]; then
+    delta_spec_count=$(find "$change_dir/specs" -name "spec.md" -type f 2>/dev/null | wc -l | tr -d ' ')
+  fi
+
+  # 3. Changed files: from git diff --stat HEAD
+  local changed_files=0
+  if git rev-parse --git-dir > /dev/null 2>&1; then
+    # Extract the number before "file" in the last line
+    local stat_output
+    stat_output=$(git diff --stat HEAD 2>/dev/null | tail -1)
+    if [[ "$stat_output" =~ ([0-9]+)\ file ]]; then
+      changed_files="${BASH_REMATCH[1]}"
+    fi
+  fi
+
+  # Decision rules
+  local result="light"
+  if [ "$task_count" -gt 3 ] || [ "$delta_spec_count" -gt 1 ] || [ "$changed_files" -gt 5 ]; then
+    result="full"
+  fi
+
+  # Output assessment to stderr
+  echo "=== Scale Assessment: $change_name ===" >&2
+  echo "  Tasks: $task_count (threshold: 3)" >&2
+  echo "  Delta specs: $delta_spec_count capabilities (threshold: 1)" >&2
+  echo "  Changed files: $changed_files (threshold: 5)" >&2
+  echo "  → Result: $result" >&2
+
+  # Update verify_mode in .comet.yaml
+  sed -i "s/^verify_mode:.*/verify_mode: $result/" "$yaml_file"
+
+  green "[SCALE] verify_mode=$result"
+}
+
 # --- Main ---
 
 SUBCOMMAND="${1:-}"
@@ -410,6 +469,13 @@ case "$SUBCOMMAND" in
     fi
     cmd_check "$@"
     ;;
+  scale)
+    if [ $# -lt 1 ]; then
+      red "Usage: comet-state.sh scale <change-name>" >&2
+      exit 1
+    fi
+    cmd_scale "$@"
+    ;;
   *)
     red "Unknown subcommand: $SUBCOMMAND" >&2
     echo "" >&2
@@ -420,6 +486,7 @@ case "$SUBCOMMAND" in
     echo "  get <change-name> <field>       — Read a field value from .comet.yaml" >&2
     echo "  set <change-name> <field> <val> — Update a field value in .comet.yaml" >&2
     echo "  check <phase> <change-name>    — Verify entry requirements for a phase" >&2
+    echo "  scale <change-name>             — Assess and set verification mode based on metrics" >&2
     echo "" >&2
     echo "Workflows: full, hotfix, tweak" >&2
     echo "Phases for check: open, design, build, verify, archive" >&2
