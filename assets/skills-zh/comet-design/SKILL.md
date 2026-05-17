@@ -14,30 +14,14 @@ description: "Comet 阶段 2：深度设计。用 /comet-design 调用。通过 
 
 ### 0. 入口状态验证（Entry Check）
 
-在执行任何操作之前，读取并验证当前状态：
+执行入口验证：
 
-**检查清单：**
-1. `openspec/changes/<name>/.comet.yaml` 存在
-2. `phase` 字段的值为 `"design"`
-3. `workflow` 字段的值为 `"full"`
-4. `design_doc` 字段为 `null` 或空
-5. `openspec/changes/<name>/proposal.md` 存在且非空
-6. `openspec/changes/<name>/design.md` 存在且非空
-7. `openspec/changes/<name>/tasks.md` 存在且非空
-
-**验证方式：**
-- `cat openspec/changes/<name>/.comet.yaml` 读取全部字段
-- 逐条比对检查清单
-
-**失败输出：**
-```
-[HARD STOP] Entry check failed for comet-design
-  Expected: phase=design, design_doc=<empty/null>, workflow=full
-  Actual:   phase=<实际值>, design_doc=<实际值>, workflow=<实际值>
-  Suggestion: Run comet-open first, or check if .comet.yaml was modified out of sequence.
+```bash
+COMET_STATE=$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)
+bash "$COMET_STATE" check <name> design
 ```
 
-验证通过后才进入步骤 1。
+验证通过后继续 Step 1。验证失败时脚本会输出具体失败原因。
 
 ### 1a. 读取已有上下文
 
@@ -70,7 +54,7 @@ Design 摘要: <design.md 架构决策>
 
 ```bash
 # 记录 design_doc 路径
-sed -i 's|^design_doc:.*|design_doc: docs/superpowers/specs/YYYY-MM-DD-topic-design.md|' openspec/changes/<name>/.comet.yaml
+bash "$COMET_STATE" set <name> design_doc docs/superpowers/specs/YYYY-MM-DD-topic-design.md
 
 # 自动流转到下一阶段
 bash $COMET_GUARD <change-name> design --apply
