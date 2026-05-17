@@ -22,7 +22,8 @@ yellow() { echo -e "\033[33m$1\033[0m" >&2; }
 
 # --- Script location ---
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"  # shellcheck disable=SC2034
+# shellcheck disable=SC2034
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # --- Input validation ---
 
