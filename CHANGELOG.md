@@ -2,6 +2,14 @@
 
 All notable changes to @rpamis/comet will be documented in this file.
 
+## What's Changed [0.2.1] - 2026-05-18
+
+### Fixed
+
+- **CI pnpm version**: Added `packageManager` field for pnpm/action-setup v4
+- **Shell scripts**: Fixed `SCRIPT_DIR` typo, renamed `maven_compiles` → `build_passes` (language-agnostic), fixed `check_nonempty` path bug, fixed `cmd_set` sed delimiter for path values, corrected shellcheck directive placement
+- **Node version**: Bumped minimum to Node 20 (vitest v4 coverage requires `node:inspector/promises`)
+
 ## What's Changed [0.2.0] - 2026-05-18
 
 Comet 0.2.0 is a comprehensive optimization release: skill reliability, CLI completeness, and engineering quality.
