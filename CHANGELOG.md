@@ -2,6 +2,13 @@
 
 All notable changes to @rpamis/comet will be documented in this file.
 
+## What's Changed [0.2.2] - 2026-05-18
+
+### Fixed
+
+- **Ctrl+Z/Ctrl+C crash during `comet init`**: Wrapped inquirer prompts in try/catch to handle `ExitPromptError`, showing `Cancelled.` and exiting cleanly instead of printing a raw stack trace
+- **Duplicate Superpowers installation**: `comet init` now detects Superpowers installed via Claude Code plugin system (`~/.claude/plugins/cache/`), skipping redundant `npx skills add` when Superpowers plugin is already present
+
 ## What's Changed [0.2.1] - 2026-05-18
 
 ### Fixed
