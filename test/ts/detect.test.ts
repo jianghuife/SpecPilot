@@ -2,7 +2,12 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { getBaseDir, detectPlatforms, hasSkills } from '../../src/core/detect.js';
+import {
+  getBaseDir,
+  detectPlatforms,
+  hasSkills,
+  hasPluginSuperpowers,
+} from '../../src/core/detect.js';
 import type { Platform } from '../../src/core/platforms.js';
 
 const mockPlatform: Platform = {
@@ -102,6 +107,137 @@ describe('detect', () => {
 
     it('returns false when skills directory does not exist', async () => {
       expect(await hasSkills(tmpDir, mockPlatform, 'comet')).toBe(false);
+    });
+
+    it('detects plugin-installed superpowers for claude platform', async () => {
+      const origEnv = process.env.CLAUDE_CONFIG_DIR;
+      const pluginDir = path.join(tmpDir, '.claude');
+      process.env.CLAUDE_CONFIG_DIR = pluginDir;
+
+      const skillsDir = path.join(
+        pluginDir,
+        'plugins',
+        'cache',
+        'claude-plugins-official',
+        'superpowers',
+        '5.0.0',
+        'skills',
+      );
+      await fs.mkdir(skillsDir, { recursive: true });
+      await fs.mkdir(path.join(skillsDir, 'brainstorming'));
+      await fs.mkdir(path.join(skillsDir, 'using-superpowers'));
+
+      // No skills in the normal location
+      await fs.mkdir(path.join(tmpDir, '.claude', 'skills'), { recursive: true });
+
+      expect(await hasSkills(tmpDir, mockPlatform, 'superpowers')).toBe(true);
+
+      if (origEnv !== undefined) {
+        process.env.CLAUDE_CONFIG_DIR = origEnv;
+      } else {
+        delete process.env.CLAUDE_CONFIG_DIR;
+      }
+    });
+
+    it('does not detect plugin superpowers for non-claude platforms', async () => {
+      const origEnv = process.env.CLAUDE_CONFIG_DIR;
+      const pluginDir = path.join(tmpDir, '.claude');
+      process.env.CLAUDE_CONFIG_DIR = pluginDir;
+
+      const skillsDir = path.join(
+        pluginDir,
+        'plugins',
+        'cache',
+        'claude-plugins-official',
+        'superpowers',
+        '5.0.0',
+        'skills',
+      );
+      await fs.mkdir(skillsDir, { recursive: true });
+      await fs.mkdir(path.join(skillsDir, 'brainstorming'));
+
+      const cursorPlatform: Platform = {
+        id: 'cursor',
+        name: 'Cursor',
+        skillsDir: '.cursor',
+        openspecToolId: 'cursor',
+      };
+
+      expect(await hasSkills(tmpDir, cursorPlatform, 'superpowers')).toBe(false);
+
+      if (origEnv !== undefined) {
+        process.env.CLAUDE_CONFIG_DIR = origEnv;
+      } else {
+        delete process.env.CLAUDE_CONFIG_DIR;
+      }
+    });
+  });
+
+  describe('hasPluginSuperpowers', () => {
+    it('returns true when superpowers plugin is installed', async () => {
+      const origEnv = process.env.CLAUDE_CONFIG_DIR;
+      const pluginDir = path.join(tmpDir, '.claude');
+      process.env.CLAUDE_CONFIG_DIR = pluginDir;
+
+      const skillsDir = path.join(
+        pluginDir,
+        'plugins',
+        'cache',
+        'test-marketplace',
+        'superpowers',
+        '5.0.0',
+        'skills',
+      );
+      await fs.mkdir(skillsDir, { recursive: true });
+      await fs.mkdir(path.join(skillsDir, 'brainstorming'));
+      await fs.mkdir(path.join(skillsDir, 'using-superpowers'));
+
+      expect(await hasPluginSuperpowers()).toBe(true);
+
+      if (origEnv !== undefined) {
+        process.env.CLAUDE_CONFIG_DIR = origEnv;
+      } else {
+        delete process.env.CLAUDE_CONFIG_DIR;
+      }
+    });
+
+    it('returns false when no plugin cache exists', async () => {
+      const origEnv = process.env.CLAUDE_CONFIG_DIR;
+      process.env.CLAUDE_CONFIG_DIR = path.join(tmpDir, 'nonexistent');
+
+      expect(await hasPluginSuperpowers()).toBe(false);
+
+      if (origEnv !== undefined) {
+        process.env.CLAUDE_CONFIG_DIR = origEnv;
+      } else {
+        delete process.env.CLAUDE_CONFIG_DIR;
+      }
+    });
+
+    it('returns false when plugin exists but has no matching skills', async () => {
+      const origEnv = process.env.CLAUDE_CONFIG_DIR;
+      const pluginDir = path.join(tmpDir, '.claude');
+      process.env.CLAUDE_CONFIG_DIR = pluginDir;
+
+      const skillsDir = path.join(
+        pluginDir,
+        'plugins',
+        'cache',
+        'test-marketplace',
+        'superpowers',
+        '5.0.0',
+        'skills',
+      );
+      await fs.mkdir(skillsDir, { recursive: true });
+      await fs.mkdir(path.join(skillsDir, 'unrelated-skill'));
+
+      expect(await hasPluginSuperpowers()).toBe(false);
+
+      if (origEnv !== undefined) {
+        process.env.CLAUDE_CONFIG_DIR = origEnv;
+      } else {
+        delete process.env.CLAUDE_CONFIG_DIR;
+      }
     });
   });
 });

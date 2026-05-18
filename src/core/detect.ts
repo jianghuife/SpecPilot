@@ -18,6 +18,31 @@ function getBaseDir(scope: InstallScope, projectPath: string): string {
   return scope === 'global' ? os.homedir() : projectPath;
 }
 
+/**
+ * Check if superpowers are installed via Claude Code plugin system.
+ * Looks in ~/.claude/plugins/cache/{marketplace}/superpowers/{version}/skills/
+ */
+async function hasPluginSuperpowers(): Promise<boolean> {
+  const claudeDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+  const pluginsCacheDir = path.join(claudeDir, 'plugins', 'cache');
+
+  const marketplaceEntries = await readDir(pluginsCacheDir);
+  for (const marketplace of marketplaceEntries) {
+    const superpowersDir = path.join(pluginsCacheDir, marketplace, 'superpowers');
+    if (!(await fileExists(superpowersDir))) continue;
+
+    const versionEntries = await readDir(superpowersDir);
+    for (const version of versionEntries) {
+      const skillsDir = path.join(superpowersDir, version, 'skills');
+      const skills = await readDir(skillsDir);
+      if (SUPERPOWERS_SKILLS.some((name) => skills.includes(name))) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 async function detectPlatforms(projectPath: string): Promise<Set<string>> {
   const detected = new Set<string>();
 
@@ -77,8 +102,14 @@ async function hasSkills(
         break;
     }
   }
+
+  // Check Claude Code plugin cache for plugin-installed superpowers
+  if (component === 'superpowers' && platform.id === 'claude') {
+    if (await hasPluginSuperpowers()) return true;
+  }
+
   return false;
 }
 
-export { detectPlatforms, hasSkills, getBaseDir };
+export { detectPlatforms, hasSkills, hasPluginSuperpowers, getBaseDir };
 export type { InstallScope };

@@ -23,7 +23,15 @@ program
   .option('--overwrite', 'Overwrite manifest-managed files')
   .option('--json', 'Output as JSON')
   .action(async (targetPath = '.', options) => {
-    await initCommand(targetPath, options);
+    try {
+      await initCommand(targetPath, options);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'ExitPromptError') {
+        console.log('\n  Cancelled.\n');
+        process.exit(0);
+      }
+      throw error;
+    }
   });
 
 program
