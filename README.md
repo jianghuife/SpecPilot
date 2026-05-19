@@ -265,6 +265,9 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 - `.npmignore` prevents source code and config files from entering the npm package
 - `.gitignore` covers secrets, credentials, IDE configs, and more
 
+## Community
+[linux.do](https://linux.do/) — Linux & Open Source Community
+
 ## License
 
 MIT

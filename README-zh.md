@@ -265,6 +265,9 @@ pnpm format
 - `.npmignore` 阻止源码和配置文件进入 npm 包
 - `.gitignore` 覆盖 secrets、credentials、IDE configs 等
 
+## Community
+[linux.do](https://linux.do/) — Linux & Open Source Community
+
 ## License
 
 MIT
