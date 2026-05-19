@@ -15,6 +15,16 @@
 
 OpenSpec handles **WHAT** (outlines, proposals, spec lifecycle, archiving). Superpowers handles **HOW** (technical design, planning, execution, wrap-up). Comet chains both into a five-phase automated pipeline.
 
+## Why Comet
+
+OpenSpec excels at managing requirements, creating proposals, managing Spec lifecycles, and archiving, but its proposals and tasks lack the detail of Superpowers brainstorming.
+
+Superpowers generates Spec documents after brainstorming, but these documents typically lack stateful design — after completing requirements, Specs only have tasks checked off in the document, and Agents even forget to check them off. This causes the Agent to re-examine documents and project code to verify on resumption, wasting many tokens.
+
+**Comet combines the strengths of both**, integrating the core workflow into 5 phases
+
+The main entry `/comet` supports current Spec state detection, suitable for long tasks — after completing and closing CC midway, just `/comet continue` and Comet will automatically read the active Spec (lists multiple for selection), dynamically identify which phase is currently executing, and continue.
+
 ## Install
 
 ```bash
@@ -37,6 +47,23 @@ comet init
 5. Install [Superpowers](https://github.com/obra/superpowers) skills
 6. Deploy Comet skills (in your chosen language) to selected platforms
 7. Create `docs/superpowers/specs/` and `docs/superpowers/plans/` working directories
+
+## Screenshots
+
+<p align="center">
+  <img src="img/select-platform.png" alt="Platform Selection" width="600">
+</p>
+<p align="center">Supports Chinese & English Skill distribution, 28 AI Coding platforms</p>
+
+<p align="center">
+  <img src="img/init.png" alt="Initialization" width="600">
+</p>
+<p align="center">Auto-install OpenSpec & Superpowers, one-click dev environment setup</p>
+
+<p align="center">
+  <img src="img/skill-comet.png" alt="Skill Execution" width="600">
+</p>
+<p align="center">Multi-phase Skill entry, auto-detects current Spec stage, auto-triggers core flow, manual review at key nodes</p>
 
 ## Commands
 
@@ -164,15 +191,21 @@ Comet uses a decoupled state architecture with separate YAML files:
 | `.comet.yaml` | Comet | Workflow phase, execution mode, verification status |
 
 **Key Fields in `.comet.yaml`:**
-- `workflow`: `full`, `hotfix`, or `tweak`
-- `phase`: `design`, `build`, `verify`, `archive`
-- `design_doc`: Path to Superpowers Design Doc
-- `plan`: Path to implementation plan
-- `build_mode`: `subagent-driven-development`, `executing-plans`, or `direct`
-- `isolation`: `branch` or `worktree`, workspace isolation method
-- `verify_mode`: `light` or `full`
-- `verify_result`: `pending`, `pass`, or `fail`
-- `archived`: Boolean indicating if change is archived
+
+```yaml
+workflow: full
+phase: build
+design_doc: docs/superpowers/specs/YYYY-MM-DD-topic-design.md
+plan: docs/superpowers/plans/YYYY-MM-DD-feature.md
+build_mode: subagent-driven-development
+isolation: branch
+verify_mode: light
+verify_result: pending
+verified_at: null
+archived: false
+```
+
+All states and execution phases are updated via scripts, and **each phase verifies that tasks are truly completed before exiting — conditions are met before the phase exits and state is updated**. Compared to recording complex state management mechanisms in Skills, the script approach strongly guarantees the reliability of core state transitions, correctness of YAML files, and convenience of breakpoint recovery — Agents only need to use Comet's built-in commands to read state and know the current Spec's situation.
 
 ### Reliability Features
 
@@ -231,6 +264,16 @@ your-project/
     └── plans/                   # Implementation plans
 ```
 
+## What You'll Learn
+
+Many excellent Skill projects exist in the current Skill market, but they generally have preference issues — users may only like some features. For example, when using both OpenSpec and Superpowers, one might only use OpenSpec's Spec management capabilities, but prefer Superpowers' TDD-driven approach for coding.
+
+Long-term Skill users know these capabilities can be freely combined, but exactly how to do so still requires real practice. The Comet project can serve as a reference:
+
+- **How to reliably trigger nested Skills** — Not letting the Agent rely on document descriptions to perform "look-alike Skill trigger" operations (like writing files based on Skill descriptions), but truly triggering Skills (key feature: Skill trigger prints on CC). Comet will trigger many capabilities from OpenSpec and Superpowers — how is this Prompt written?
+
+- **How to make combined Skills multi-phase auto-flow** — Not relying on manual intervention. Comet's 5-phase flow automatically triggers Skills for core processes except necessary user selections, while the **state machine mechanism** also ensures state transition reliability.
+
 ## Development
 
 ```bash
@@ -264,9 +307,6 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 - Pre-publish scan for API keys, secrets, tokens, and private keys
 - `.npmignore` prevents source code and config files from entering the npm package
 - `.gitignore` covers secrets, credentials, IDE configs, and more
-
-## Community
-[linux.do](https://linux.do/) — Linux & Open Source Community
 
 ## License
 

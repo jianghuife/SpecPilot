@@ -1,6 +1,6 @@
 ---
 name: comet-build
-description: "Comet 阶段 3：计划与构建。用 /comet-build 调用。制定计划并通过 subagent-driven-development 执行实施。"
+description: "Comet 阶段 3：计划与构建。用 /comet-build 调用。制定计划并选择执行方式（subagent 或直接执行）实施。"
 ---
 
 # Comet 阶段 3：计划与构建（Build）
