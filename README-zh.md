@@ -15,6 +15,16 @@
 
 OpenSpec 处理 **WHAT**（大纲、提案、spec 生命周期、归档）。Superpowers 处理 **HOW**（技术设计、规划、执行、收尾）。Comet 将二者串联为五阶段自动化流水线。
 
+## 为什么需要 Comet
+
+OpenSpec 擅长管理需求、做提案、管理 Spec 生命周期和归档，但使用过程中 OpenSpec 的提案和 Task 没有像 Superpowers 头脑风暴那样细致。
+
+Superpowers 在头脑风暴后会产出 Spec 文档，但这个文档通常没有进行状态化设计——做完需求之后 Spec 仅在文档上对 Task 打勾，甚至 Agent 还会忘记打勾，造成下一次断点开始时，Agent 需要重新查看文档和项目代码来核验，产生较多 Token 浪费。
+
+**Comet 合并了两者的强项**，将核心流程整合为 5 个阶段
+
+主入口 `/comet` 支持当前 Spec 状态检测，适用于长任务——中途完成后关闭 CC，回来只需 `/comet 继续`，Comet 会自动读取活跃的 Spec（多个则列出选择），动态识别当前执行到哪个阶段，继续往下执行。
+
 ## 安装
 
 ```bash
@@ -38,7 +48,24 @@ comet init
 6. 将 Comet 技能（你选择的语言）部署到所选平台
 7. 创建 `docs/superpowers/specs/` 和 `docs/superpowers/plans/` 工作目录
 
-## 命令
+## 运行截图
+
+<p align="center">
+  <img src="img/select-platform.png" alt="平台选择" width="600">
+</p>
+<p align="center">支持分发中文、英文 Skill 版本，支持 28 个 AI Coding 平台</p>
+
+<p align="center">
+  <img src="img/init.png" alt="初始化" width="600">
+</p>
+<p align="center">自动安装 OpenSpec、Superpowers，一键配置开发环境</p>
+
+<p align="center">
+  <img src="img/skill-comet.png" alt="Skill 运行" width="600">
+</p>
+<p align="center">多阶段 Skill 入口，自动识别当前 Spec 阶段，核心流程自动触发，关键节点人工审核</p>
+
+## CLI命令
 
 | 命令 | 描述 |
 |---------|-------------|
@@ -101,8 +128,8 @@ comet init
 | `/comet-build` | 阶段 3：规划与构建（实现计划、代码提交） |
 | `/comet-verify` | 阶段 4：验证与完成（测试、验证报告） |
 | `/comet-archive` | 阶段 5：归档（delta spec 同步、状态标注） |
-| `/comet-hotfix` | 快捷路径：快速 bug 修复（跳过头脑风暴） |
-| `/comet-tweak` | 快捷路径：小改动（跳过头脑风暴和完整计划） |
+| `/comet-hotfix` | 快捷路径：快速 bug 修复（跳过头脑风暴，不需要能力设计） |
+| `/comet-tweak` | 快捷路径：小改动（文案调整、配置调整、文档或 Prompt 优化） |
 
 ### 守护与自动化脚本
 
@@ -164,15 +191,21 @@ Comet 使用解耦状态架构，YAML 文件独立管理：
 | `.comet.yaml` | Comet | 工作流阶段、执行模式、验证状态 |
 
 **`.comet.yaml` 关键字段：**
-- `workflow`：`full`、`hotfix` 或 `tweak`
-- `phase`：`design`、`build`、`verify`、`archive`
-- `design_doc`：Superpowers 设计文档路径
-- `plan`：实现计划路径
-- `build_mode`：`subagent-driven-development`、`executing-plans` 或 `direct`
-- `isolation`：`branch` 或 `worktree`，工作空间隔离方式
-- `verify_mode`：`light` 或 `full`
-- `verify_result`：`pending`、`pass` 或 `fail`
-- `archived`：布尔值，标识变更是否已归档
+
+```yaml
+workflow: full
+phase: build
+design_doc: docs/superpowers/specs/YYYY-MM-DD-topic-design.md
+plan: docs/superpowers/plans/YYYY-MM-DD-feature.md
+build_mode: subagent-driven-development
+isolation: branch
+verify_mode: light
+verify_result: pending
+verified_at: null
+archived: false
+```
+
+其中所有的状态和运行阶段都采用脚本更新，且**能够检验每个阶段是否真实完成任务，达到条件之后才会退出当前阶段，执行更新状态动作**。相比于将复杂的状态管理机制记录在 Skill 中，脚本的方式强保障了核心状态扭转的可靠性、YAML 文件的正确性，以及断点恢复的便捷——Agent 只需要通过 Comet 内置命令进行状态读取就能知道当前 Spec 所处的情况。
 
 ### 可靠性特性
 
@@ -231,6 +264,16 @@ your-project/
     └── plans/                   # 实现计划
 ```
 
+## 你能学到什么
+
+现有的 Skill 市场中有很多优秀的 Skill 项目，但普遍存在偏好性问题——用户可能只喜欢部分功能。比如同时使用 OpenSpec 和 Superpowers 时，可能只用 OpenSpec 的 Spec 管理能力，而编码上更喜欢 Superpowers 的 TDD 驱动。
+
+长期使用 Skill 的人都知道，这些能力是可以自由组合的，但具体怎么做依然需要真正的实践。Comet 项目可以作为参考：
+
+- **如何稳定触发嵌套 Skill** — 不是让 Agent 依靠文档描述做了"看起来像触发了 Skill"的操作（比如根据 Skill 描述写了文件），而是真正触发 Skill（核心特征：CC 上有 Skill 触发的打印）。Comet 中会触发大量来自 OpenSpec 和 Superpowers 的能力，这段 Prompt 是怎么写的？
+
+- **如何让组合 Skill 多阶段自动流转** — 不是靠人工介入。Comet 的 5 阶段流程，除必要的用户选择项外，核心流程能够自动进行 Skill 触发，同时**状态机机制**也能保障状态扭转的可靠性。
+
 ## 开发
 
 ```bash
@@ -264,9 +307,6 @@ pnpm format
 - 发布前扫描 API keys、secrets、tokens、private keys
 - `.npmignore` 阻止源码和配置文件进入 npm 包
 - `.gitignore` 覆盖 secrets、credentials、IDE configs 等
-
-## Community
-[linux.do](https://linux.do/) — Linux & Open Source Community
 
 ## License
 

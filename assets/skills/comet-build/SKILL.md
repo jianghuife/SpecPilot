@@ -1,6 +1,6 @@
 ---
 name: comet-build
-description: "Comet Phase 3: Plan and Build. Invoke with /comet-build. Create plans and execute implementation through subagent-driven-development."
+description: "Comet Phase 3: Plan and Build. Invoke with /comet-build. Create plans and choose execution method (subagent or direct) for implementation."
 ---
 
 # Comet Phase 3: Plan and Build (Build)
