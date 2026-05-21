@@ -1,3 +1,19 @@
+<p align="center">
+  <a href="https://github.com/rpamis/comet">
+    <picture>
+      <source srcset="img/title-log.png">
+      <img src="img/title-log.png" alt="Comet logo">
+    </picture>
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/rpamis/comet/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/rpamis/comet/actions/workflows/ci.yml/badge.svg" /></a>
+  <a href="https://www.npmjs.com/package/@rpamis/comet"><img alt="npm version" src="https://img.shields.io/npm/v/@rpamis/comet?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/@rpamis/comet"><img alt="npm download count" src="https://img.shields.io/npm/dm/@rpamis/comet?style=flat-square&label=Downloads/mo" /></a>
+  <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" /></a>
+</p>
+
 # @rpamis/comet
 
 ```
@@ -47,6 +63,11 @@ comet init
 5. Install [Superpowers](https://github.com/obra/superpowers) skills
 6. Deploy Comet skills (in your chosen language) to selected platforms
 7. Create `docs/superpowers/specs/` and `docs/superpowers/plans/` working directories
+
+> [!TIP]
+> update version
+>
+> comet update or `npm install -g @rpamis/comet@latest` to get the latest features and fixes.
 
 ## Screenshots
 
@@ -313,4 +334,4 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 
 ## License
 
-MIT
+[MIT](LICENSE.md)

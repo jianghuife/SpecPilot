@@ -1,3 +1,19 @@
+<p align="center">
+  <a href="https://github.com/rpamis/comet">
+    <picture>
+      <source srcset="img/title-log.png">
+      <img src="img/title-log.png" alt="Comet logo">
+    </picture>
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/rpamis/comet/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/rpamis/comet/actions/workflows/ci.yml/badge.svg" /></a>
+  <a href="https://www.npmjs.com/package/@rpamis/comet"><img alt="npm version" src="https://img.shields.io/npm/v/@rpamis/comet?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/@rpamis/comet"><img alt="npm download count" src="https://img.shields.io/npm/dm/@rpamis/comet?style=flat-square&label=Downloads/mo" /></a>
+  <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" /></a>
+</p>
+
 # @rpamis/comet
 
 ```
@@ -47,6 +63,11 @@ comet init
 5. 安装 [Superpowers](https://github.com/obra/superpowers) 技能
 6. 将 Comet 技能（你选择的语言）部署到所选平台
 7. 创建 `docs/superpowers/specs/` 和 `docs/superpowers/plans/` 工作目录
+
+> [!TIP]
+> 更新版本号
+>
+> 执行 comet update 或者 `npm install -g @rpamis/comet@latest` 即可更新到最新版本。
 
 ## 运行截图
 
@@ -313,4 +334,4 @@ pnpm format
 
 ## License
 
-MIT
+[MIT](LICENSE.md)
