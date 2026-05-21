@@ -245,7 +245,6 @@ else
     apply_state_update "$PHASE"
     case "$PHASE" in
       open)
-        local new_phase
         new_phase=$(grep "^phase:" "$CHANGE_DIR/.comet.yaml" | sed 's/^phase: *//' | tr -d '"' | tr -d "'")
         green "  [APPLY] .comet.yaml updated: phase=$new_phase"
         ;;
