@@ -17,7 +17,9 @@ description: "Comet 阶段 2：深度设计。用 /comet-design 调用。通过 
 执行入口验证：
 
 ```bash
-COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
+COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
 bash "$COMET_STATE" check <name> design
 ```
 
@@ -57,32 +59,23 @@ Design 摘要: <design.md 架构决策>
 bash "$COMET_STATE" set <name> design_doc docs/superpowers/specs/YYYY-MM-DD-topic-design.md
 
 # 自动流转到下一阶段
-bash $COMET_GUARD <change-name> design --apply
+bash "$COMET_GUARD" <change-name> design --apply
 ```
 
 状态文件自动更新，无需手动编辑其他字段。
-
-### 3. 双 Spec 分工
-
-| Spec 类型 | 归属 | 存放位置 | 定义 |
-|-----------|------|---------|------|
-| 能力规格 | OpenSpec | `openspec/changes/<name>/specs/` | 系统应该做什么（需求 + 验收场景） |
-| 设计文档 | Superpowers | `docs/superpowers/specs/` | 怎么构建（技术架构 + 实现细节） |
-
-### 4. 文档层级确认
-
-```
-proposal.md（阶段 1）              → Why + What
-design.md（阶段 1，OpenSpec）      → 高层架构决策
-设计文档（阶段 2，Superpowers）     → 深度技术设计
-能力规格（阶段 2，delta）           → 需求 + 验收场景
-```
 
 ## 退出条件
 
 - Design Doc 已创建并保存
 - 如有新能力则 delta spec 已创建
-- **阶段守卫**：运行 `bash $COMET_GUARD <change-name> design`，全部 PASS 后才允许流转
+- `design_doc` 已写入 `.comet.yaml`
+- **阶段守卫**：运行 `bash "$COMET_GUARD" <change-name> design --apply`，全部 PASS 后自动流转到 `phase: build`
+
+退出前必须使用 `--apply`：
+
+```bash
+bash "$COMET_GUARD" <change-name> design --apply
+```
 
 ## 自动流转
 

@@ -2,8 +2,10 @@
 
 setup() {
   export TEST_TMPDIR="$(mktemp -d)"
-  export SCRIPT_PATH="$BATS_TEST_DIRNAME/../../assets/skills/comet/scripts/comet-state.sh"
+  export SCRIPT_SOURCE="$BATS_TEST_DIRNAME/../../assets/skills/comet/scripts/comet-state.sh"
+  export SCRIPT_PATH="$TEST_TMPDIR/comet-state.sh"
   cd "$TEST_TMPDIR"
+  tr -d '\r' < "$SCRIPT_SOURCE" > "$SCRIPT_PATH"
   mkdir -p openspec/changes
 }
 
@@ -17,21 +19,23 @@ teardown() {
   run bash "$SCRIPT_PATH" init my-change full
   [ "$status" -eq 0 ]
   [ -f "openspec/changes/my-change/.comet.yaml" ]
-  grep -q "phase: design" "openspec/changes/my-change/.comet.yaml"
+  grep -q "phase: open" "openspec/changes/my-change/.comet.yaml"
   grep -q "verify_mode: null" "openspec/changes/my-change/.comet.yaml"
+  grep -q "verification_report: null" "openspec/changes/my-change/.comet.yaml"
+  grep -q "branch_status: pending" "openspec/changes/my-change/.comet.yaml"
 }
 
 @test "init creates .comet.yaml with hotfix workflow defaults" {
   run bash "$SCRIPT_PATH" init hotfix-123 hotfix
   [ "$status" -eq 0 ]
-  grep -q "phase: build" "openspec/changes/hotfix-123/.comet.yaml"
+  grep -q "phase: open" "openspec/changes/hotfix-123/.comet.yaml"
   grep -q "build_mode: direct" "openspec/changes/hotfix-123/.comet.yaml"
 }
 
 @test "init creates .comet.yaml with tweak workflow defaults" {
   run bash "$SCRIPT_PATH" init tweak-abc tweak
   [ "$status" -eq 0 ]
-  grep -q "phase: build" "openspec/changes/tweak-abc/.comet.yaml"
+  grep -q "phase: open" "openspec/changes/tweak-abc/.comet.yaml"
   grep -q "isolation: branch" "openspec/changes/tweak-abc/.comet.yaml"
 }
 
@@ -67,7 +71,7 @@ teardown() {
   bash "$SCRIPT_PATH" init my-change full
   run bash "$SCRIPT_PATH" get my-change phase
   [ "$status" -eq 0 ]
-  [ "$output" = "design" ]
+  [ "$output" = "open" ]
 }
 
 @test "get fails for missing change" {
@@ -110,6 +114,12 @@ teardown() {
   [ "$status" -ne 0 ]
 }
 
+@test "set validates branch_status enum" {
+  bash "$SCRIPT_PATH" init my-change full
+  run bash "$SCRIPT_PATH" set my-change branch_status maybe
+  [ "$status" -ne 0 ]
+}
+
 @test "set allows free-form design_doc value" {
   bash "$SCRIPT_PATH" init my-change full
   run bash "$SCRIPT_PATH" set my-change design_doc "docs/design.md"
@@ -118,37 +128,43 @@ teardown() {
 
 # --- check subcommand ---
 
-@test "check open requires proposal, design, and tasks" {
+@test "check open passes with initialized state" {
+  bash "$SCRIPT_PATH" init my-change full
+  run bash "$SCRIPT_PATH" check my-change open
+  [ "$status" -eq 0 ]
+}
+
+@test "check open fails without .comet.yaml" {
   mkdir -p openspec/changes/my-change
-  run bash "$SCRIPT_PATH" check open my-change
+  run bash "$SCRIPT_PATH" check my-change open
   [ "$status" -ne 0 ]
 }
 
-@test "check open passes with all required files" {
-  mkdir -p openspec/changes/my-change
-  echo "content" > openspec/changes/my-change/proposal.md
-  echo "content" > openspec/changes/my-change/design.md
-  echo "content" > openspec/changes/my-change/tasks.md
-  run bash "$SCRIPT_PATH" check open my-change
-  [ "$status" -eq 0 ]
+@test "check open fails if phase is not open" {
+  bash "$SCRIPT_PATH" init my-change full
+  bash "$SCRIPT_PATH" set my-change phase design
+  run bash "$SCRIPT_PATH" check my-change open
+  [ "$status" -ne 0 ]
 }
 
 @test "check design passes with correct state" {
   bash "$SCRIPT_PATH" init my-change full
+  bash "$SCRIPT_PATH" set my-change phase design
   echo "content" > openspec/changes/my-change/proposal.md
   echo "content" > openspec/changes/my-change/design.md
   echo "content" > openspec/changes/my-change/tasks.md
-  run bash "$SCRIPT_PATH" check design my-change
+  run bash "$SCRIPT_PATH" check my-change design
   [ "$status" -eq 0 ]
 }
 
 @test "check design fails if design_doc is set (not empty)" {
   bash "$SCRIPT_PATH" init my-change full
+  bash "$SCRIPT_PATH" set my-change phase design
   bash "$SCRIPT_PATH" set my-change design_doc "some-doc.md"
   echo "content" > openspec/changes/my-change/proposal.md
   echo "content" > openspec/changes/my-change/design.md
   echo "content" > openspec/changes/my-change/tasks.md
-  run bash "$SCRIPT_PATH" check design my-change
+  run bash "$SCRIPT_PATH" check my-change design
   [ "$status" -ne 0 ]
 }
 
@@ -188,7 +204,7 @@ teardown() {
 }
 
 @test "check missing args shows usage" {
-  run bash "$SCRIPT_PATH" check design
+  run bash "$SCRIPT_PATH" check my-change
   [ "$status" -ne 0 ]
 }
 

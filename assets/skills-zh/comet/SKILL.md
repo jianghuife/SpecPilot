@@ -22,33 +22,51 @@ agent 做决策只需读本节，参考附录按需查阅。
 
 ### 阶段自动检测
 
-**Step 0: 活跃 Change 发现**
+**Step 0: 活跃 Change 发现与意图判定**
 
-1. 运行 `openspec list --json` 获取所有活跃 change
-2. 对每个 change，检查 `docs/superpowers/specs/` 和 `docs/superpowers/plans/` 匹配关联文件，判断阶段和进度
+1. 先做 Preset 检测；命中 hotfix/tweak 时直接调用对应 preset skill，不进入普通 open 分支
+2. 未命中 preset 时，运行 `openspec list --json` 获取所有活跃 change
 
-| 情况 | 行为 |
-|------|------|
-| 无活跃 change | → 调用 `/comet-open` |
-| 恰好 1 个活跃 change | → 自动选中，进入 Step 1 |
-| 多个活跃 change | → 列出清单让用户选择 |
-
-**Preset 检测**：
+**Preset 检测优先级最高**：
 - 用户明确描述为 bug fix / 热修复 + 满足 hotfix 条件 → 直接 `/comet-hotfix`
 - 用户明确描述为文案/配置/文档/prompt 小调整 + 满足 tweak 条件 → 直接 `/comet-tweak`
+- 未命中 preset → 按下表处理
+
+| 活跃 change | 用户输入 | 行为 |
+|-------------|---------|------|
+| 无 | 非 preset 输入 | → 调用 `/comet-open` |
+| 恰好 1 个 | `/comet <描述>` | → **询问**：继续该变更 or 创建新变更 |
+| 多个 | `/comet <描述>` | → **询问**：继续现有变更 or 创建新变更；若选继续 → 列出清单让用户选择 |
+| 恰好 1 个 | `/comet`（无描述） | → 自动选中，进入 Step 1 |
+| 多个 | `/comet`（无描述） | → 列出清单让用户选择 |
+
+<IMPORTANT>
+当用户选择「创建新变更」时，**必须调用 `/comet-open`**（禁止直接调用 `/opsx:new`）。
+`/comet-open` 负责完整双初始化：OpenSpec artifacts（由内部 `/opsx:new` 创建）+ `.comet.yaml` 状态文件。
+直接调用 `/opsx:new` 会缺失 `.comet.yaml`，导致后续阶段判定失败。
+</IMPORTANT>
 
 **Step 1: 读取 `.comet.yaml` 状态元数据**
 
 优先读取 `openspec/changes/<name>/.comet.yaml`。不存在时回退到 `openspec status --change "<name>" --json`、`tasks.md` 和 `docs/superpowers/` 文件检查。
 
+**断点恢复规则**：
+- 每次恢复上下文时，先重新执行 Step 0 和 Step 1，不依赖对话历史判断阶段
+- 若 `phase: build`，读取 tasks.md 的下一个未勾选任务继续
+- 若 `phase: verify` 且 `verify_result: fail`，先运行 `bash "$COMET_STATE" transition <name> verify-fail`，再调用 `/comet-build`
+- 若 `phase: open` 但 proposal/design/tasks 已完整，先运行 `bash "$COMET_GUARD" <change-name> open --apply` 修正状态，再继续判定
+- 若 `phase: archive`，只允许调用 `/comet-archive`；归档成功后 change 会移动到 archive 目录，不再对原活跃目录运行 guard
+
 **Step 2: 阶段判定**（按顺序，命中即停）
 
 1. `archived: true` 或 change 已移入 archive → 流程已完成
 2. `verify_result: pass` 且 `archived` 不是 `true` → `/comet-archive`
-3. `phase: verify` 或 tasks.md 全部勾选 → `/comet-verify`
-4. `phase: build` 或已有 Design Doc 但计划/执行未完成 → `/comet-build`
-5. `phase: design` 或有 change 但无 Design Doc → `/comet-design`
-6. 无活跃 change 或状态无法判定 → `/comet-open`
+3. `verify_result: fail` → `bash "$COMET_STATE" transition <name> verify-fail` 后 `/comet-build`
+4. `phase: verify` 或 tasks.md 全部勾选 → `/comet-verify`
+5. `phase: build` 或已有 Design Doc 但计划/执行未完成 → `/comet-build`
+6. `phase: design` 或有 change 但无 Design Doc → `/comet-design`
+7. `phase: open` 或有活跃 change 但 `.comet.yaml` 缺失 → `/comet-open`
+8. 无活跃 change → `/comet-open`
 
 如果元数据与文件状态冲突，以文件状态为准，修正 `.comet.yaml` 后继续。
 
@@ -74,7 +92,7 @@ agent 做决策只需读本节，参考附录按需查阅。
 | `openspec list --json` 失败 | 检查 openspec 是否已安装，提示 `openspec init` |
 | 子 skill 不可用 | 停止流程，提示安装或启用对应 skill |
 | `.comet.yaml` 格式异常或缺失 | 以文件状态为准，用 `bash $COMET_STATE set` 修正后继续 |
-| Maven 编译/测试失败 | 返回 build 阶段修复，不进入 verify |
+| 构建/测试失败 | 返回 build 阶段修复，不进入 verify |
 | change 目录结构不完整 | 按 `comet-open` 产物要求补齐 |
 
 ### 阶段衔接
@@ -84,14 +102,16 @@ agent 做决策只需读本节，参考附录按需查阅。
 
 流转链：open → design → build → verify → archive
 
-需要用户参与的节点：
+**连续执行要求**：从检测到的阶段开始，agent 必须自动走完后续所有阶段，中间不停顿等待用户输入（除非遇到需要用户决策的节点）。每个阶段完成后立即进入下一阶段，无需用户再次输入。
+
+需要用户参与的节点（仅在这些节点暂停）：
 1. brainstorming 确认设计方案
 2. build 阶段选择执行方式
 3. verify 不通过时决定修复或接受偏差
 4. finishing-branch 选择分支处理方式
 5. 遇到升级条件（hotfix/tweak → 完整流程）
 
-agent 不应跳过这些决策点；其他明确无歧义的阶段衔接可以继续推进。
+agent 不应跳过这些决策点；其他明确无歧义的阶段衔接必须自动继续推进，不得中途退出。
 </IMPORTANT>
 
 ---
@@ -138,6 +158,8 @@ build_mode: subagent-driven-development
 isolation: branch
 verify_mode: light
 verify_result: pending
+verification_report: null
+branch_status: pending
 verified_at: null
 archived: false
 ```
@@ -145,13 +167,15 @@ archived: false
 | 字段 | 含义 |
 |------|------|
 | `workflow` | `full`、`hotfix` 或 `tweak` |
-| `phase` | 当前阶段：`open`、`design`、`build`、`verify`、`archive` |
+| `phase` | 当前阶段：`open`、`design`、`build`、`verify`、`archive`（init 统一设为 `open`，guard 负责过渡） |
 | `design_doc` | 关联的 Superpowers Design Doc 路径，可为空 |
 | `plan` | 关联的 Superpowers Plan 路径，可为空 |
 | `build_mode` | 已选择的执行方式，可为空 |
 | `isolation` | `branch` 或 `worktree`，工作区隔离方式，默认 `branch` |
 | `verify_mode` | `light` 或 `full`，可为空 |
 | `verify_result` | `pending`、`pass` 或 `fail` |
+| `verification_report` | 验证报告文件路径，verify 通过前必须指向已存在文件 |
+| `branch_status` | `pending` 或 `handled`，分支处理完成后设为 `handled` |
 | `verified_at` | 验证通过时间，可为空 |
 | `archived` | change 是否已归档 |
 
@@ -160,15 +184,34 @@ archived: false
 Comet 脚本随 skill 包分发在 `comet/scripts/` 下。**不硬编码路径** — 定位一次，缓存到环境变量：
 
 ```bash
-COMET_GUARD="${COMET_GUARD:-$(find . -path '*/comet/scripts/comet-guard.sh' -type f -print -quit)}"
-COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
-COMET_ARCHIVE="${COMET_ARCHIVE:-$(find . -path '*/comet/scripts/comet-archive.sh' -type f -print -quit)}"
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
+COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
+COMET_ARCHIVE="${COMET_ARCHIVE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-archive.sh' -type f -print -quit 2>/dev/null)}"
+
+# 脚本定位失败时停止流程
+if [ -z "$COMET_GUARD" ] || [ -z "$COMET_STATE" ] || [ -z "$COMET_ARCHIVE" ]; then
+  echo "ERROR: Comet scripts not found. Ensure the comet skill is installed." >&2
+  echo "Expected path pattern: */comet/scripts/comet-*.sh under project or platform skill directories" >&2
+  return 1
+fi
 ```
 
 **自动状态更新**：guard 支持 `--apply` 参数，验证通过后自动更新 `.comet.yaml` 状态字段：
 
 ```bash
 bash "$COMET_GUARD" <change-name> <phase> --apply
+```
+
+`--apply` 内部委托给 `comet-state transition`。需要直接表达状态事件时使用：
+
+```bash
+bash "$COMET_STATE" transition <change-name> open-complete
+bash "$COMET_STATE" transition <change-name> design-complete
+bash "$COMET_STATE" transition <change-name> build-complete
+bash "$COMET_STATE" transition <change-name> verify-pass
+bash "$COMET_STATE" transition <change-name> verify-fail
+bash "$COMET_STATE" transition <archive-name> archived
 ```
 
 **归档脚本**：一键完成归档全部步骤：

@@ -1,3 +1,19 @@
+<p align="center">
+  <a href="https://github.com/rpamis/comet">
+    <picture>
+      <source srcset="img/title-log.png">
+      <img src="img/title-log.png" alt="Comet logo">
+    </picture>
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/rpamis/comet/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/rpamis/comet/actions/workflows/ci.yml/badge.svg" /></a>
+  <a href="https://www.npmjs.com/package/@rpamis/comet"><img alt="npm version" src="https://img.shields.io/npm/v/@rpamis/comet?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/@rpamis/comet"><img alt="npm download count" src="https://img.shields.io/npm/dm/@rpamis/comet?style=flat-square&label=Downloads/mo" /></a>
+  <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" /></a>
+</p>
+
 # @rpamis/comet
 
 ```
@@ -48,12 +64,12 @@ comet init
 6. Deploy Comet skills (in your chosen language) to selected platforms
 7. Create `docs/superpowers/specs/` and `docs/superpowers/plans/` working directories
 
-## Screenshots
+> [!TIP]
+> update version
+>
+> comet update or `npm install -g @rpamis/comet@latest` to get the latest features and fixes.
 
-<p align="center">
-  <img src="img/select-platform.png" alt="Platform Selection" width="600">
-</p>
-<p align="center">Supports Chinese & English Skill distribution, 28 AI Coding platforms</p>
+## Screenshots
 
 <p align="center">
   <img src="img/init.png" alt="Initialization" width="600">
@@ -201,6 +217,8 @@ build_mode: subagent-driven-development
 isolation: branch
 verify_mode: light
 verify_result: pending
+verification_report: docs/superpowers/reports/YYYY-MM-DD-change-verify.md
+branch_status: pending
 verified_at: null
 archived: false
 ```
@@ -222,12 +240,18 @@ Comet ensures agent execution reliability through automated state transitions:
    - Guard and archive scripts use `comet-state.sh` internally for state management
 
 3. **Schema Validation** — `comet-yaml-validate.sh` ensures data integrity
-   - Validates required fields (10 fields)
-   - Validates enum values (7 enum types)
+   - Validates required fields (12 fields)
+   - Validates enum values (8 enum types)
    - Validates referenced file paths exist
    - Detects unknown/typos fields
 
-4. **Archive Automation** — `comet-archive.sh` handles the full archive flow in one command
+4. **Verification Evidence** — Guard enforces proof before phase advance
+   - `verify-pass` transition requires `verification_report` pointing to an existing report file
+   - `branch_status` must be `handled` before verify can pass
+   - Guard checks `verification_report exists` and `branch_status=handled` as hard prerequisites
+   - Prevents false phase advances when verification or branch handling was skipped
+
+5. **Archive Automation** — `comet-archive.sh` handles the full archive flow in one command
    - Validates entry state, syncs delta specs to main specs
    - Annotates design doc and plan frontmatter
    - Moves change to archive directory and updates `archived: true`
@@ -310,4 +334,4 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 
 ## License
 
-MIT
+[MIT](LICENSE.md)

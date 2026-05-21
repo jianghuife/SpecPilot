@@ -33,7 +33,11 @@ validate_change_name() {
 validate_change_name "$1"
 
 CHANGE="$1"
-YAML="openspec/changes/$CHANGE/.comet.yaml"
+CHANGE_DIR="openspec/changes/$CHANGE"
+if [ ! -d "$CHANGE_DIR" ] && [ -d "openspec/changes/archive/$CHANGE" ]; then
+  CHANGE_DIR="openspec/changes/archive/$CHANGE"
+fi
+YAML="$CHANGE_DIR/.comet.yaml"
 
 ERRORS=0
 WARNINGS=0
@@ -81,16 +85,18 @@ build_mode=$(field_value "build_mode")
 isolation=$(field_value "isolation")
 verify_mode=$(field_value "verify_mode")
 verify_result=$(field_value "verify_result")
+branch_status=$(field_value "branch_status")
 archived=$(field_value "archived")
 design_doc=$(field_value "design_doc")
 plan=$(field_value "plan")
 
 validate_enum "workflow"      "$workflow"      "full hotfix tweak"
-validate_enum "phase"         "$phase"          "design build verify archive"
+validate_enum "phase"         "$phase"          "open design build verify archive"
 validate_enum "build_mode"    "$build_mode"     "subagent-driven-development executing-plans direct"
 validate_enum "isolation"     "$isolation"      "branch worktree"
 validate_enum "verify_mode"   "$verify_mode"    "light full"
 validate_enum "verify_result" "$verify_result"  "pending pass fail"
+validate_enum "branch_status" "$branch_status"  "pending handled"
 validate_enum "archived"      "$archived"       "true false"
 
 # --- Path validation ---
@@ -108,7 +114,7 @@ if [ -n "$plan" ] && [ "$plan" != "null" ]; then
 fi
 
 # --- Unknown keys check ---
-KNOWN_KEYS="workflow phase design_doc plan build_mode isolation verify_mode verify_result verified_at archived"
+KNOWN_KEYS="workflow phase design_doc plan build_mode isolation verify_mode verify_result verification_report branch_status verified_at archived"
 while IFS=: read -r key _; do
   key="${key// /}"
   [ -z "$key" ] && continue

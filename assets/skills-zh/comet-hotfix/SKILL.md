@@ -5,14 +5,12 @@ description: "Comet 预设路径：Bug fix / 热修复。跳过 brainstorming，
 
 # Comet 预设路径：Hotfix
 
-Hotfix 是 Comet 五阶段能力的预设工作流，不是独立的平行流程。它复用 open、build、verify、archive 能力，仅跳过 brainstorming 和完整 plan。
-
-适用于 bug fix、热修复、小范围行为修正。不涉及新 capability 设计，不需要深度 brainstorming。
+快速 bug fix 工作流：open → build → verify → archive。跳过 brainstorming 和完整 plan，适用于行为修复、不涉及新 capability 设计的场景。
 
 **适用条件**（必须全部满足）：
 1. 修复已有功能的 bug，不新增 capability
 2. 不涉及接口变更或架构调整
-3. 改动范围可预估（通常 < 5 个文件）
+3. 改动范围可预估（通常 ≤ 2 个文件）
 
 **不适用**：如修复过程发现需要架构调整，应升级为完整 `/comet` 流程。
 
@@ -20,18 +18,16 @@ Hotfix 是 Comet 五阶段能力的预设工作流，不是独立的平行流程
 
 ## 流程（preset workflow，4 阶段）
 
-### 0. 入口状态验证（Entry Check）
+执行链路：open → build → verify → archive。Hotfix 为每个阶段提供默认决策：精简开启、直接构建、按规模验证、验证通过后归档。
 
-执行入口验证：
+开始前先定位 Comet 脚本：
 
 ```bash
-COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
-bash "$COMET_STATE" check <name> open
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
+COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
+COMET_ARCHIVE="${COMET_ARCHIVE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-archive.sh' -type f -print -quit 2>/dev/null)}"
 ```
-
-验证通过后继续流程步骤。验证失败时脚本会输出具体失败原因。
-
-执行链路：open → build → verify → archive。Hotfix 为每个阶段提供默认决策：精简开启、直接构建、按规模验证、验证通过后归档。
 
 ### 1. 快速开启（preset open）
 
@@ -51,6 +47,18 @@ bash "$COMET_STATE" check <name> open
 bash "$COMET_STATE" init <name> hotfix
 ```
 
+初始化后验证状态：
+
+```bash
+bash "$COMET_STATE" check <name> open
+```
+
+阶段守卫完成 open → build 过渡：
+
+```bash
+bash "$COMET_GUARD" <change-name> open --apply
+```
+
 ### 2. 直接构建（preset build）
 
 使用 hotfix 默认值：`build_mode: direct`。跳过 `superpowers:brainstorming` 和 `superpowers:writing-plans`（除非任务 > 3 个；若超过 3 个任务，转入 `/comet-build` 的计划与执行方式选择）。
@@ -64,30 +72,38 @@ bash "$COMET_STATE" init <name> hotfix
    - 运行相关测试确认通过
    - 将 tasks.md 中对应 `- [ ]` 勾选为 `- [x]`
    - 提交代码，commit message 格式：`fix: <简述修复>`
-3. 全部任务完成后进入验证
+3. 全部任务完成后，显式运行项目相关测试和构建命令
+4. 运行阶段守卫完成 build → verify 过渡：
+
+```bash
+bash "$COMET_GUARD" <change-name> build --apply
+```
+
+状态文件自动更新为 `phase: verify`、`verify_result: pending`，然后进入验证。
 
 **如修复影响已有 spec 验收场景**：
 - 在 `openspec/changes/<name>/specs/<capability>/spec.md` 创建 delta spec
 - 仅包含 `## MODIFIED Requirements` 部分
 
-### 3. 验证（preset verify）
+### 3a. Hotfix 专属检查：根因消除
 
-复用 `/comet-verify`，由 comet-verify 的规模评估决定轻量或完整验证。
+**在加载 comet-verify 之前执行**，确保修复确实消除了问题根因：
+
+1. 读取 proposal.md 中的 bug 描述和根因
+2. 搜索验证问题代码不再存在
+3. 如根因未消除，返回 Step 2 继续修复
+
+**升级条件**：
+- 根因消除检查发现深层架构问题 → 停止 hotfix，升级为 `/comet`
+- 修复需要额外接口变更 → 停止 hotfix，升级为 `/comet`
+
+### 3b. 验证（preset verify）
+
+根因消除检查通过后，复用 `/comet-verify`，由 comet-verify 的规模评估决定轻量或完整验证。
 
 **立即执行：** 使用 Skill 工具加载 `comet-verify` 技能。禁止跳过此步骤。
 
-无 delta spec 的小范围 hotfix 通常满足轻量验证条件（≤ 3 tasks、≤ 5 files），comet-verify 的规模评估会选择轻量验证路径（5 项快速检查）。若 hotfix 创建了 delta spec，则根据 comet-verify 的规模评估规则进入完整验证路径。
-
-**额外 Hotfix 专属检查**（在 comet-verify 轻量验证通过后执行）：
-
-1. **根因消除**：对照 proposal.md 的根因分析，确认问题代码已消除
-   - 读取 proposal.md 中的 bug 描述和根因
-   - 搜索验证问题代码不再存在
-   - 如根因未消除，返回 Step 2 继续修复
-
-**验证阶段升级条件**：
-- 回归测试揭示深层架构问题 → 停止 hotfix，升级为 `/comet`
-- 修复需要额外接口变更 → 停止 hotfix，升级为 `/comet`
+无 delta spec 的小范围 hotfix 通常满足轻量验证条件（≤ 3 tasks、≤ 2 files），comet-verify 的规模评估会选择轻量验证路径（5 项快速检查）。若 hotfix 创建了 delta spec，则根据 comet-verify 的规模评估规则进入完整验证路径。
 
 验证通过后，按 `/comet-verify` 的规则将 `.comet.yaml` 的 `verify_result` 记录为 `pass`，归档前不得跳过该状态。
 
@@ -133,4 +149,4 @@ Hotfix 流程为 **一次性连续执行**。调用 `/comet-hotfix` 后，agent 
 - Bug 已修复，测试通过
 - change 已归档
 - 如有 spec 变更，已同步到 main spec
-- **阶段守卫**：build → verify 前运行 `bash $COMET_GUARD <change-name> build`，verify → archive 前运行 `bash $COMET_GUARD <change-name> verify`
+- **阶段守卫**：build → verify 前运行 `bash "$COMET_GUARD" <change-name> build --apply`，verify → archive 前按 `/comet-verify` 规则运行 `bash "$COMET_GUARD" <change-name> verify --apply`

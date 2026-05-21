@@ -1,6 +1,6 @@
 {
   "name": "@rpamis/comet",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "OpenSpec + Superpowers dual-star development workflow",
   "keywords": [
     "comet",
@@ -36,7 +36,7 @@
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write src/",
     "format:check": "prettier --check src/",
-    "test:shell": "bats test/shell/*.bats",
+    "test:shell": "node scripts/run-bats.js test/shell/*.bats",
     "prepare": "pnpm run build",
     "prepublishOnly": "node scripts/prepublish-check.js && pnpm run build",
     "postinstall": "node scripts/postinstall.js"

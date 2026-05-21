@@ -11,24 +11,13 @@ description: "Comet 阶段 1：开启。用 /comet-open 调用。通过 OpenSpec
 
 ## 步骤
 
-### 0. 入口状态验证（Entry Check）
-
-执行入口验证：
-
-```bash
-COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
-bash "$COMET_STATE" check <name> open
-```
-
-验证通过后继续 Step 1。验证失败时脚本会输出具体失败原因。
-
 ### 1. 探索想法
 
 **立即执行：** 使用 Skill 工具加载 `openspec-explore` 技能。禁止跳过此步骤。
 
 技能加载后，按其指引自由探索问题空间。
 
-### 2. 创建 Change 结构
+### 2. 创建 Change 结构 + 初始化状态
 
 **立即执行：** 使用 Skill 工具加载 `openspec-new-change` 技能。若用户意图未明确、需要先形成建议，改为加载 `openspec-propose`。禁止跳过此步骤。
 
@@ -43,13 +32,30 @@ openspec/changes/<name>/
 └── tasks.md          # 任务清单（勾选框）
 ```
 
-### 3. 初始化 Comet 状态
-
-初始化 Comet 状态文件：
+创建 `.comet.yaml` 状态文件：
 
 ```bash
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
+COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
+
+if [ -z "$COMET_STATE" ] || [ -z "$COMET_GUARD" ]; then
+  echo "ERROR: Comet scripts not found. Ensure the comet skill is installed." >&2
+  return 1
+fi
+
 bash "$COMET_STATE" init <name> full
 ```
+
+### 3. 入口状态验证
+
+验证状态机已正确初始化：
+
+```bash
+bash "$COMET_STATE" check <name> open
+```
+
+验证通过后继续 Step 4。验证失败时脚本会输出具体失败原因。
 
 ### 4. 内容完整性检查
 
@@ -61,7 +67,15 @@ bash "$COMET_STATE" init <name> full
 ## 退出条件
 
 - proposal.md、design.md、tasks.md 均已创建且内容完整
-- **阶段守卫**：运行 `bash $COMET_GUARD <change-name> open`，全部 PASS 后才允许流转
+- **阶段守卫**：运行 `bash "$COMET_GUARD" <change-name> open --apply`，全部 PASS 后自动流转到下一阶段
+
+退出前必须使用 `--apply`，否则 `.comet.yaml` 仍停留在 `phase: open`，下一阶段入口检查会失败。
+
+```bash
+bash "$COMET_GUARD" <change-name> open --apply
+```
+
+完整流程会自动更新为 `phase: design`；hotfix/tweak preset 会自动更新为 `phase: build`。
 
 ## 自动流转
 

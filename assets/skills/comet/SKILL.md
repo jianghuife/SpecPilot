@@ -25,13 +25,20 @@ Agents need only read this section for decision-making. Refer to the Reference A
 **Step 0: Active Change Discovery**
 
 1. Run `openspec list --json` to get all active changes
-2. For each change, check `docs/superpowers/specs/` and `docs/superpowers/plans/` for associated files to determine phase and progress
 
-| Situation | Action |
-|-----------|--------|
-| No active change | → Invoke `/comet-open` |
-| Exactly 1 active change | → Auto-select, enter Step 1 |
-| Multiple active changes | → List for user selection |
+| Active changes | User input | Behavior |
+|----------------|------------|----------|
+| None | any | → Invoke `/comet-open` |
+| Exactly 1 | `/comet <description>` | → **Ask**: continue this change or create a new change |
+| Multiple | `/comet <description>` | → **Ask**: continue existing or create new; if continuing, list changes for selection |
+| Exactly 1 | `/comet` with no description | → Auto-select, enter Step 1 |
+| Multiple | `/comet` with no description | → List changes for user selection |
+
+<IMPORTANT>
+When the user chooses "create a new change", **must invoke `/comet-open`**. Do not call `/opsx:new` directly.
+`/comet-open` performs dual initialization: OpenSpec artifacts plus `.comet.yaml` state.
+Calling `/opsx:new` directly leaves `.comet.yaml` missing and breaks later phase detection.
+</IMPORTANT>
 
 **Preset detection**:
 - User describes as bug fix / hotfix + meets hotfix conditions → directly invoke `/comet-hotfix`
@@ -41,14 +48,23 @@ Agents need only read this section for decision-making. Refer to the Reference A
 
 Prefer reading `openspec/changes/<name>/.comet.yaml`. If not available, fall back to `openspec status --change "<name>" --json`, `tasks.md`, and `docs/superpowers/` file checks.
 
+**Resume rules**:
+- On every context resume, rerun Step 0 and Step 1; do not trust conversation history for phase detection
+- If `phase: build`, read the next unchecked task from tasks.md and continue
+- If `phase: verify` and `verify_result: fail`, first run `bash "$COMET_STATE" transition <name> verify-fail`, then invoke `/comet-build`
+- If `phase: open` but proposal/design/tasks are complete, run `bash "$COMET_GUARD" <change-name> open --apply` to repair state, then continue detection
+- If `phase: archive`, only invoke `/comet-archive`; after archive succeeds, the change moves to the archive directory, so do not run guard against the old active directory
+
 **Step 2: Phase Determination** (check in order, first match wins)
 
 1. `archived: true` or change moved to archive → Workflow complete
 2. `verify_result: pass` and `archived` is not `true` → Invoke `/comet-archive`
-3. `phase: verify` or tasks.md all checked → Invoke `/comet-verify`
-4. `phase: build` or has Design Doc but plan/execution incomplete → Invoke `/comet-build`
-5. `phase: design` or has change but no Design Doc → Invoke `/comet-design`
-6. No active change or state undeterminable → Invoke `/comet-open`
+3. `verify_result: fail` → run `bash "$COMET_STATE" transition <name> verify-fail`, then invoke `/comet-build`
+4. `phase: verify` or tasks.md all checked → Invoke `/comet-verify`
+5. `phase: build` or has Design Doc but plan/execution incomplete → Invoke `/comet-build`
+6. `phase: design` or has change but no Design Doc → Invoke `/comet-design`
+7. `phase: open` or active change exists but `.comet.yaml` is missing → Invoke `/comet-open`
+8. No active change → Invoke `/comet-open`
 
 If metadata conflicts with file state, use verifiable file state as source of truth and correct `.comet.yaml` before continuing.
 
@@ -74,7 +90,7 @@ If metadata conflicts with file state, use verifiable file state as source of tr
 | `openspec list --json` fails | Check if openspec is installed, prompt user to run `openspec init` |
 | Sub-skill unavailable | Stop workflow, prompt to install or enable the corresponding skill |
 | `.comet.yaml` malformed or missing | Use file state as source of truth, correct with `bash $COMET_STATE set` then continue |
-| Maven compile/test fails | Return to build phase for fixes, do not enter verify |
+| Build/test fails | Return to build phase for fixes, do not enter verify |
 | Incomplete change directory structure | Fill missing files according to `comet-open` artifact requirements |
 
 ### Phase Transitions
@@ -83,6 +99,8 @@ If metadata conflicts with file state, use verifiable file state as source of tr
 A single `/comet` invocation starts from the detected phase and advances to the next phase when exit conditions are met.
 
 Flow chain: open → design → build → verify → archive
+
+**Continuous execution requirement**: starting from the detected phase, the agent must automatically continue through all later phases without waiting for another user command, except at explicit decision points. After a phase completes, immediately enter the next phase.
 
 Nodes requiring user participation:
 1. Confirm design approach during brainstorming
@@ -160,15 +178,33 @@ archived: false
 Comet scripts are distributed in `comet/scripts/`. **Do not hardcode paths** — locate once, cache in env vars:
 
 ```bash
-COMET_GUARD="${COMET_GUARD:-$(find . -path '*/comet/scripts/comet-guard.sh' -type f -print -quit)}"
-COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
-COMET_ARCHIVE="${COMET_ARCHIVE:-$(find . -path '*/comet/scripts/comet-archive.sh' -type f -print -quit)}"
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
+COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
+COMET_ARCHIVE="${COMET_ARCHIVE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-archive.sh' -type f -print -quit 2>/dev/null)}"
+
+if [ -z "$COMET_GUARD" ] || [ -z "$COMET_STATE" ] || [ -z "$COMET_ARCHIVE" ]; then
+  echo "ERROR: Comet scripts not found. Ensure the comet skill is installed." >&2
+  echo "Expected path pattern: */comet/scripts/comet-*.sh under project or platform skill directories" >&2
+  return 1
+fi
 ```
 
 **Auto state update**: Guard supports `--apply` flag, automatically updating `.comet.yaml` state fields after checks pass:
 
 ```bash
 bash "$COMET_GUARD" <change-name> <phase> --apply
+```
+
+`--apply` delegates to `comet-state transition`. Use these semantic events when state changes need to be expressed directly:
+
+```bash
+bash "$COMET_STATE" transition <change-name> open-complete
+bash "$COMET_STATE" transition <change-name> design-complete
+bash "$COMET_STATE" transition <change-name> build-complete
+bash "$COMET_STATE" transition <change-name> verify-pass
+bash "$COMET_STATE" transition <change-name> verify-fail
+bash "$COMET_STATE" transition <archive-name> archived
 ```
 
 **Archive script**: Complete all archive steps in one command:

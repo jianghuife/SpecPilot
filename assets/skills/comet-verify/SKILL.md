@@ -17,7 +17,9 @@ description: "Comet Phase 4: Verify and Complete. Invoke with /comet-verify. Ver
 Execute entry verification:
 
 ```bash
-COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
+COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
 bash "$COMET_STATE" check <name> verify
 ```
 
@@ -33,17 +35,37 @@ bash "$COMET_STATE" scale <name>
 
 Script automatically counts tasks, delta specs, and changed files to determine whether to use light or full verification mode, and sets the verify_mode field.
 
+Note: if the build phase committed after each task, worktree diff can underestimate change size. In that case, read the plan header `base-ref` and re-check the full commit range:
+
+```bash
+PLAN=$(bash "$COMET_STATE" get <name> plan)
+BASE_REF=$(grep '^base-ref:' "$PLAN" 2>/dev/null | head -1 | sed 's/^base-ref: *//')
+git diff --stat "$BASE_REF"...HEAD
+```
+
+If the commit range exceeds lightweight thresholds (> 5 files, cross-module coordination, or more than 1 delta spec capability), manually switch to full verification:
+
+```bash
+bash "$COMET_STATE" set <name> verify_mode full
+```
+
 ### 2a. Lightweight Verification (Small Changes)
 
 When scale assessment result is "small", skip `openspec-verify-change`, directly execute the following checks:
 
 1. All tasks in tasks.md completed `[x]`
-2. Changed files consistent with tasks.md description (`git diff --stat`对照 tasks content)
+2. Changed files consistent with tasks.md description (compare `git diff --stat` against task content)
 3. Build passes (run project-appropriate build command, e.g., `npm run build`, `mvn compile`, `cargo build`)
 4. Related tests pass
 5. No obvious security issues (no hardcoded secrets, no new unsafe operations)
 
 **Pass standard**: All 5 items OK, no CRITICAL issues.
+
+**When failing**: report failed items, record failure, move back to build, then invoke `/comet-build`.
+
+```bash
+bash "$COMET_STATE" transition <name> verify-fail
+```
 
 **Report format**: Brief table listing 5 check results + PASS/FAIL.
 
@@ -68,7 +90,11 @@ After the skill loads, follow its guidance to verify. Check items:
 6. No contradiction between delta spec and design doc (if Build phase had incremental spec modifications, check if design doc has corresponding records)
 7. `docs/superpowers/specs/` associated design document can be located (file exists and relates to current change)
 
-When verification fails: report missing items, return to Phase 3 to supplement (invoke `/comet-build`).
+When verification fails: report missing items, record failure, move back to build, then invoke `/comet-build`.
+
+```bash
+bash "$COMET_STATE" transition <name> verify-fail
+```
 
 **Spec drift handling**:
 - If check item 6 finds contradiction (delta spec has content but design doc doesn't reflect it), prompt user:
@@ -96,13 +122,12 @@ After the skill loads, follow its guidance to complete. Branch handling options:
 
 - Verification report passed
 - Branch handled
-- `.comet.yaml` `verify_result` recorded as `pass`
-- **Phase guard**: Run `bash $COMET_GUARD <change-name> verify`, allow transition only after all PASS
+- **Phase guard**: Run `bash "$COMET_GUARD" <change-name> verify --apply`; after all PASS, it uses `comet-state transition verify-pass` to advance to `phase: archive`
 
-Before exit, run guard to auto-transition:
+After verification and branch handling are complete, run guard to auto-transition:
 
 ```bash
-bash $COMET_GUARD <change-name> verify --apply
+bash "$COMET_GUARD" <change-name> verify --apply
 ```
 
 State file is automatically updated to `phase: archive`, `verify_result: pass`, `verified_at: YYYY-MM-DD`.
