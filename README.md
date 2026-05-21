@@ -72,13 +72,10 @@ comet init
 ## Screenshots
 
 <p align="center">
-  <img src="img/init.png" alt="Initialization" width="600">
+  <img src="img/runner.png" alt="runner">
 </p>
-<p align="center">Auto-install OpenSpec & Superpowers, one-click dev environment setup</p>
 
-<p align="center">
-  <img src="img/skill-comet.png" alt="Skill Execution" width="600">
-</p>
+<p align="center">Auto-install OpenSpec & Superpowers, one-click dev environment setup</p>
 <p align="center">Multi-phase Skill entry, auto-detects current Spec stage, auto-triggers core flow, manual review at key nodes</p>
 
 ## Commands

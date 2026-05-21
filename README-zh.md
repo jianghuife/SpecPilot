@@ -72,13 +72,9 @@ comet init
 ## 运行截图
 
 <p align="center">
-  <img src="img/init.png" alt="初始化" width="600">
+  <img src="img/runner.png" alt="runner">
 </p>
 <p align="center">自动安装 OpenSpec、Superpowers，一键配置开发环境</p>
-
-<p align="center">
-  <img src="img/skill-comet.png" alt="Skill 运行" width="600">
-</p>
 <p align="center">多阶段 Skill 入口，自动识别当前 Spec 阶段，核心流程自动触发，关键节点人工审核</p>
 
 ## CLI命令
