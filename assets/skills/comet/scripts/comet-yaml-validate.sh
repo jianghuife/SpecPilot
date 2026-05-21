@@ -86,7 +86,7 @@ design_doc=$(field_value "design_doc")
 plan=$(field_value "plan")
 
 validate_enum "workflow"      "$workflow"      "full hotfix tweak"
-validate_enum "phase"         "$phase"          "design build verify archive"
+validate_enum "phase"         "$phase"          "open design build verify archive"
 validate_enum "build_mode"    "$build_mode"     "subagent-driven-development executing-plans direct"
 validate_enum "isolation"     "$isolation"      "branch worktree"
 validate_enum "verify_mode"   "$verify_mode"    "light full"

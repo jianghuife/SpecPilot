@@ -22,16 +22,23 @@ agent 做决策只需读本节，参考附录按需查阅。
 
 ### 阶段自动检测
 
-**Step 0: 活跃 Change 发现**
+**Step 0: 活跃 Change 发现与意图判定**
 
 1. 运行 `openspec list --json` 获取所有活跃 change
-2. 对每个 change，检查 `docs/superpowers/specs/` 和 `docs/superpowers/plans/` 匹配关联文件，判断阶段和进度
 
-| 情况 | 行为 |
-|------|------|
-| 无活跃 change | → 调用 `/comet-open` |
-| 恰好 1 个活跃 change | → 自动选中，进入 Step 1 |
-| 多个活跃 change | → 列出清单让用户选择 |
+| 活跃 change | 用户输入 | 行为 |
+|-------------|---------|------|
+| 无 | any | → 调用 `/comet-open` |
+| 恰好 1 个 | `/comet <描述>` | → **询问**：继续该变更 or 创建新变更 |
+| 多个 | `/comet <描述>` | → **询问**：继续现有变更 or 创建新变更；若选继续 → 列出清单让用户选择 |
+| 恰好 1 个 | `/comet`（无描述） | → 自动选中，进入 Step 1 |
+| 多个 | `/comet`（无描述） | → 列出清单让用户选择 |
+
+<IMPORTANT>
+当用户选择「创建新变更」时，**必须调用 `/comet-open`**（禁止直接调用 `/opsx:new`）。
+`/comet-open` 负责完整双初始化：OpenSpec artifacts（由内部 `/opsx:new` 创建）+ `.comet.yaml` 状态文件。
+直接调用 `/opsx:new` 会缺失 `.comet.yaml`，导致后续阶段判定失败。
+</IMPORTANT>
 
 **Preset 检测**：
 - 用户明确描述为 bug fix / 热修复 + 满足 hotfix 条件 → 直接 `/comet-hotfix`
@@ -48,7 +55,8 @@ agent 做决策只需读本节，参考附录按需查阅。
 3. `phase: verify` 或 tasks.md 全部勾选 → `/comet-verify`
 4. `phase: build` 或已有 Design Doc 但计划/执行未完成 → `/comet-build`
 5. `phase: design` 或有 change 但无 Design Doc → `/comet-design`
-6. 无活跃 change 或状态无法判定 → `/comet-open`
+6. `phase: open` 或有活跃 change 但 `.comet.yaml` 缺失 → `/comet-open`
+7. 无活跃 change → `/comet-open`
 
 如果元数据与文件状态冲突，以文件状态为准，修正 `.comet.yaml` 后继续。
 
@@ -84,14 +92,16 @@ agent 做决策只需读本节，参考附录按需查阅。
 
 流转链：open → design → build → verify → archive
 
-需要用户参与的节点：
+**连续执行要求**：从检测到的阶段开始，agent 必须自动走完后续所有阶段，中间不停顿等待用户输入（除非遇到需要用户决策的节点）。每个阶段完成后立即进入下一阶段，无需用户再次输入。
+
+需要用户参与的节点（仅在这些节点暂停）：
 1. brainstorming 确认设计方案
 2. build 阶段选择执行方式
 3. verify 不通过时决定修复或接受偏差
 4. finishing-branch 选择分支处理方式
 5. 遇到升级条件（hotfix/tweak → 完整流程）
 
-agent 不应跳过这些决策点；其他明确无歧义的阶段衔接可以继续推进。
+agent 不应跳过这些决策点；其他明确无歧义的阶段衔接必须自动继续推进，不得中途退出。
 </IMPORTANT>
 
 ---
@@ -145,7 +155,7 @@ archived: false
 | 字段 | 含义 |
 |------|------|
 | `workflow` | `full`、`hotfix` 或 `tweak` |
-| `phase` | 当前阶段：`open`、`design`、`build`、`verify`、`archive` |
+| `phase` | 当前阶段：`open`、`design`、`build`、`verify`、`archive`（init 统一设为 `open`，guard 负责过渡） |
 | `design_doc` | 关联的 Superpowers Design Doc 路径，可为空 |
 | `plan` | 关联的 Superpowers Plan 路径，可为空 |
 | `build_mode` | 已选择的执行方式，可为空 |
@@ -163,6 +173,13 @@ Comet 脚本随 skill 包分发在 `comet/scripts/` 下。**不硬编码路径**
 COMET_GUARD="${COMET_GUARD:-$(find . -path '*/comet/scripts/comet-guard.sh' -type f -print -quit)}"
 COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
 COMET_ARCHIVE="${COMET_ARCHIVE:-$(find . -path '*/comet/scripts/comet-archive.sh' -type f -print -quit)}"
+
+# 脚本定位失败时停止流程
+if [ -z "$COMET_GUARD" ] || [ -z "$COMET_STATE" ] || [ -z "$COMET_ARCHIVE" ]; then
+  echo "ERROR: Comet scripts not found. Ensure the comet skill is installed." >&2
+  echo "Expected path pattern: */comet/scripts/comet-*.sh" >&2
+  return 1
+fi
 ```
 
 **自动状态更新**：guard 支持 `--apply` 参数，验证通过后自动更新 `.comet.yaml` 状态字段：

@@ -37,6 +37,7 @@ validate_change_name "$1"
 CHANGE="$1"
 PHASE="$2"
 APPLY=0
+SCRIPT_DIR="$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")" 2>/dev/null || dirname "$0")"
 if [[ "${3:-}" == "--apply" ]]; then
   APPLY=1
 fi
@@ -81,7 +82,6 @@ file_nonempty() {
 }
 
 preflight() {
-  local expected_phase="$1"
 
   if [ ! -d "$CHANGE_DIR" ]; then
     red "FATAL: change directory not found: $CHANGE_DIR"
@@ -92,17 +92,9 @@ preflight() {
     exit 1
   fi
 
-  local actual_phase
-  actual_phase=$(yaml_field_value "phase" 2>/dev/null || true)
-  if [ "$actual_phase" != "$expected_phase" ]; then
-    red "FATAL: .comet.yaml phase is '$actual_phase', expected '$expected_phase'"
-    exit 1
-  fi
-
   # Schema validation
-  local script_dir validate_script
-  script_dir="$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")" 2>/dev/null || dirname "$0")"
-  validate_script="$script_dir/comet-yaml-validate.sh"
+  local validate_script
+  validate_script="$SCRIPT_DIR/comet-yaml-validate.sh"
   if [ -f "$validate_script" ]; then
     if ! bash "$validate_script" "$CHANGE" 2>/dev/null; then
       bash "$validate_script" "$CHANGE"
@@ -135,7 +127,7 @@ archived_is_true() {
 # --- Phase-specific checks ---
 
 guard_open() {
-  echo "=== Guard: open → design ===" >&2
+  echo "=== Guard: open → next ===" >&2
 
   check "proposal.md exists and non-empty" file_nonempty "$CHANGE_DIR/proposal.md"
   check "design.md exists and non-empty" file_nonempty "$CHANGE_DIR/design.md"
@@ -184,12 +176,21 @@ guard_archive() {
 }
 
 apply_state_update() {
-  local state_sh="$script_dir/comet-state.sh"
+  local state_sh="$SCRIPT_DIR/comet-state.sh"
   local p="$1"
 
   if [ -f "$state_sh" ]; then
     case "$p" in
-      open)   bash "$state_sh" set "$CHANGE" phase design ;;
+      open)
+        # Workflow-aware: full → design, hotfix/tweak → build (skip design)
+        local workflow
+        workflow=$(bash "$state_sh" get "$CHANGE" "workflow" 2>/dev/null || echo "full")
+        if [ "$workflow" = "full" ]; then
+          bash "$state_sh" set "$CHANGE" phase design
+        else
+          bash "$state_sh" set "$CHANGE" phase build
+        fi
+        ;;
       design) bash "$state_sh" set "$CHANGE" phase build ;;
       build)
         bash "$state_sh" set "$CHANGE" phase verify
@@ -204,7 +205,16 @@ apply_state_update() {
   else
     local yaml="$CHANGE_DIR/.comet.yaml"
     case "$p" in
-      open)   sed -i 's/^phase:.*/phase: design/' "$yaml" ;;
+      open)
+        # Workflow-aware fallback
+        local workflow_fallback
+        workflow_fallback=$(grep "^workflow:" "$yaml" | sed 's/^workflow: *//' | tr -d '"' | tr -d "'")
+        if [ "$workflow_fallback" = "full" ] || [ -z "$workflow_fallback" ]; then
+          sed -i 's/^phase:.*/phase: design/' "$yaml"
+        else
+          sed -i 's/^phase:.*/phase: build/' "$yaml"
+        fi
+        ;;
       design) sed -i 's/^phase:.*/phase: build/' "$yaml" ;;
       build)  sed -i 's/^phase:.*/phase: verify/' "$yaml"; sed -i 's/^verify_result:.*/verify_result: pending/' "$yaml" ;;
       verify)
@@ -223,11 +233,11 @@ apply_state_update() {
 # --- Main ---
 
 case "$PHASE" in
-  open)     preflight "design"  ; guard_open ;;
-  design)   preflight "build"   ; guard_design ;;
-  build)    preflight "verify"  ; guard_build ;;
-  verify)   preflight "archive" ; guard_verify ;;
-  archive)  preflight "archive" ; guard_archive ;;
+  open)     preflight ; guard_open ;;
+  design)   preflight ; guard_design ;;
+  build)    preflight ; guard_build ;;
+  verify)   preflight ; guard_verify ;;
+  archive)  preflight ; guard_archive ;;
   *)
     red "Unknown phase: $PHASE"
     echo "Valid phases: open, design, build, verify, archive" >&2
@@ -245,7 +255,11 @@ else
   if [ "$APPLY" -eq 1 ]; then
     apply_state_update "$PHASE"
     case "$PHASE" in
-      open)   green "  [APPLY] .comet.yaml updated: phase=design" ;;
+      open)
+        local new_phase
+        new_phase=$(grep "^phase:" "$CHANGE_DIR/.comet.yaml" | sed 's/^phase: *//' | tr -d '"' | tr -d "'")
+        green "  [APPLY] .comet.yaml updated: phase=$new_phase"
+        ;;
       design) green "  [APPLY] .comet.yaml updated: phase=build" ;;
       build)  green "  [APPLY] .comet.yaml updated: phase=verify, verify_result=pending" ;;
       verify) green "  [APPLY] .comet.yaml updated: phase=archive, verify_result=pass" ;;

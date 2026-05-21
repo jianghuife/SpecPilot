@@ -20,17 +20,6 @@ Hotfix 是 Comet 五阶段能力的预设工作流，不是独立的平行流程
 
 ## 流程（preset workflow，4 阶段）
 
-### 0. 入口状态验证（Entry Check）
-
-执行入口验证：
-
-```bash
-COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
-bash "$COMET_STATE" check <name> open
-```
-
-验证通过后继续流程步骤。验证失败时脚本会输出具体失败原因。
-
 执行链路：open → build → verify → archive。Hotfix 为每个阶段提供默认决策：精简开启、直接构建、按规模验证、验证通过后归档。
 
 ### 1. 快速开启（preset open）
@@ -49,6 +38,18 @@ bash "$COMET_STATE" check <name> open
 
 ```bash
 bash "$COMET_STATE" init <name> hotfix
+```
+
+初始化后验证状态：
+
+```bash
+bash "$COMET_STATE" check <name> open
+```
+
+阶段守卫完成 open → build 过渡：
+
+```bash
+bash $COMET_GUARD <change-name> open --apply
 ```
 
 ### 2. 直接构建（preset build）

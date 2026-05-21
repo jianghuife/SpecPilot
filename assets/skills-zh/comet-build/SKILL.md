@@ -130,6 +130,14 @@ bash "$COMET_STATE" set <name> build_mode <value>
 - 如增量任务超过原 tasks.md 初始任务总数 50%，考虑拆分为新 change
 - 小规模增量直接改 delta spec 时，应在 commit message 中注明，便于归档时判断 design doc 漂移
 
+### 6. 上下文管理
+
+Build 是最长阶段，可能跨越大量任务。为支持上下文压缩后断点恢复：
+
+- **每完成一个 task**：立即勾选 tasks.md 并提交代码，确保 `.comet.yaml` 和文件状态持久化
+- **上下文压缩后恢复**：读取 `.comet.yaml` 的 `phase` 字段确认仍在 build 阶段，读取 tasks.md 找到下一个未勾选任务继续执行
+- **长任务拆分**：单任务超过 200 行代码变更时，考虑拆分为多个子任务分别提交
+
 ## 退出条件
 
 - tasks.md 全部勾选

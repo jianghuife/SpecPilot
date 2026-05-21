@@ -45,6 +45,8 @@ bash "$COMET_STATE" scale <name>
 
 **通过标准**：5 项全部 OK，无 CRITICAL 问题。
 
+**不通过时**：报告失败项，运行 `bash "$COMET_STATE" set <name> verify_result fail`，返回阶段 3 修复。
+
 **报告格式**：简表列出 5 项检查结果 + PASS/FAIL。
 
 **跳过项**（不在轻量验证中检查）：
@@ -68,7 +70,7 @@ bash "$COMET_STATE" scale <name>
 6. delta spec 与 design doc 无矛盾（若 Build 阶段有增量修改 spec，检查 design doc 是否有对应记录）
 7. `docs/superpowers/specs/` 关联的设计文档可定位（文件存在且与当前 change 相关）
 
-验证不通过时：报告缺失项，返回阶段 3 补充（调用 `/comet-build`）。
+验证不通过时：报告缺失项，记录验证失败状态（`bash "$COMET_STATE" set <name> verify_result fail`），返回阶段 3 补充（调用 `/comet-build`）。
 
 **Spec 漂移处理**：
 - 若检查项 6 发现矛盾（delta spec 有内容但 design doc 未体现），提示用户：
