@@ -17,7 +17,9 @@ description: "Comet Phase 3: Plan and Build. Invoke with /comet-build. Create pl
 Execute entry verification:
 
 ```bash
-COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
+COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
 bash "$COMET_STATE" check <name> build
 ```
 
@@ -36,7 +38,14 @@ After the skill loads, follow its guidance to create a plan. Plan requirements:
 ---
 change: <openspec-change-name>
 design-doc: docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md
+base-ref: <git rev-parse HEAD before implementation>
 ---
+```
+
+`base-ref` is used during verification to measure committed changes across the full implementation range. Record the current commit when creating the plan:
+
+```bash
+git rev-parse HEAD
 ```
 
 ### 2. Update Plan Status
@@ -130,18 +139,25 @@ When the initial spec is found incomplete during implementation, handle by scale
 - If incremental tasks exceed 50% of initial tasks.md total task count, consider splitting into new change
 - For small-scale incremental direct delta spec edits, note in commit message to facilitate design doc drift assessment during archiving
 
+### 6. Context Management
+
+Build is the longest phase and may span many tasks. To support resume after context compaction:
+
+- **After each task**: immediately check off tasks.md and commit code so `.comet.yaml` and file state are durable
+- **After context compaction**: read `.comet.yaml` to confirm the phase is still build, read the plan header `base-ref`, then read tasks.md to find the next unchecked task
+- **Long task split**: if a single task exceeds 200 lines of code changes, consider splitting it into multiple subtasks and commits
+
 ## Exit Conditions
 
 - All tasks.md checked
 - Code committed
-- Tests pass
-- `.comet.yaml` `phase` updated to `verify`
-- **Phase guard**: Run `bash $COMET_GUARD <change-name> build`, allow transition only after all PASS
+- Project-specific build/tests explicitly run and pass; do not rely only on guard auto-detection
+- **Phase guard**: Run `bash "$COMET_GUARD" <change-name> build --apply`; after all PASS, state advances to `phase: verify`
 
 Before exit, run guard to auto-transition:
 
 ```bash
-bash $COMET_GUARD <change-name> build --apply
+bash "$COMET_GUARD" <change-name> build --apply
 ```
 
 State file is automatically updated to `phase: verify`, `verify_result: pending`.

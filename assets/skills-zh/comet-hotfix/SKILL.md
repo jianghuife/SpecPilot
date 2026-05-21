@@ -12,7 +12,7 @@ Hotfix 是 Comet 五阶段能力的预设工作流，不是独立的平行流程
 **适用条件**（必须全部满足）：
 1. 修复已有功能的 bug，不新增 capability
 2. 不涉及接口变更或架构调整
-3. 改动范围可预估（通常 < 5 个文件）
+3. 改动范围可预估（通常 ≤ 2 个文件）
 
 **不适用**：如修复过程发现需要架构调整，应升级为完整 `/comet` 流程。
 
@@ -21,6 +21,15 @@ Hotfix 是 Comet 五阶段能力的预设工作流，不是独立的平行流程
 ## 流程（preset workflow，4 阶段）
 
 执行链路：open → build → verify → archive。Hotfix 为每个阶段提供默认决策：精简开启、直接构建、按规模验证、验证通过后归档。
+
+开始前先定位 Comet 脚本：
+
+```bash
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
+COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
+COMET_ARCHIVE="${COMET_ARCHIVE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-archive.sh' -type f -print -quit 2>/dev/null)}"
+```
 
 ### 1. 快速开启（preset open）
 
@@ -49,7 +58,7 @@ bash "$COMET_STATE" check <name> open
 阶段守卫完成 open → build 过渡：
 
 ```bash
-bash $COMET_GUARD <change-name> open --apply
+bash "$COMET_GUARD" <change-name> open --apply
 ```
 
 ### 2. 直接构建（preset build）
@@ -65,7 +74,14 @@ bash $COMET_GUARD <change-name> open --apply
    - 运行相关测试确认通过
    - 将 tasks.md 中对应 `- [ ]` 勾选为 `- [x]`
    - 提交代码，commit message 格式：`fix: <简述修复>`
-3. 全部任务完成后进入验证
+3. 全部任务完成后，显式运行项目相关测试和构建命令
+4. 运行阶段守卫完成 build → verify 过渡：
+
+```bash
+bash "$COMET_GUARD" <change-name> build --apply
+```
+
+状态文件自动更新为 `phase: verify`、`verify_result: pending`，然后进入验证。
 
 **如修复影响已有 spec 验收场景**：
 - 在 `openspec/changes/<name>/specs/<capability>/spec.md` 创建 delta spec
@@ -77,7 +93,7 @@ bash $COMET_GUARD <change-name> open --apply
 
 **立即执行：** 使用 Skill 工具加载 `comet-verify` 技能。禁止跳过此步骤。
 
-无 delta spec 的小范围 hotfix 通常满足轻量验证条件（≤ 3 tasks、≤ 5 files），comet-verify 的规模评估会选择轻量验证路径（5 项快速检查）。若 hotfix 创建了 delta spec，则根据 comet-verify 的规模评估规则进入完整验证路径。
+无 delta spec 的小范围 hotfix 通常满足轻量验证条件（≤ 3 tasks、≤ 2 files），comet-verify 的规模评估会选择轻量验证路径（5 项快速检查）。若 hotfix 创建了 delta spec，则根据 comet-verify 的规模评估规则进入完整验证路径。
 
 **额外 Hotfix 专属检查**（在 comet-verify 轻量验证通过后执行）：
 
@@ -134,4 +150,4 @@ Hotfix 流程为 **一次性连续执行**。调用 `/comet-hotfix` 后，agent 
 - Bug 已修复，测试通过
 - change 已归档
 - 如有 spec 变更，已同步到 main spec
-- **阶段守卫**：build → verify 前运行 `bash $COMET_GUARD <change-name> build`，verify → archive 前运行 `bash $COMET_GUARD <change-name> verify`
+- **阶段守卫**：build → verify 前运行 `bash "$COMET_GUARD" <change-name> build --apply`，verify → archive 前按 `/comet-verify` 规则先设置 `verify_result: pass`，再运行 `bash "$COMET_GUARD" <change-name> verify --apply`

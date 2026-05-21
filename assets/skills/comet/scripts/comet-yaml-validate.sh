@@ -33,7 +33,11 @@ validate_change_name() {
 validate_change_name "$1"
 
 CHANGE="$1"
-YAML="openspec/changes/$CHANGE/.comet.yaml"
+CHANGE_DIR="openspec/changes/$CHANGE"
+if [ ! -d "$CHANGE_DIR" ] && [ -d "openspec/changes/archive/$CHANGE" ]; then
+  CHANGE_DIR="openspec/changes/archive/$CHANGE"
+fi
+YAML="$CHANGE_DIR/.comet.yaml"
 
 ERRORS=0
 WARNINGS=0

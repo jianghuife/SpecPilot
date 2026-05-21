@@ -12,7 +12,7 @@ Applicable for bug fixes, hotfixes, small-scale behavior corrections. Does not i
 **Applicable conditions** (all must be met):
 1. Fix bugs in existing functionality, no new capability
 2. No interface changes or architecture adjustments
-3. Change scope is predictable (usually < 5 files)
+3. Change scope is predictable (usually ≤ 2 files)
 
 **Not applicable**: If fix process discovers need for architecture adjustments, should upgrade to full `/comet` workflow.
 
@@ -20,18 +20,16 @@ Applicable for bug fixes, hotfixes, small-scale behavior corrections. Does not i
 
 ## Process (preset workflow, 4 phases)
 
-### 0. Entry State Verification (Entry Check)
+Execution chain: open → build → verify → archive. Hotfix provides default decisions for each phase: streamlined open, direct build, scale-based verification, archive after verification passes.
 
-Execute entry verification:
+Locate Comet scripts before starting:
 
 ```bash
-COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
-bash "$COMET_STATE" check <name> open
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
+COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
+COMET_ARCHIVE="${COMET_ARCHIVE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-archive.sh' -type f -print -quit 2>/dev/null)}"
 ```
-
-Proceed to process steps after verification passes. The script outputs specific failure reasons when verification fails.
-
-Execution chain: open → build → verify → archive. Hotfix provides default decisions for each phase: streamlined open, direct build, scale-based verification, archive after verification passes.
 
 ### 1. Quick Open (preset open)
 
@@ -51,6 +49,12 @@ Initialize Comet state file:
 bash "$COMET_STATE" init <name> hotfix
 ```
 
+Run phase guard to transition open → build:
+
+```bash
+bash "$COMET_GUARD" <change-name> open --apply
+```
+
 ### 2. Direct Build (preset build)
 
 Use hotfix defaults: `build_mode: direct`. Skip `superpowers:brainstorming` and `superpowers:writing-plans` (unless tasks > 3; if exceeds 3 tasks, transfer to `/comet-build`'s plan and execution method selection).
@@ -64,7 +68,14 @@ Use hotfix defaults: `build_mode: direct`. Skip `superpowers:brainstorming` and 
    - Run related tests to confirm pass
    - Check corresponding `- [ ]` to `- [x]` in tasks.md
    - Commit code, commit message format: `fix: <brief fix description>`
-3. After all tasks complete, enter verification
+3. After all tasks complete, explicitly run relevant project tests and build commands
+4. Run phase guard to transition build → verify:
+
+```bash
+bash "$COMET_GUARD" <change-name> build --apply
+```
+
+State automatically updates to `phase: verify`, `verify_result: pending`, then enter verification.
 
 **If fix affects existing spec acceptance scenarios**:
 - Create delta spec in `openspec/changes/<name>/specs/<capability>/spec.md`
@@ -76,7 +87,7 @@ Reuse `/comet-verify`, with comet-verify's scale assessment deciding lightweight
 
 **Immediately execute:** Use the Skill tool to load the `comet-verify` skill. Skipping this step is prohibited.
 
-Small-scale hotfixes without delta spec usually meet lightweight verification conditions (≤ 3 tasks, ≤ 5 files), comet-verify's scale assessment will select lightweight verification path (5 quick checks). If hotfix created delta spec, enter full verification path according to comet-verify's scale assessment rules.
+Small-scale hotfixes without delta spec usually meet lightweight verification conditions (≤ 3 tasks, ≤ 2 files), comet-verify's scale assessment will select lightweight verification path (5 quick checks). If hotfix created delta spec, enter full verification path according to comet-verify's scale assessment rules.
 
 **Additional Hotfix-Exclusive Checks** (execute after comet-verify lightweight verification passes):
 
@@ -133,4 +144,4 @@ Upgrade method: On current change basis, supplement Design Doc (execute `/comet-
 - Bug fixed, tests pass
 - Change archived
 - If spec changes, synced to main spec
-- **Phase guard**: Before build → verify run `bash $COMET_GUARD <change-name> build`, before verify → archive run `bash $COMET_GUARD <change-name> verify`
+- **Phase guard**: Before build → verify run `bash "$COMET_GUARD" <change-name> build --apply`; before verify → archive follow `/comet-verify`: set `verify_result: pass`, then run `bash "$COMET_GUARD" <change-name> verify --apply`

@@ -13,7 +13,7 @@ Applicable for small-scale non-bug changes, such as copy adjustments, configurat
 1. No new capability
 2. No architecture changes
 3. No interface changes involved
-4. Usually not exceeding 3 tasks, 5 files
+4. Usually not exceeding 3 tasks, 4 files
 
 **Not applicable**: If change process discovers need for capability, architecture, or interface adjustments, should upgrade to full `/comet` workflow.
 
@@ -21,18 +21,16 @@ Applicable for small-scale non-bug changes, such as copy adjustments, configurat
 
 ## Process (preset workflow, 4 phases)
 
-### 0. Entry State Verification (Entry Check)
+Execution chain: open → lightweight build → light verify → archive. Tweak provides default decisions for each phase: streamlined open, lightweight build, lightweight verification, archive after verification passes.
 
-Execute entry verification:
+Locate Comet scripts before starting:
 
 ```bash
-COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
-bash "$COMET_STATE" check <name> open
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
+COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
+COMET_ARCHIVE="${COMET_ARCHIVE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-archive.sh' -type f -print -quit 2>/dev/null)}"
 ```
-
-Proceed to process steps after verification passes. The script outputs specific failure reasons when verification fails.
-
-Execution chain: open → lightweight build → light verify → archive. Tweak provides default decisions for each phase: streamlined open, lightweight build, lightweight verification, archive after verification passes.
 
 ### 1. Quick Open (preset open)
 
@@ -52,6 +50,12 @@ Initialize Comet state file:
 bash "$COMET_STATE" init <name> tweak
 ```
 
+Run phase guard to transition open → build:
+
+```bash
+bash "$COMET_GUARD" <change-name> open --apply
+```
+
 ### 2. Lightweight Build (preset build)
 
 Use tweak defaults: `build_mode: direct`. Skip `superpowers:brainstorming` and `superpowers:writing-plans`.
@@ -65,11 +69,18 @@ Use tweak defaults: `build_mode: direct`. Skip `superpowers:brainstorming` and `
    - Run related tests to confirm pass
    - Check corresponding `- [ ]` to `- [x]` in tasks.md
    - Commit code, commit message format: `tweak: <brief change description>`
-3. After all tasks complete, enter verification
+3. After all tasks complete, explicitly run relevant project tests and build commands
+4. Run phase guard to transition build → verify:
+
+```bash
+bash "$COMET_GUARD" <change-name> build --apply
+```
+
+State automatically updates to `phase: verify`, `verify_result: pending`, then enter verification.
 
 ### 3. Lightweight Verification (preset verify)
 
-Reuse `/comet-verify`. Tweak must maintain lightweight verification conditions: ≤ 3 tasks, ≤ 5 files, no delta spec, no new capability.
+Reuse `/comet-verify`. Tweak must maintain lightweight verification conditions: ≤ 3 tasks, ≤ 4 files, no delta spec, no new capability.
 
 **Immediately execute:** Use the Skill tool to load the `comet-verify` skill. Skipping this step is prohibited.
 
@@ -119,4 +130,4 @@ Upgrade method: On current change basis, supplement Design Doc (execute `/comet-
 - Small change completed, tests pass
 - Change archived
 - No new capability, architecture adjustments, or interface changes
-- **Phase guard**: Before build → verify run `bash $COMET_GUARD <change-name> build`, before verify → archive run `bash $COMET_GUARD <change-name> verify`
+- **Phase guard**: Before build → verify run `bash "$COMET_GUARD" <change-name> build --apply`; before verify → archive follow `/comet-verify`: set `verify_result: pass`, then run `bash "$COMET_GUARD" <change-name> verify --apply`

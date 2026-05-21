@@ -42,6 +42,9 @@ if [[ "${3:-}" == "--apply" ]]; then
   APPLY=1
 fi
 CHANGE_DIR="openspec/changes/$CHANGE"
+if [ "$PHASE" = "archive" ] && [ ! -d "$CHANGE_DIR" ] && [ -d "openspec/changes/archive/$CHANGE" ]; then
+  CHANGE_DIR="openspec/changes/archive/$CHANGE"
+fi
 
 BLOCK=0
 check() {
@@ -108,8 +111,19 @@ build_passes() {
   if [ "${COMET_SKIP_BUILD:-0}" = "1" ]; then
     return 0
   fi
-  # Attempt common build commands; succeeds if any pass
-  (npm run build 2>/dev/null) || (mvn compile -q 2>/dev/null) || (cargo build 2>/dev/null) || true
+  if [ -f "package.json" ] && grep -q '"build"' "package.json"; then
+    npm run build >/dev/null
+    return $?
+  fi
+  if [ -f "pom.xml" ]; then
+    mvn compile -q >/dev/null
+    return $?
+  fi
+  if [ -f "Cargo.toml" ]; then
+    cargo build >/dev/null
+    return $?
+  fi
+  return 1
 }
 
 verify_result_is_pass() {

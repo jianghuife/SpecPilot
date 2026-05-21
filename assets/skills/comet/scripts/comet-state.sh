@@ -406,14 +406,19 @@ cmd_scale() {
     delta_spec_count=$(find "$change_dir/specs" -name "spec.md" -type f 2>/dev/null | wc -l | tr -d ' ')
   fi
 
-  # 3. Changed files: from git diff --stat HEAD
+  # 3. Changed files: prefer plan base-ref, fall back to worktree diff
   local changed_files=0
   if git rev-parse --git-dir > /dev/null 2>&1; then
-    # Extract the number before "file" in the last line
-    local stat_output
-    stat_output=$(git diff --stat HEAD 2>/dev/null | tail -1)
-    if [[ "$stat_output" =~ ([0-9]+)\ file ]]; then
-      changed_files="${BASH_REMATCH[1]}"
+    local plan_file base_ref
+    plan_file=$(cmd_get "$change_name" "plan" 2>/dev/null || true)
+    if [ -n "$plan_file" ] && [ "$plan_file" != "null" ] && [ -f "$plan_file" ]; then
+      base_ref=$(grep '^base-ref:' "$plan_file" 2>/dev/null | head -1 | sed 's/^base-ref: *//')
+    fi
+
+    if [ -n "${base_ref:-}" ] && git rev-parse --verify "$base_ref" >/dev/null 2>&1; then
+      changed_files=$(git diff --name-only "$base_ref"...HEAD 2>/dev/null | wc -l | tr -d ' ')
+    else
+      changed_files=$(git diff --name-only HEAD 2>/dev/null | wc -l | tr -d ' ')
     fi
   fi
 

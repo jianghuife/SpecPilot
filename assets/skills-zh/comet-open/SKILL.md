@@ -35,6 +35,15 @@ openspec/changes/<name>/
 创建 `.comet.yaml` 状态文件：
 
 ```bash
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
+COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
+
+if [ -z "$COMET_STATE" ] || [ -z "$COMET_GUARD" ]; then
+  echo "ERROR: Comet scripts not found. Ensure the comet skill is installed." >&2
+  return 1
+fi
+
 bash "$COMET_STATE" init <name> full
 ```
 
@@ -43,7 +52,8 @@ bash "$COMET_STATE" init <name> full
 验证状态机已正确初始化：
 
 ```bash
-COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
 bash "$COMET_STATE" check <name> open
 ```
 
@@ -59,7 +69,15 @@ bash "$COMET_STATE" check <name> open
 ## 退出条件
 
 - proposal.md、design.md、tasks.md 均已创建且内容完整
-- **阶段守卫**：运行 `bash $COMET_GUARD <change-name> open`，全部 PASS 后才允许流转
+- **阶段守卫**：运行 `bash "$COMET_GUARD" <change-name> open --apply`，全部 PASS 后自动流转到下一阶段
+
+退出前必须使用 `--apply`，否则 `.comet.yaml` 仍停留在 `phase: open`，下一阶段入口检查会失败。
+
+```bash
+bash "$COMET_GUARD" <change-name> open --apply
+```
+
+完整流程会自动更新为 `phase: design`；hotfix/tweak preset 会自动更新为 `phase: build`。
 
 ## 自动流转
 

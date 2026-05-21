@@ -11,16 +11,20 @@ description: "Comet Phase 1: Open. Invoke with /comet-open. Explore ideas throug
 
 ## Steps
 
-### 0. Entry State Verification (Entry Check)
+### 0. Locate Comet Scripts
 
-Execute entry verification:
+Locate scripts before creating state:
 
 ```bash
-COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
-bash "$COMET_STATE" check <name> open
-```
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
+COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
 
-Proceed to Step 1 after verification passes. The script outputs specific failure reasons when verification fails.
+if [ -z "$COMET_STATE" ] || [ -z "$COMET_GUARD" ]; then
+  echo "ERROR: Comet scripts not found. Ensure the comet skill is installed." >&2
+  return 1
+fi
+```
 
 ### 1. Explore Idea
 
@@ -61,7 +65,15 @@ Confirm the three documents have complete content:
 ## Exit Conditions
 
 - proposal.md, design.md, and tasks.md are all created with complete content
-- **Phase guard**: Run `bash $COMET_GUARD <change-name> open`, allow transition only after all PASS
+- **Phase guard**: Run `bash "$COMET_GUARD" <change-name> open --apply`; after all PASS, state automatically advances to the next phase
+
+You must use `--apply` before exiting. Otherwise `.comet.yaml` stays at `phase: open`, and the next phase entry check will fail.
+
+```bash
+bash "$COMET_GUARD" <change-name> open --apply
+```
+
+Full workflow advances to `phase: design`; hotfix/tweak presets advance to `phase: build`.
 
 ## Automatic Transition
 

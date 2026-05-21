@@ -48,15 +48,23 @@ agent 做决策只需读本节，参考附录按需查阅。
 
 优先读取 `openspec/changes/<name>/.comet.yaml`。不存在时回退到 `openspec status --change "<name>" --json`、`tasks.md` 和 `docs/superpowers/` 文件检查。
 
+**断点恢复规则**：
+- 每次恢复上下文时，先重新执行 Step 0 和 Step 1，不依赖对话历史判断阶段
+- 若 `phase: build`，读取 tasks.md 的下一个未勾选任务继续
+- 若 `phase: verify` 且 `verify_result: fail`，先修正为 `phase: build`，再调用 `/comet-build`
+- 若 `phase: open` 但 proposal/design/tasks 已完整，先运行 `bash "$COMET_GUARD" <change-name> open --apply` 修正状态，再继续判定
+- 若 `phase: archive`，只允许调用 `/comet-archive`；归档成功后 change 会移动到 archive 目录，不再对原活跃目录运行 guard
+
 **Step 2: 阶段判定**（按顺序，命中即停）
 
 1. `archived: true` 或 change 已移入 archive → 流程已完成
 2. `verify_result: pass` 且 `archived` 不是 `true` → `/comet-archive`
-3. `phase: verify` 或 tasks.md 全部勾选 → `/comet-verify`
-4. `phase: build` 或已有 Design Doc 但计划/执行未完成 → `/comet-build`
-5. `phase: design` 或有 change 但无 Design Doc → `/comet-design`
-6. `phase: open` 或有活跃 change 但 `.comet.yaml` 缺失 → `/comet-open`
-7. 无活跃 change → `/comet-open`
+3. `verify_result: fail` → 修正 `phase: build` 后 `/comet-build`
+4. `phase: verify` 或 tasks.md 全部勾选 → `/comet-verify`
+5. `phase: build` 或已有 Design Doc 但计划/执行未完成 → `/comet-build`
+6. `phase: design` 或有 change 但无 Design Doc → `/comet-design`
+7. `phase: open` 或有活跃 change 但 `.comet.yaml` 缺失 → `/comet-open`
+8. 无活跃 change → `/comet-open`
 
 如果元数据与文件状态冲突，以文件状态为准，修正 `.comet.yaml` 后继续。
 
@@ -170,14 +178,15 @@ archived: false
 Comet 脚本随 skill 包分发在 `comet/scripts/` 下。**不硬编码路径** — 定位一次，缓存到环境变量：
 
 ```bash
-COMET_GUARD="${COMET_GUARD:-$(find . -path '*/comet/scripts/comet-guard.sh' -type f -print -quit)}"
-COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
-COMET_ARCHIVE="${COMET_ARCHIVE:-$(find . -path '*/comet/scripts/comet-archive.sh' -type f -print -quit)}"
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
+COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
+COMET_ARCHIVE="${COMET_ARCHIVE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-archive.sh' -type f -print -quit 2>/dev/null)}"
 
 # 脚本定位失败时停止流程
 if [ -z "$COMET_GUARD" ] || [ -z "$COMET_STATE" ] || [ -z "$COMET_ARCHIVE" ]; then
   echo "ERROR: Comet scripts not found. Ensure the comet skill is installed." >&2
-  echo "Expected path pattern: */comet/scripts/comet-*.sh" >&2
+  echo "Expected path pattern: */comet/scripts/comet-*.sh under project or platform skill directories" >&2
   return 1
 fi
 ```

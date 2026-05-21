@@ -18,7 +18,8 @@ description: "Comet Phase 5: Archive. Invoke with /comet-archive. Sync delta spe
 Execute entry verification:
 
 ```bash
-COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
 bash "$COMET_STATE" check <name> archive
 ```
 
@@ -29,7 +30,8 @@ Proceed to Step 1 after verification passes. The script outputs specific failure
 Run the archive script to automatically complete all steps:
 
 ```bash
-COMET_ARCHIVE="${COMET_ARCHIVE:-$(find . -path '*/comet/scripts/comet-archive.sh' -type f -print -quit)}"
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_ARCHIVE="${COMET_ARCHIVE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-archive.sh' -type f -print -quit 2>/dev/null)}"
 bash "$COMET_ARCHIVE" "<change-name>"
 ```
 
@@ -56,7 +58,10 @@ brainstorming → delta spec → implementation → verification → main spec o
 ## Exit Conditions
 
 - Archive script executed successfully (exit code 0)
-- **Phase guard**: Run `bash $COMET_GUARD <change-name> archive`, confirm archive complete after all PASS
+- Archive directory `openspec/changes/archive/YYYY-MM-DD-<change-name>/` exists
+- Archived `.comet.yaml` contains `archived: true`
+
+The archive script moves `openspec/changes/<name>/` to `openspec/changes/archive/YYYY-MM-DD-<name>/`. After successful archive, do not run `bash "$COMET_GUARD" <change-name> archive` against the old active change name; the active directory no longer exists. Archive completeness is determined by the script exit code and archived directory state.
 
 ## Complete
 

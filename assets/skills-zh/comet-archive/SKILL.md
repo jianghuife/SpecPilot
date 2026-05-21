@@ -18,7 +18,8 @@ description: "Comet 阶段 5：归档。用 /comet-archive 调用。同步 delta
 执行入口验证：
 
 ```bash
-COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
 bash "$COMET_STATE" check <name> archive
 ```
 
@@ -29,7 +30,8 @@ bash "$COMET_STATE" check <name> archive
 运行归档脚本，自动完成以下全部步骤：
 
 ```bash
-COMET_ARCHIVE="${COMET_ARCHIVE:-$(find . -path '*/comet/scripts/comet-archive.sh' -type f -print -quit)}"
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_ARCHIVE="${COMET_ARCHIVE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-archive.sh' -type f -print -quit 2>/dev/null)}"
 bash "$COMET_ARCHIVE" "<change-name>"
 ```
 
@@ -56,7 +58,10 @@ brainstorming → delta spec → 实施 → 验证 → 主 spec 覆盖 → desig
 ## 退出条件
 
 - 归档脚本执行成功（退出码 0）
-- **阶段守卫**：运行 `bash $COMET_GUARD <change-name> archive`，全部 PASS 后确认归档完整
+- 归档目录 `openspec/changes/archive/YYYY-MM-DD-<change-name>/` 存在
+- 归档后的 `.comet.yaml` 中 `archived: true`
+
+归档脚本会把 `openspec/changes/<name>/` 移动到 `openspec/changes/archive/YYYY-MM-DD-<name>/`。归档成功后**不要再对原 change 名运行** `bash "$COMET_GUARD" <change-name> archive`，因为原活跃目录已经不存在。归档完整性以脚本退出码和归档目录状态为准。
 
 ## 完成
 

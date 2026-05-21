@@ -17,7 +17,9 @@ description: "Comet Phase 2: Deep Design. Invoke with /comet-design. Produce Des
 Execute entry verification:
 
 ```bash
-COMET_STATE="${COMET_STATE:-$(find . -path '*/comet/scripts/comet-state.sh' -type f -print -quit)}"
+COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
+COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
+COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
 bash "$COMET_STATE" check <name> design
 ```
 
@@ -57,7 +59,7 @@ Record design_doc path, then run guard to auto-transition:
 bash "$COMET_STATE" set <name> design_doc docs/superpowers/specs/YYYY-MM-DD-topic-design.md
 
 # Auto-transition to next phase
-bash $COMET_GUARD <change-name> design --apply
+bash "$COMET_GUARD" <change-name> design --apply
 ```
 
 State file is updated automatically. No manual editing of other fields required.
@@ -82,7 +84,14 @@ Capability specification (Phase 2, delta)  → Requirements + acceptance scenari
 
 - Design Doc has been created and saved
 - Delta spec has been created if there are new capabilities
-- **Phase guard**: Run `bash $COMET_GUARD <change-name> design`, allow transition only after all PASS
+- `design_doc` written to `.comet.yaml`
+- **Phase guard**: Run `bash "$COMET_GUARD" <change-name> design --apply`; after all PASS, state advances to `phase: build`
+
+You must use `--apply` before exiting:
+
+```bash
+bash "$COMET_GUARD" <change-name> design --apply
+```
 
 ## Automatic Transition
 
