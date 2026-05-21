@@ -2,8 +2,10 @@
 
 setup() {
   export TEST_TMPDIR="$(mktemp -d)"
-  export SCRIPT_PATH="$BATS_TEST_DIRNAME/../../assets/skills/comet/scripts/comet-state.sh"
+  export SCRIPT_SOURCE="$BATS_TEST_DIRNAME/../../assets/skills/comet/scripts/comet-state.sh"
+  export SCRIPT_PATH="$TEST_TMPDIR/comet-state.sh"
   cd "$TEST_TMPDIR"
+  tr -d '\r' < "$SCRIPT_SOURCE" > "$SCRIPT_PATH"
   mkdir -p openspec/changes
 }
 
@@ -19,6 +21,8 @@ teardown() {
   [ -f "openspec/changes/my-change/.comet.yaml" ]
   grep -q "phase: open" "openspec/changes/my-change/.comet.yaml"
   grep -q "verify_mode: null" "openspec/changes/my-change/.comet.yaml"
+  grep -q "verification_report: null" "openspec/changes/my-change/.comet.yaml"
+  grep -q "branch_status: pending" "openspec/changes/my-change/.comet.yaml"
 }
 
 @test "init creates .comet.yaml with hotfix workflow defaults" {
@@ -107,6 +111,12 @@ teardown() {
 @test "set validates archived enum" {
   bash "$SCRIPT_PATH" init my-change full
   run bash "$SCRIPT_PATH" set my-change archived maybe
+  [ "$status" -ne 0 ]
+}
+
+@test "set validates branch_status enum" {
+  bash "$SCRIPT_PATH" init my-change full
+  run bash "$SCRIPT_PATH" set my-change branch_status maybe
   [ "$status" -ne 0 ]
 }
 

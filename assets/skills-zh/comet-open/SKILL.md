@@ -52,8 +52,6 @@ bash "$COMET_STATE" init <name> full
 验证状态机已正确初始化：
 
 ```bash
-COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
-COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
 bash "$COMET_STATE" check <name> open
 ```
 

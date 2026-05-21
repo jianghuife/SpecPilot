@@ -30,8 +30,6 @@ Proceed to Step 1 after verification passes. The script outputs specific failure
 Run the archive script to automatically complete all steps:
 
 ```bash
-COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
-COMET_ARCHIVE="${COMET_ARCHIVE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-archive.sh' -type f -print -quit 2>/dev/null)}"
 bash "$COMET_ARCHIVE" "<change-name>"
 ```
 

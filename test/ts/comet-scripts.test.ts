@@ -57,6 +57,20 @@ describe('comet shell scripts', () => {
     await fs.rm(tmpDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
 
+  it('initializes a new change directory with workflow defaults', async () => {
+    const result = runBash(tmpDir, stateScript, ['init', 'new-full-change', 'full']);
+    const yaml = await fs.readFile(
+      path.join(tmpDir, 'openspec', 'changes', 'new-full-change', '.comet.yaml'),
+      'utf-8',
+    );
+
+    expect(result.status).toBe(0);
+    expect(yaml).toContain('workflow: full');
+    expect(yaml).toContain('phase: open');
+    expect(yaml).toContain('verification_report: null');
+    expect(yaml).toContain('branch_status: pending');
+  }, 20_000);
+
   it('blocks build phase when the project build command fails', async () => {
     await createChange(
       tmpDir,
@@ -220,6 +234,8 @@ describe('comet shell scripts', () => {
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
+        'verification_report: null',
+        'branch_status: pending',
         'verified_at: null',
         'archived: false',
         '',
@@ -229,13 +245,22 @@ describe('comet shell scripts', () => {
     const fail = runBash(tmpDir, stateScript, ['transition', 'verify-change', 'verify-fail']);
     const failedPhase = runBash(tmpDir, stateScript, ['get', 'verify-change', 'phase']);
     const failedResult = runBash(tmpDir, stateScript, ['get', 'verify-change', 'verify_result']);
+    const failedBranchStatus = runBash(tmpDir, stateScript, ['get', 'verify-change', 'branch_status']);
 
     expect(fail.status).toBe(0);
     expect(failedPhase.stdout.trim()).toBe('build');
     expect(failedResult.stdout.trim()).toBe('fail');
+    expect(failedBranchStatus.stdout.trim()).toBe('pending');
 
     runBash(tmpDir, stateScript, ['set', 'verify-change', 'phase', 'verify']);
     runBash(tmpDir, stateScript, ['set', 'verify-change', 'verify_result', 'pending']);
+    await writeFile(path.join(tmpDir, 'docs', 'superpowers', 'reports', 'verify-change.md'), 'PASS\n');
+    runBash(
+      tmpDir,
+      stateScript,
+      ['set', 'verify-change', 'verification_report', 'docs/superpowers/reports/verify-change.md'],
+    );
+    runBash(tmpDir, stateScript, ['set', 'verify-change', 'branch_status', 'handled']);
 
     const pass = runBash(tmpDir, stateScript, ['transition', 'verify-change', 'verify-pass']);
     const passedPhase = runBash(tmpDir, stateScript, ['get', 'verify-change', 'phase']);
@@ -246,9 +271,9 @@ describe('comet shell scripts', () => {
     expect(passedPhase.stdout.trim()).toBe('archive');
     expect(passedResult.stdout.trim()).toBe('pass');
     expect(verifiedAt.stdout.trim()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-  });
+  }, 20_000);
 
-  it('lets verify guard apply transition from pending to archive', async () => {
+  it('blocks verify guard when verification evidence is missing', async () => {
     await createChange(
       tmpDir,
       'guard-verify',
@@ -261,11 +286,48 @@ describe('comet shell scripts', () => {
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
+        'verification_report: null',
+        'branch_status: pending',
         'verified_at: null',
         'archived: false',
         '',
       ].join('\n'),
     );
+    await writeFile(
+      path.join(tmpDir, 'package.json'),
+      JSON.stringify({ scripts: { build: 'node -e "process.exit(0)"' } }),
+    );
+
+    const result = runBash(tmpDir, guardScript, ['guard-verify', 'verify', '--apply']);
+    const phase = runBash(tmpDir, stateScript, ['get', 'guard-verify', 'phase']);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('[FAIL] verification_report exists');
+    expect(result.stderr).toContain('[FAIL] branch_status=handled');
+    expect(phase.stdout.trim()).toBe('verify');
+  }, 20_000);
+
+  it('lets verify guard apply transition after verification and branch evidence are recorded', async () => {
+    await createChange(
+      tmpDir,
+      'guard-verify',
+      [
+        'workflow: full',
+        'phase: verify',
+        'build_mode: executing-plans',
+        'isolation: branch',
+        'verify_mode: light',
+        'design_doc: null',
+        'plan: null',
+        'verify_result: pending',
+        'verification_report: docs/superpowers/reports/guard-verify.md',
+        'branch_status: handled',
+        'verified_at: null',
+        'archived: false',
+        '',
+      ].join('\n'),
+    );
+    await writeFile(path.join(tmpDir, 'docs', 'superpowers', 'reports', 'guard-verify.md'), 'PASS\n');
     await writeFile(
       path.join(tmpDir, 'package.json'),
       JSON.stringify({ scripts: { build: 'node -e "process.exit(0)"' } }),

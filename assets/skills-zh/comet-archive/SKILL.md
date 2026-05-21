@@ -30,8 +30,6 @@ bash "$COMET_STATE" check <name> archive
 运行归档脚本，自动完成以下全部步骤：
 
 ```bash
-COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
-COMET_ARCHIVE="${COMET_ARCHIVE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-archive.sh' -type f -print -quit 2>/dev/null)}"
 bash "$COMET_ARCHIVE" "<change-name>"
 ```
 

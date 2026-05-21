@@ -105,7 +105,8 @@ cmd_init() {
   validate_change_name "$change_name"
   validate_enum "$workflow" "full" "hotfix" "tweak"
 
-  local yaml_file
+  local change_dir yaml_file
+  change_dir=$(change_dir_for "$change_name")
   yaml_file=$(yaml_file_for "$change_name")
 
   # Check if .comet.yaml already exists
@@ -144,6 +145,8 @@ verify_mode: $verify_mode
 design_doc: null
 plan: null
 verify_result: pending
+verification_report: null
+branch_status: pending
 verified_at: null
 archived: false
 EOF
@@ -190,12 +193,12 @@ cmd_set() {
 
   # Validate field name
   case "$field" in
-    workflow|phase|build_mode|isolation|verify_mode|verify_result|archived|design_doc|plan|verified_at)
+    workflow|phase|build_mode|isolation|verify_mode|verify_result|verification_report|branch_status|archived|design_doc|plan|verified_at)
       # Valid field
       ;;
     *)
       red "ERROR: Unknown field: '$field'" >&2
-      red "Valid fields: workflow, phase, design_doc, plan, build_mode, isolation, verify_mode, verify_result, verified_at, archived" >&2
+      red "Valid fields: workflow, phase, design_doc, plan, build_mode, isolation, verify_mode, verify_result, verification_report, branch_status, verified_at, archived" >&2
       exit 1
       ;;
   esac
@@ -220,10 +223,13 @@ cmd_set() {
     verify_result)
       validate_enum "$value" "pending" "pass" "fail"
       ;;
+    branch_status)
+      validate_enum "$value" "pending" "handled"
+      ;;
     archived)
       validate_enum "$value" "true" "false"
       ;;
-    design_doc|plan|verified_at)
+    design_doc|plan|verification_report|verified_at)
       # No validation for path fields and date fields
       ;;
   esac
@@ -247,6 +253,23 @@ require_phase() {
   actual=$(cmd_get "$change_name" "phase")
   if [ "$actual" != "$expected" ]; then
     red "ERROR: Cannot transition '$change_name': expected phase ${expected}, got ${actual}" >&2
+    exit 1
+  fi
+}
+
+require_verification_evidence() {
+  local change_name="$1"
+  local report branch_status
+  report=$(cmd_get "$change_name" "verification_report")
+  branch_status=$(cmd_get "$change_name" "branch_status")
+
+  if [ -z "$report" ] || [ "$report" = "null" ] || [ ! -f "$report" ]; then
+    red "ERROR: Cannot transition '$change_name': verification_report must point to an existing report file" >&2
+    exit 1
+  fi
+
+  if [ "$branch_status" != "handled" ]; then
+    red "ERROR: Cannot transition '$change_name': branch_status must be handled" >&2
     exit 1
   fi
 }
@@ -277,9 +300,12 @@ cmd_transition() {
       require_phase "$change_name" "build"
       cmd_set "$change_name" phase verify
       cmd_set "$change_name" verify_result pending
+      cmd_set "$change_name" verification_report null
+      cmd_set "$change_name" branch_status pending
       ;;
     verify-pass)
       require_phase "$change_name" "verify"
+      require_verification_evidence "$change_name"
       cmd_set "$change_name" verify_result pass
       cmd_set "$change_name" phase archive
       cmd_set "$change_name" verified_at "$(date +%Y-%m-%d)"
@@ -288,6 +314,7 @@ cmd_transition() {
       require_phase "$change_name" "verify"
       cmd_set "$change_name" verify_result fail
       cmd_set "$change_name" phase build
+      cmd_set "$change_name" branch_status pending
       ;;
     archived)
       require_phase "$change_name" "archive"
@@ -579,7 +606,7 @@ case "$SUBCOMMAND" in
     echo "  get <change-name> <field>       — Read a field value from .comet.yaml" >&2
     echo "  set <change-name> <field> <val> — Update a field value in .comet.yaml" >&2
     echo "  transition <change-name> <event> — Apply a validated state transition" >&2
-    echo "  check <phase> <change-name>    — Verify entry requirements for a phase" >&2
+    echo "  check <change-name> <phase>    — Verify entry requirements for a phase" >&2
     echo "  scale <change-name>             — Assess and set verification mode based on metrics" >&2
     echo "" >&2
     echo "Workflows: full, hotfix, tweak" >&2

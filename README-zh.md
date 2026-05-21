@@ -51,11 +51,6 @@ comet init
 ## 运行截图
 
 <p align="center">
-  <img src="img/select-platform.png" alt="平台选择" width="600">
-</p>
-<p align="center">支持分发中文、英文 Skill 版本，支持 28 个 AI Coding 平台</p>
-
-<p align="center">
   <img src="img/init.png" alt="初始化" width="600">
 </p>
 <p align="center">自动安装 OpenSpec、Superpowers，一键配置开发环境</p>
@@ -201,6 +196,8 @@ build_mode: subagent-driven-development
 isolation: branch
 verify_mode: light
 verify_result: pending
+verification_report: docs/superpowers/reports/YYYY-MM-DD-change-verify.md
+branch_status: pending
 verified_at: null
 archived: false
 ```
@@ -222,12 +219,18 @@ Comet 通过自动化状态转换确保 agent 执行可靠性：
    - Guard 和 archive 脚本内部使用 `comet-state.sh` 进行状态管理
 
 3. **模式校验** — `comet-yaml-validate.sh` 确保数据完整性
-   - 校验必填字段（10 个字段）
-   - 校验枚举值（7 种枚举类型）
+   - 校验必填字段（12 个字段）
+   - 校验枚举值（8 种枚举类型）
    - 校验引用文件路径存在
    - 检测未知/拼写错误字段
 
-4. **归档自动化** — `comet-archive.sh` 一键处理完整归档流程
+4. **验证证据强制** — Guard 在阶段流转前强制要求验证凭证
+   - `verify-pass` 转换要求 `verification_report` 指向已存在的验证报告文件
+   - `branch_status` 必须为 `handled` 才能通过验证
+   - Guard 检查 `verification_report exists` 和 `branch_status=handled` 作为硬性前提
+   - 防止验证或分支处理被跳过时产生虚假的阶段推进
+
+5. **归档自动化** — `comet-archive.sh` 一键处理完整归档流程
    - 验证入口状态、同步 delta specs 到 main specs
    - 标注设计文档和计划文档的 frontmatter
    - 将变更移至归档目录并更新 `archived: true`

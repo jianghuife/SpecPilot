@@ -118,10 +118,25 @@ bash "$COMET_STATE" transition <name> verify-fail
 - 全部测试通过
 - 无硬编码密钥或安全问题
 
+### 4. 记录验证证据
+
+验证报告必须落盘，并在 `.comet.yaml` 中记录；分支处理完成后也必须写入状态字段。不要手动设置 `verify_result: pass`，通过 guard 自动流转。
+
+```bash
+mkdir -p docs/superpowers/reports
+# 将本次验证结论写入报告文件，例如：
+# docs/superpowers/reports/YYYY-MM-DD-<change-name>-verify.md
+
+bash "$COMET_STATE" set <name> verification_report docs/superpowers/reports/YYYY-MM-DD-<change-name>-verify.md
+bash "$COMET_STATE" set <name> branch_status handled
+```
+
 ## 退出条件
 
 - 验证报告通过
 - 分支已处理
+- `.comet.yaml` 中 `verification_report` 指向已存在的验证报告文件
+- `.comet.yaml` 中 `branch_status: handled`
 - **阶段守卫**：运行 `bash "$COMET_GUARD" <change-name> verify --apply`，全部 PASS 后通过 `comet-state transition verify-pass` 自动流转到 `phase: archive`
 
 验证和分支处理均完成后，运行 guard 自动流转：

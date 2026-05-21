@@ -64,22 +64,6 @@ bash "$COMET_GUARD" <change-name> design --apply
 
 状态文件自动更新，无需手动编辑其他字段。
 
-### 3. 双 Spec 分工
-
-| Spec 类型 | 归属 | 存放位置 | 定义 |
-|-----------|------|---------|------|
-| 能力规格 | OpenSpec | `openspec/changes/<name>/specs/` | 系统应该做什么（需求 + 验收场景） |
-| 设计文档 | Superpowers | `docs/superpowers/specs/` | 怎么构建（技术架构 + 实现细节） |
-
-### 4. 文档层级确认
-
-```
-proposal.md（阶段 1）              → Why + What
-design.md（阶段 1，OpenSpec）      → 高层架构决策
-设计文档（阶段 2，Superpowers）     → 深度技术设计
-能力规格（阶段 2，delta）           → 需求 + 验收场景
-```
-
 ## 退出条件
 
 - Design Doc 已创建并保存

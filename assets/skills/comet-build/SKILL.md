@@ -136,7 +136,6 @@ When the initial spec is found incomplete during implementation, handle by scale
 - Delta spec is a living document, can be modified at any time during this phase
 - Each update should be committed with commit message explaining the change reason
 - Do not sync to main spec in advance, sync uniformly during archiving
-- If incremental tasks exceed 50% of initial tasks.md total task count, consider splitting into new change
 - For small-scale incremental direct delta spec edits, note in commit message to facilitate design doc drift assessment during archiving
 
 ### 6. Context Management

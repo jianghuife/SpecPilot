@@ -132,6 +132,18 @@ verify_result_is_pass() {
   [ "$result" = "pass" ]
 }
 
+verification_report_exists() {
+  local report
+  report=$(yaml_field_value "verification_report" 2>/dev/null || true)
+  [ -n "$report" ] && [ "$report" != "null" ] && [ -f "$report" ]
+}
+
+branch_status_handled() {
+  local status
+  status=$(yaml_field_value "branch_status" 2>/dev/null || true)
+  [ "$status" = "handled" ]
+}
+
 archived_is_true() {
   local val
   val=$(yaml_field_value "archived" 2>/dev/null || true)
@@ -178,6 +190,8 @@ guard_verify() {
 
   check "tasks.md all tasks checked" tasks_all_done
   check "Build passes" build_passes
+  check "verification_report exists" verification_report_exists
+  check "branch_status=handled" branch_status_handled
 }
 
 guard_archive() {

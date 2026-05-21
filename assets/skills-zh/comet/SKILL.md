@@ -24,11 +24,17 @@ agent 做决策只需读本节，参考附录按需查阅。
 
 **Step 0: 活跃 Change 发现与意图判定**
 
-1. 运行 `openspec list --json` 获取所有活跃 change
+1. 先做 Preset 检测；命中 hotfix/tweak 时直接调用对应 preset skill，不进入普通 open 分支
+2. 未命中 preset 时，运行 `openspec list --json` 获取所有活跃 change
+
+**Preset 检测优先级最高**：
+- 用户明确描述为 bug fix / 热修复 + 满足 hotfix 条件 → 直接 `/comet-hotfix`
+- 用户明确描述为文案/配置/文档/prompt 小调整 + 满足 tweak 条件 → 直接 `/comet-tweak`
+- 未命中 preset → 按下表处理
 
 | 活跃 change | 用户输入 | 行为 |
 |-------------|---------|------|
-| 无 | any | → 调用 `/comet-open` |
+| 无 | 非 preset 输入 | → 调用 `/comet-open` |
 | 恰好 1 个 | `/comet <描述>` | → **询问**：继续该变更 or 创建新变更 |
 | 多个 | `/comet <描述>` | → **询问**：继续现有变更 or 创建新变更；若选继续 → 列出清单让用户选择 |
 | 恰好 1 个 | `/comet`（无描述） | → 自动选中，进入 Step 1 |
@@ -39,10 +45,6 @@ agent 做决策只需读本节，参考附录按需查阅。
 `/comet-open` 负责完整双初始化：OpenSpec artifacts（由内部 `/opsx:new` 创建）+ `.comet.yaml` 状态文件。
 直接调用 `/opsx:new` 会缺失 `.comet.yaml`，导致后续阶段判定失败。
 </IMPORTANT>
-
-**Preset 检测**：
-- 用户明确描述为 bug fix / 热修复 + 满足 hotfix 条件 → 直接 `/comet-hotfix`
-- 用户明确描述为文案/配置/文档/prompt 小调整 + 满足 tweak 条件 → 直接 `/comet-tweak`
 
 **Step 1: 读取 `.comet.yaml` 状态元数据**
 
@@ -90,7 +92,7 @@ agent 做决策只需读本节，参考附录按需查阅。
 | `openspec list --json` 失败 | 检查 openspec 是否已安装，提示 `openspec init` |
 | 子 skill 不可用 | 停止流程，提示安装或启用对应 skill |
 | `.comet.yaml` 格式异常或缺失 | 以文件状态为准，用 `bash $COMET_STATE set` 修正后继续 |
-| Maven 编译/测试失败 | 返回 build 阶段修复，不进入 verify |
+| 构建/测试失败 | 返回 build 阶段修复，不进入 verify |
 | change 目录结构不完整 | 按 `comet-open` 产物要求补齐 |
 
 ### 阶段衔接
@@ -156,6 +158,8 @@ build_mode: subagent-driven-development
 isolation: branch
 verify_mode: light
 verify_result: pending
+verification_report: null
+branch_status: pending
 verified_at: null
 archived: false
 ```
@@ -170,6 +174,8 @@ archived: false
 | `isolation` | `branch` 或 `worktree`，工作区隔离方式，默认 `branch` |
 | `verify_mode` | `light` 或 `full`，可为空 |
 | `verify_result` | `pending`、`pass` 或 `fail` |
+| `verification_report` | 验证报告文件路径，verify 通过前必须指向已存在文件 |
+| `branch_status` | `pending` 或 `handled`，分支处理完成后设为 `handled` |
 | `verified_at` | 验证通过时间，可为空 |
 | `archived` | change 是否已归档 |
 

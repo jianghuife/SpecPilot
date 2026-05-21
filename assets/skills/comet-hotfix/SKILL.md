@@ -5,9 +5,7 @@ description: "Comet preset path: Bug fix / hotfix. Skip brainstorming, directly 
 
 # Comet Preset Path: Hotfix
 
-Hotfix is a preset workflow of Comet's five-phase capabilities, not a separate parallel process. It reuses open, build, verify, archive capabilities, only skipping brainstorming and full plan.
-
-Applicable for bug fixes, hotfixes, small-scale behavior corrections. Does not involve new capability design, does not require deep brainstorming.
+Quick bug fix workflow: open → build → verify → archive. Skip brainstorming and full plan, applicable for behavior fixes not involving new capability design.
 
 **Applicable conditions** (all must be met):
 1. Fix bugs in existing functionality, no new capability
@@ -81,24 +79,25 @@ State automatically updates to `phase: verify`, `verify_result: pending`, then e
 - Create delta spec in `openspec/changes/<name>/specs/<capability>/spec.md`
 - Only include `## MODIFIED Requirements` section
 
-### 3. Verification (preset verify)
+### 3a. Hotfix-Exclusive Check: Root Cause Elimination
 
-Reuse `/comet-verify`, with comet-verify's scale assessment deciding lightweight or full verification.
+**Execute before loading comet-verify**, ensuring the fix actually eliminates the root cause:
+
+1. Read bug description and root cause in proposal.md
+2. Search and verify problem code no longer exists
+3. If root cause not eliminated, return to Step 2 to continue fix
+
+**Upgrade conditions**:
+- Root cause check reveals deep architecture issues → Stop hotfix, upgrade to `/comet`
+- Fix requires additional interface changes → Stop hotfix, upgrade to `/comet`
+
+### 3b. Verification (preset verify)
+
+After root cause elimination check passes, reuse `/comet-verify`, with comet-verify's scale assessment deciding lightweight or full verification.
 
 **Immediately execute:** Use the Skill tool to load the `comet-verify` skill. Skipping this step is prohibited.
 
 Small-scale hotfixes without delta spec usually meet lightweight verification conditions (≤ 3 tasks, ≤ 2 files), comet-verify's scale assessment will select lightweight verification path (5 quick checks). If hotfix created delta spec, enter full verification path according to comet-verify's scale assessment rules.
-
-**Additional Hotfix-Exclusive Checks** (execute after comet-verify lightweight verification passes):
-
-1. **Root cause elimination**: Compare proposal.md's root cause analysis, confirm problem code eliminated
-   - Read bug description and root cause in proposal.md
-   - Search and verify problem code no longer exists
-   - If root cause not eliminated, return to Step 2 to continue fix
-
-**Verification phase upgrade conditions**:
-- Regression testing reveals deep architecture issues → Stop hotfix, upgrade to `/comet`
-- Fix requires additional interface changes → Stop hotfix, upgrade to `/comet`
 
 After verification passes, record `.comet.yaml` `verify_result` as `pass` according to `/comet-verify` rules, must not skip this status before archiving.
 

@@ -51,11 +51,6 @@ comet init
 ## Screenshots
 
 <p align="center">
-  <img src="img/select-platform.png" alt="Platform Selection" width="600">
-</p>
-<p align="center">Supports Chinese & English Skill distribution, 28 AI Coding platforms</p>
-
-<p align="center">
   <img src="img/init.png" alt="Initialization" width="600">
 </p>
 <p align="center">Auto-install OpenSpec & Superpowers, one-click dev environment setup</p>
@@ -201,6 +196,8 @@ build_mode: subagent-driven-development
 isolation: branch
 verify_mode: light
 verify_result: pending
+verification_report: docs/superpowers/reports/YYYY-MM-DD-change-verify.md
+branch_status: pending
 verified_at: null
 archived: false
 ```
@@ -222,12 +219,18 @@ Comet ensures agent execution reliability through automated state transitions:
    - Guard and archive scripts use `comet-state.sh` internally for state management
 
 3. **Schema Validation** — `comet-yaml-validate.sh` ensures data integrity
-   - Validates required fields (10 fields)
-   - Validates enum values (7 enum types)
+   - Validates required fields (12 fields)
+   - Validates enum values (8 enum types)
    - Validates referenced file paths exist
    - Detects unknown/typos fields
 
-4. **Archive Automation** — `comet-archive.sh` handles the full archive flow in one command
+4. **Verification Evidence** — Guard enforces proof before phase advance
+   - `verify-pass` transition requires `verification_report` pointing to an existing report file
+   - `branch_status` must be `handled` before verify can pass
+   - Guard checks `verification_report exists` and `branch_status=handled` as hard prerequisites
+   - Prevents false phase advances when verification or branch handling was skipped
+
+5. **Archive Automation** — `comet-archive.sh` handles the full archive flow in one command
    - Validates entry state, syncs delta specs to main specs
    - Annotates design doc and plan frontmatter
    - Moves change to archive directory and updates `archived: true`

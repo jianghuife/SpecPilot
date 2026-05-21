@@ -136,7 +136,6 @@ bash "$COMET_STATE" set <name> build_mode <value>
 - delta spec 是活文档，本阶段期间随时可修改
 - 每次更新应提交，commit message 说明变更原因
 - 不提前同步到 main spec，归档时统一同步
-- 如增量任务超过原 tasks.md 初始任务总数 50%，考虑拆分为新 change
 - 小规模增量直接改 delta spec 时，应在 commit message 中注明，便于归档时判断 design doc 漂移
 
 ### 6. 上下文管理

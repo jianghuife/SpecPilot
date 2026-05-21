@@ -90,7 +90,7 @@ If metadata conflicts with file state, use verifiable file state as source of tr
 | `openspec list --json` fails | Check if openspec is installed, prompt user to run `openspec init` |
 | Sub-skill unavailable | Stop workflow, prompt to install or enable the corresponding skill |
 | `.comet.yaml` malformed or missing | Use file state as source of truth, correct with `bash $COMET_STATE set` then continue |
-| Maven compile/test fails | Return to build phase for fixes, do not enter verify |
+| Build/test fails | Return to build phase for fixes, do not enter verify |
 | Incomplete change directory structure | Fill missing files according to `comet-open` artifact requirements |
 
 ### Phase Transitions

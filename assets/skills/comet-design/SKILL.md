@@ -64,22 +64,6 @@ bash "$COMET_GUARD" <change-name> design --apply
 
 State file is updated automatically. No manual editing of other fields required.
 
-### 3. Dual Spec Division of Labor
-
-| Spec Type | Belongs To | Location | Definition |
-|-----------|-----------|----------|------------|
-| Capability specification | OpenSpec | `openspec/changes/<name>/specs/` | What the system should do (requirements + acceptance scenarios) |
-| Design document | Superpowers | `docs/superpowers/specs/` | How to build (technical architecture + implementation details) |
-
-### 4. Document Hierarchy Confirmation
-
-```
-proposal.md (Phase 1)              → Why + What
-design.md (Phase 1, OpenSpec)      → High-level architectural decisions
-Design document (Phase 2, Superpowers) → Deep technical design
-Capability specification (Phase 2, delta)  → Requirements + acceptance scenarios
-```
-
 ## Exit Conditions
 
 - Design Doc has been created and saved
