@@ -41,7 +41,7 @@ The script automatically executes:
 3. Design doc frontmatter annotation (archived-with, status)
 4. Plan frontmatter annotation (archived-with)
 5. Move change to archive directory
-6. Update archived: true
+6. Update `archived: true` through `comet-state transition <archive-name> archived`
 
 If script returns non-zero exit code, report error and stop.
 If script returns zero exit code, archive is complete.

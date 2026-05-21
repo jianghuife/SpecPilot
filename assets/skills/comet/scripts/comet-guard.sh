@@ -176,7 +176,6 @@ guard_build() {
 guard_verify() {
   echo "=== Guard: verify → archive ===" >&2
 
-  check "verify_result is pass" verify_result_is_pass
   check "tasks.md all tasks checked" tasks_all_done
   check "Build passes" build_passes
 }
@@ -195,52 +194,14 @@ apply_state_update() {
 
   if [ -f "$state_sh" ]; then
     case "$p" in
-      open)
-        # Workflow-aware: full → design, hotfix/tweak → build (skip design)
-        local workflow
-        workflow=$(bash "$state_sh" get "$CHANGE" "workflow" 2>/dev/null || echo "full")
-        if [ "$workflow" = "full" ]; then
-          bash "$state_sh" set "$CHANGE" phase design
-        else
-          bash "$state_sh" set "$CHANGE" phase build
-        fi
-        ;;
-      design) bash "$state_sh" set "$CHANGE" phase build ;;
-      build)
-        bash "$state_sh" set "$CHANGE" phase verify
-        bash "$state_sh" set "$CHANGE" verify_result pending
-        ;;
-      verify)
-        bash "$state_sh" set "$CHANGE" phase archive
-        bash "$state_sh" set "$CHANGE" verify_result pass
-        bash "$state_sh" set "$CHANGE" verified_at "$(date +%Y-%m-%d)"
-        ;;
+      open)   bash "$state_sh" transition "$CHANGE" open-complete ;;
+      design) bash "$state_sh" transition "$CHANGE" design-complete ;;
+      build)  bash "$state_sh" transition "$CHANGE" build-complete ;;
+      verify) bash "$state_sh" transition "$CHANGE" verify-pass ;;
     esac
   else
-    local yaml="$CHANGE_DIR/.comet.yaml"
-    case "$p" in
-      open)
-        # Workflow-aware fallback
-        local workflow_fallback
-        workflow_fallback=$(grep "^workflow:" "$yaml" | sed 's/^workflow: *//' | tr -d '"' | tr -d "'")
-        if [ "$workflow_fallback" = "full" ] || [ -z "$workflow_fallback" ]; then
-          sed -i 's/^phase:.*/phase: design/' "$yaml"
-        else
-          sed -i 's/^phase:.*/phase: build/' "$yaml"
-        fi
-        ;;
-      design) sed -i 's/^phase:.*/phase: build/' "$yaml" ;;
-      build)  sed -i 's/^phase:.*/phase: verify/' "$yaml"; sed -i 's/^verify_result:.*/verify_result: pending/' "$yaml" ;;
-      verify)
-        sed -i 's/^phase:.*/phase: archive/' "$yaml"
-        sed -i 's/^verify_result:.*/verify_result: pass/' "$yaml"
-        if ! grep -q '^verified_at:' "$yaml" 2>/dev/null; then
-          echo "verified_at: $(date +%Y-%m-%d)" >> "$yaml"
-        else
-          sed -i "s/^verified_at:.*/verified_at: $(date +%Y-%m-%d)/" "$yaml"
-        fi
-        ;;
-    esac
+    red "FATAL: comet-state.sh not found; cannot apply state transition"
+    exit 1
   fi
 }
 

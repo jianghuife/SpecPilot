@@ -224,7 +224,7 @@ else
   step_ok "Moved to: $ARCHIVE_DIR"
 fi
 
-# --- Step 8: Update archived: true in .comet.yaml ---
+# --- Step 8: Mark archived via comet-state transition ---
 
 STEPS_TOTAL=$((STEPS_TOTAL + 1))
 
@@ -235,7 +235,7 @@ if [ "$DRY_RUN" -eq 1 ]; then
   STEPS_OK=$((STEPS_OK + 1))
 else
   if [ -f "$ARCHIVE_YAML" ]; then
-    sed -i 's/^archived:.*/archived: true/' "$ARCHIVE_YAML"
+    bash "$STATE_SH" transition "$ARCHIVE_NAME" archived >/dev/null
     step_ok "archived: true"
   else
     step_fail "archived: true (.comet.yaml not found after move)"

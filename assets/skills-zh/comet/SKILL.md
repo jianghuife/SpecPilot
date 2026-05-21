@@ -51,7 +51,7 @@ agent 做决策只需读本节，参考附录按需查阅。
 **断点恢复规则**：
 - 每次恢复上下文时，先重新执行 Step 0 和 Step 1，不依赖对话历史判断阶段
 - 若 `phase: build`，读取 tasks.md 的下一个未勾选任务继续
-- 若 `phase: verify` 且 `verify_result: fail`，先修正为 `phase: build`，再调用 `/comet-build`
+- 若 `phase: verify` 且 `verify_result: fail`，先运行 `bash "$COMET_STATE" transition <name> verify-fail`，再调用 `/comet-build`
 - 若 `phase: open` 但 proposal/design/tasks 已完整，先运行 `bash "$COMET_GUARD" <change-name> open --apply` 修正状态，再继续判定
 - 若 `phase: archive`，只允许调用 `/comet-archive`；归档成功后 change 会移动到 archive 目录，不再对原活跃目录运行 guard
 
@@ -59,7 +59,7 @@ agent 做决策只需读本节，参考附录按需查阅。
 
 1. `archived: true` 或 change 已移入 archive → 流程已完成
 2. `verify_result: pass` 且 `archived` 不是 `true` → `/comet-archive`
-3. `verify_result: fail` → 修正 `phase: build` 后 `/comet-build`
+3. `verify_result: fail` → `bash "$COMET_STATE" transition <name> verify-fail` 后 `/comet-build`
 4. `phase: verify` 或 tasks.md 全部勾选 → `/comet-verify`
 5. `phase: build` 或已有 Design Doc 但计划/执行未完成 → `/comet-build`
 6. `phase: design` 或有 change 但无 Design Doc → `/comet-design`
@@ -195,6 +195,17 @@ fi
 
 ```bash
 bash "$COMET_GUARD" <change-name> <phase> --apply
+```
+
+`--apply` 内部委托给 `comet-state transition`。需要直接表达状态事件时使用：
+
+```bash
+bash "$COMET_STATE" transition <change-name> open-complete
+bash "$COMET_STATE" transition <change-name> design-complete
+bash "$COMET_STATE" transition <change-name> build-complete
+bash "$COMET_STATE" transition <change-name> verify-pass
+bash "$COMET_STATE" transition <change-name> verify-fail
+bash "$COMET_STATE" transition <archive-name> archived
 ```
 
 **归档脚本**：一键完成归档全部步骤：

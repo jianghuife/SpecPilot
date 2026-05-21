@@ -41,7 +41,7 @@ bash "$COMET_ARCHIVE" "<change-name>"
 3. Design doc 前置元数据标注（archived-with, status）
 4. Plan 前置元数据标注（archived-with）
 5. 移动 change 到归档目录
-6. 更新 archived: true
+6. 通过 `comet-state transition <archive-name> archived` 更新 `archived: true`
 
 如脚本返回非零退出码，报告错误并停止。
 如脚本返回零退出码，归档完成。

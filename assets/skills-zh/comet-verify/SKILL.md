@@ -64,8 +64,7 @@ bash "$COMET_STATE" set <name> verify_mode full
 **不通过时**：报告失败项，记录失败并回退到 build 阶段，然后调用 `/comet-build` 修复。
 
 ```bash
-bash "$COMET_STATE" set <name> verify_result fail
-bash "$COMET_STATE" set <name> phase build
+bash "$COMET_STATE" transition <name> verify-fail
 ```
 
 **报告格式**：简表列出 5 项检查结果 + PASS/FAIL。
@@ -94,8 +93,7 @@ bash "$COMET_STATE" set <name> phase build
 验证不通过时：报告缺失项，记录失败并回退到 build 阶段，然后调用 `/comet-build` 补充。
 
 ```bash
-bash "$COMET_STATE" set <name> verify_result fail
-bash "$COMET_STATE" set <name> phase build
+bash "$COMET_STATE" transition <name> verify-fail
 ```
 
 **Spec 漂移处理**：
@@ -124,13 +122,11 @@ bash "$COMET_STATE" set <name> phase build
 
 - 验证报告通过
 - 分支已处理
-- `.comet.yaml` 中 `verify_result` 已显式记录为 `pass`
-- **阶段守卫**：运行 `bash "$COMET_GUARD" <change-name> verify --apply`，全部 PASS 后自动流转到 `phase: archive`
+- **阶段守卫**：运行 `bash "$COMET_GUARD" <change-name> verify --apply`，全部 PASS 后通过 `comet-state transition verify-pass` 自动流转到 `phase: archive`
 
-验证和分支处理均完成后，先显式记录通过，再运行 guard 自动流转：
+验证和分支处理均完成后，运行 guard 自动流转：
 
 ```bash
-bash "$COMET_STATE" set <name> verify_result pass
 bash "$COMET_GUARD" <change-name> verify --apply
 ```
 

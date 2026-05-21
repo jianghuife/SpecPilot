@@ -51,7 +51,7 @@ Prefer reading `openspec/changes/<name>/.comet.yaml`. If not available, fall bac
 **Resume rules**:
 - On every context resume, rerun Step 0 and Step 1; do not trust conversation history for phase detection
 - If `phase: build`, read the next unchecked task from tasks.md and continue
-- If `phase: verify` and `verify_result: fail`, first set `phase: build`, then invoke `/comet-build`
+- If `phase: verify` and `verify_result: fail`, first run `bash "$COMET_STATE" transition <name> verify-fail`, then invoke `/comet-build`
 - If `phase: open` but proposal/design/tasks are complete, run `bash "$COMET_GUARD" <change-name> open --apply` to repair state, then continue detection
 - If `phase: archive`, only invoke `/comet-archive`; after archive succeeds, the change moves to the archive directory, so do not run guard against the old active directory
 
@@ -59,7 +59,7 @@ Prefer reading `openspec/changes/<name>/.comet.yaml`. If not available, fall bac
 
 1. `archived: true` or change moved to archive → Workflow complete
 2. `verify_result: pass` and `archived` is not `true` → Invoke `/comet-archive`
-3. `verify_result: fail` → set `phase: build`, then invoke `/comet-build`
+3. `verify_result: fail` → run `bash "$COMET_STATE" transition <name> verify-fail`, then invoke `/comet-build`
 4. `phase: verify` or tasks.md all checked → Invoke `/comet-verify`
 5. `phase: build` or has Design Doc but plan/execution incomplete → Invoke `/comet-build`
 6. `phase: design` or has change but no Design Doc → Invoke `/comet-design`
@@ -194,6 +194,17 @@ fi
 
 ```bash
 bash "$COMET_GUARD" <change-name> <phase> --apply
+```
+
+`--apply` delegates to `comet-state transition`. Use these semantic events when state changes need to be expressed directly:
+
+```bash
+bash "$COMET_STATE" transition <change-name> open-complete
+bash "$COMET_STATE" transition <change-name> design-complete
+bash "$COMET_STATE" transition <change-name> build-complete
+bash "$COMET_STATE" transition <change-name> verify-pass
+bash "$COMET_STATE" transition <change-name> verify-fail
+bash "$COMET_STATE" transition <archive-name> archived
 ```
 
 **Archive script**: Complete all archive steps in one command:

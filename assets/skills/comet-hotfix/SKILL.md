@@ -144,4 +144,4 @@ Upgrade method: On current change basis, supplement Design Doc (execute `/comet-
 - Bug fixed, tests pass
 - Change archived
 - If spec changes, synced to main spec
-- **Phase guard**: Before build → verify run `bash "$COMET_GUARD" <change-name> build --apply`; before verify → archive follow `/comet-verify`: set `verify_result: pass`, then run `bash "$COMET_GUARD" <change-name> verify --apply`
+- **Phase guard**: Before build → verify run `bash "$COMET_GUARD" <change-name> build --apply`; before verify → archive follow `/comet-verify` and run `bash "$COMET_GUARD" <change-name> verify --apply`

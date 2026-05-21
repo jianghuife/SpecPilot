@@ -64,8 +64,7 @@ When scale assessment result is "small", skip `openspec-verify-change`, directly
 **When failing**: report failed items, record failure, move back to build, then invoke `/comet-build`.
 
 ```bash
-bash "$COMET_STATE" set <name> verify_result fail
-bash "$COMET_STATE" set <name> phase build
+bash "$COMET_STATE" transition <name> verify-fail
 ```
 
 **Report format**: Brief table listing 5 check results + PASS/FAIL.
@@ -94,8 +93,7 @@ After the skill loads, follow its guidance to verify. Check items:
 When verification fails: report missing items, record failure, move back to build, then invoke `/comet-build`.
 
 ```bash
-bash "$COMET_STATE" set <name> verify_result fail
-bash "$COMET_STATE" set <name> phase build
+bash "$COMET_STATE" transition <name> verify-fail
 ```
 
 **Spec drift handling**:
@@ -124,13 +122,11 @@ After the skill loads, follow its guidance to complete. Branch handling options:
 
 - Verification report passed
 - Branch handled
-- `.comet.yaml` `verify_result` explicitly recorded as `pass`
-- **Phase guard**: Run `bash "$COMET_GUARD" <change-name> verify --apply`; after all PASS, state advances to `phase: archive`
+- **Phase guard**: Run `bash "$COMET_GUARD" <change-name> verify --apply`; after all PASS, it uses `comet-state transition verify-pass` to advance to `phase: archive`
 
-After verification and branch handling are complete, record pass first, then run guard to auto-transition:
+After verification and branch handling are complete, run guard to auto-transition:
 
 ```bash
-bash "$COMET_STATE" set <name> verify_result pass
 bash "$COMET_GUARD" <change-name> verify --apply
 ```
 

@@ -6,6 +6,7 @@
 #   init <change-name> <workflow>  — Initialize .comet.yaml with workflow defaults
 #   get <change-name> <field>       — Read a field value from .comet.yaml
 #   set <change-name> <field> <val> — Update a field value
+#   transition <change-name> <event> — Apply a validated state transition
 #   check <change-name> <phase>    — Verify entry requirements for a phase
 #   scale <change-name>             — Assess and set verification mode based on metrics
 #
@@ -77,6 +78,24 @@ file_nonempty() {
   [ -f "$1" ] && [ -s "$1" ]
 }
 
+change_dir_for() {
+  local change_name="$1"
+  if [ -d "openspec/changes/$change_name" ]; then
+    echo "openspec/changes/$change_name"
+  elif [ -d "openspec/changes/archive/$change_name" ]; then
+    echo "openspec/changes/archive/$change_name"
+  else
+    echo "openspec/changes/$change_name"
+  fi
+}
+
+yaml_file_for() {
+  local change_name="$1"
+  local change_dir
+  change_dir=$(change_dir_for "$change_name")
+  echo "$change_dir/.comet.yaml"
+}
+
 # --- Subcommands ---
 
 cmd_init() {
@@ -86,8 +105,8 @@ cmd_init() {
   validate_change_name "$change_name"
   validate_enum "$workflow" "full" "hotfix" "tweak"
 
-  local change_dir="openspec/changes/$change_name"
-  local yaml_file="$change_dir/.comet.yaml"
+  local yaml_file
+  yaml_file=$(yaml_file_for "$change_name")
 
   # Check if .comet.yaml already exists
   if [ -f "$yaml_file" ]; then
@@ -138,8 +157,8 @@ cmd_get() {
 
   validate_change_name "$change_name"
 
-  local change_dir="openspec/changes/$change_name"
-  local yaml_file="$change_dir/.comet.yaml"
+  local yaml_file
+  yaml_file=$(yaml_file_for "$change_name")
 
   # Check if .comet.yaml exists
   if [ ! -f "$yaml_file" ]; then
@@ -160,8 +179,8 @@ cmd_set() {
 
   validate_change_name "$change_name"
 
-  local change_dir="openspec/changes/$change_name"
-  local yaml_file="$change_dir/.comet.yaml"
+  local yaml_file
+  yaml_file=$(yaml_file_for "$change_name")
 
   # Check if .comet.yaml exists
   if [ ! -f "$yaml_file" ]; then
@@ -219,6 +238,64 @@ cmd_set() {
   fi
 
   green "[SET] ${field}=${value}"
+}
+
+require_phase() {
+  local change_name="$1"
+  local expected="$2"
+  local actual
+  actual=$(cmd_get "$change_name" "phase")
+  if [ "$actual" != "$expected" ]; then
+    red "ERROR: Cannot transition '$change_name': expected phase ${expected}, got ${actual}" >&2
+    exit 1
+  fi
+}
+
+cmd_transition() {
+  local change_name="$1"
+  local event="$2"
+
+  validate_change_name "$change_name"
+  validate_enum "$event" "open-complete" "design-complete" "build-complete" "verify-pass" "verify-fail" "archived"
+
+  case "$event" in
+    open-complete)
+      require_phase "$change_name" "open"
+      local workflow
+      workflow=$(cmd_get "$change_name" "workflow")
+      if [ "$workflow" = "full" ]; then
+        cmd_set "$change_name" phase design
+      else
+        cmd_set "$change_name" phase build
+      fi
+      ;;
+    design-complete)
+      require_phase "$change_name" "design"
+      cmd_set "$change_name" phase build
+      ;;
+    build-complete)
+      require_phase "$change_name" "build"
+      cmd_set "$change_name" phase verify
+      cmd_set "$change_name" verify_result pending
+      ;;
+    verify-pass)
+      require_phase "$change_name" "verify"
+      cmd_set "$change_name" verify_result pass
+      cmd_set "$change_name" phase archive
+      cmd_set "$change_name" verified_at "$(date +%Y-%m-%d)"
+      ;;
+    verify-fail)
+      require_phase "$change_name" "verify"
+      cmd_set "$change_name" verify_result fail
+      cmd_set "$change_name" phase build
+      ;;
+    archived)
+      require_phase "$change_name" "archive"
+      cmd_set "$change_name" archived true
+      ;;
+  esac
+
+  green "[TRANSITION] ${event}"
 }
 
 # --- Check helpers for entry verification ---
@@ -469,6 +546,14 @@ case "$SUBCOMMAND" in
     fi
     cmd_set "$@"
     ;;
+  transition)
+    if [ $# -lt 2 ]; then
+      red "Usage: comet-state.sh transition <change-name> <event>" >&2
+      red "Events: open-complete, design-complete, build-complete, verify-pass, verify-fail, archived" >&2
+      exit 1
+    fi
+    cmd_transition "$@"
+    ;;
   check)
     if [ $# -lt 2 ]; then
       red "Usage: comet-state.sh check <change-name> <phase>" >&2
@@ -493,6 +578,7 @@ case "$SUBCOMMAND" in
     echo "  init <change-name> <workflow>  — Initialize .comet.yaml with workflow defaults" >&2
     echo "  get <change-name> <field>       — Read a field value from .comet.yaml" >&2
     echo "  set <change-name> <field> <val> — Update a field value in .comet.yaml" >&2
+    echo "  transition <change-name> <event> — Apply a validated state transition" >&2
     echo "  check <phase> <change-name>    — Verify entry requirements for a phase" >&2
     echo "  scale <change-name>             — Assess and set verification mode based on metrics" >&2
     echo "" >&2
