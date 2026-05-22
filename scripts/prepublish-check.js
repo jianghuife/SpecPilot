@@ -20,6 +20,7 @@ const SECRET_PATTERNS = [
 
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist']);
 const TEXT_EXTENSIONS = new Set(['.js', '.ts', '.json', '.md', '.txt', '.yml', '.yaml', '.toml']);
+const README_IMAGE_PATTERN = /\b(?:src|srcset)=["'](?:\.\/)?img\//;
 
 function* walkFiles(dir) {
   for (const entry of readdirSync(dir)) {
@@ -53,6 +54,13 @@ for (const filePath of walkFiles('.')) {
       console.error(`[SECURITY] Possible ${name} found in ${filePath}`);
       found++;
     }
+  }
+
+  if (/README(?:-zh)?\.md$/.test(filePath) && README_IMAGE_PATTERN.test(content)) {
+    console.error(
+      `[PACKAGE] npm README images must use absolute URLs, not local img/ paths: ${filePath}`,
+    );
+    found++;
   }
 }
 

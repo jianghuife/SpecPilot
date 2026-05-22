@@ -19,6 +19,8 @@ type InitOptions = {
 };
 
 type InstallStatus = 'installed' | 'skipped' | 'failed';
+type ComponentAction = 'overwrite' | 'skip' | 'install';
+type BulkOverwriteChoice = 'overwrite-all' | 'skip-all' | 'choose';
 
 interface PlatformResult {
   platform: Platform;
@@ -26,6 +28,12 @@ interface PlatformResult {
   superpowers: InstallStatus;
   comet: InstallStatus;
 }
+
+type ComponentPlan = {
+  osAction: ComponentAction;
+  spAction: ComponentAction;
+  cmAction: ComponentAction;
+};
 
 const LANGUAGES: LanguageConfig[] = [
   { id: 'en', name: 'English', skillsDir: 'skills' },
@@ -93,6 +101,33 @@ async function promptOverwriteChoice(
   });
 }
 
+async function promptBulkOverwriteChoice(
+  platformName: string,
+  components: string[],
+): Promise<BulkOverwriteChoice> {
+  return select({
+    message: `${platformName} already has ${components.join(', ')} installed. What to do?`,
+    choices: [
+      { name: 'Overwrite all existing components', value: 'overwrite-all' as const },
+      { name: 'Skip all existing components', value: 'skip-all' as const },
+      { name: 'Choose per component', value: 'choose' as const },
+    ],
+  });
+}
+
+function applyBulkOverwriteChoice<T extends ComponentPlan>(
+  plan: T,
+  choice: Exclude<BulkOverwriteChoice, 'choose'>,
+): T {
+  const action = choice === 'overwrite-all' ? 'overwrite' : 'skip';
+  return {
+    ...plan,
+    osAction: plan.osAction === 'install' ? action : plan.osAction,
+    spAction: plan.spAction === 'install' ? action : plan.spAction,
+    cmAction: plan.cmAction === 'install' ? action : plan.cmAction,
+  };
+}
+
 function resolveAction(
   hasExisting: boolean,
   options: InitOptions,
@@ -144,29 +179,46 @@ function displaySummary(results: PlatformResult[], scope: InstallScope): void {
 
 export async function initCommand(targetPath: string, options: InitOptions = {}): Promise<void> {
   const projectPath = path.resolve(targetPath);
+  const log = options.json ? () => undefined : console.log;
 
-  console.log(`\n${COMET_BANNER}\n`);
-  console.log(`  Setting up Comet in ${projectPath}\n`);
+  log(`\n${COMET_BANNER}\n`);
+  log(`  Setting up Comet in ${projectPath}\n`);
 
   const detected = await detectPlatforms(projectPath);
   const scope = await selectScope(options);
   const language = await selectLanguage(options);
-  console.log(`  Language: ${language.name}`);
+  log(`  Language: ${language.name}`);
 
   const selectedPlatformIds = await selectPlatforms(detected, options);
   if (selectedPlatformIds.length === 0) {
-    console.log('\n  No platforms selected. Exiting.\n');
+    if (options.json) {
+      console.log(
+        JSON.stringify(
+          {
+            projectPath,
+            scope,
+            language: language.id,
+            selectedPlatforms: [],
+            results: [],
+          },
+          null,
+          2,
+        ),
+      );
+      return;
+    }
+    log('\n  No platforms selected. Exiting.\n');
     return;
   }
 
   const selectedPlatforms = PLATFORMS.filter((p) => selectedPlatformIds.includes(p.id));
   const baseDir = getBaseDir(scope, projectPath);
 
-  type PlatformPlan = {
+  type PlatformPlan = ComponentPlan & {
     platform: Platform;
-    osAction: 'overwrite' | 'skip' | 'install';
-    spAction: 'overwrite' | 'skip' | 'install';
-    cmAction: 'overwrite' | 'skip' | 'install';
+    hasOS: boolean;
+    hasSP: boolean;
+    hasCM: boolean;
   };
 
   const plans: PlatformPlan[] = [];
@@ -181,6 +233,22 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
     let cmAction = resolveAction(hasCM, options);
 
     if (!options.yes) {
+      const existingComponents = [
+        hasOS && osAction === 'install' ? 'OpenSpec' : null,
+        hasSP && spAction === 'install' ? 'Superpowers' : null,
+        hasCM && cmAction === 'install' ? 'Comet' : null,
+      ].filter((component): component is string => Boolean(component));
+
+      if (existingComponents.length > 1) {
+        const bulkChoice = await promptBulkOverwriteChoice(platform.name, existingComponents);
+        if (bulkChoice !== 'choose') {
+          ({ osAction, spAction, cmAction } = applyBulkOverwriteChoice(
+            { osAction, spAction, cmAction },
+            bulkChoice,
+          ));
+        }
+      }
+
       if (osAction === 'install' && hasOS) {
         osAction = await promptOverwriteChoice('OpenSpec', platform.name);
       }
@@ -192,7 +260,7 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
       }
     }
 
-    plans.push({ platform, osAction, spAction, cmAction });
+    plans.push({ platform, osAction, spAction, cmAction, hasOS, hasSP, hasCM });
   }
 
   const osToolIds = plans
@@ -201,22 +269,22 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
 
   let osGlobalStatus: InstallStatus = 'skipped';
   if (osToolIds.length > 0) {
-    console.log(`\n  Installing OpenSpec for: ${osToolIds.join(', ')}`);
+    log(`\n  Installing OpenSpec for: ${osToolIds.join(', ')}`);
     osGlobalStatus = await installOpenSpec(projectPath, osToolIds, scope);
-    console.log(`  OpenSpec: ${osGlobalStatus}`);
+    log(`  OpenSpec: ${osGlobalStatus}`);
   } else {
-    console.log(`\n  OpenSpec: all skipped`);
+    log(`\n  OpenSpec: all skipped`);
   }
 
   const spPlatformIds = plans.filter((p) => p.spAction !== 'skip').map((p) => p.platform.id);
   let spGlobalStatus: InstallStatus = 'skipped';
 
   if (spPlatformIds.length > 0) {
-    console.log(`\n  Installing Superpowers for: ${spPlatformIds.join(', ')}`);
+    log(`\n  Installing Superpowers for: ${spPlatformIds.join(', ')}`);
     spGlobalStatus = await installSuperpowersForPlatforms(projectPath, scope, spPlatformIds);
-    console.log(`  Superpowers: ${spGlobalStatus}`);
+    log(`  Superpowers: ${spGlobalStatus}`);
   } else {
-    console.log(`\n  Superpowers: all skipped`);
+    log(`\n  Superpowers: all skipped`);
   }
 
   const results: PlatformResult[] = [];
@@ -234,9 +302,9 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
         language.skillsDir,
       );
       cmStatus = copied > 0 ? 'installed' : 'skipped';
-      console.log(`  Comet -> ${platform.name}: ${cmStatus} (${copied} files) -> ${skillsPath}`);
+      log(`  Comet -> ${platform.name}: ${cmStatus} (${copied} files) -> ${skillsPath}`);
     } else {
-      console.log(`  Comet -> ${platform.name}: skipped (already exists)`);
+      log(`  Comet -> ${platform.name}: skipped (already exists)`);
     }
 
     results.push({
@@ -251,5 +319,31 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
     await createWorkingDirs(projectPath);
   }
 
+  if (options.json) {
+    console.log(
+      JSON.stringify(
+        {
+          projectPath,
+          scope,
+          language: language.id,
+          selectedPlatforms: selectedPlatformIds,
+          results: results.map((result) => ({
+            platform: result.platform.id,
+            platformName: result.platform.name,
+            openspec: result.openspec,
+            superpowers: result.superpowers,
+            comet: result.comet,
+          })),
+          workingDirsCreated: scope === 'project',
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+
   displaySummary(results, scope);
 }
+
+export { applyBulkOverwriteChoice };

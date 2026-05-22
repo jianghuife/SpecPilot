@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import { createRequire } from 'module';
 import { initCommand } from '../commands/init.js';
 import { statusCommand } from '../commands/status.js';
@@ -46,6 +46,13 @@ program
   .command('doctor [path]')
   .description('Diagnose Comet installation health')
   .option('--json', 'Output as JSON')
+  .addOption(
+    new Option('--scope <scope>', 'Install scope to diagnose').choices([
+      'auto',
+      'global',
+      'project',
+    ]),
+  )
   .action(async (targetPath = '.', options) => {
     await doctorCommand(targetPath, options);
   });
@@ -54,8 +61,9 @@ program
   .command('update [path]')
   .description('Update comet skill files to latest version')
   .option('--json', 'Output as JSON')
-  .option('--language <lang>', 'Language for skills (en, zh)')
-  .option('--scope <scope>', 'Install scope (global, project)')
+  .addOption(new Option('--language <lang>', 'Language for skills').choices(['en', 'zh']))
+  .addOption(new Option('--scope <scope>', 'Install scope').choices(['global', 'project']))
+  .addOption(new Option('--skip-npm', 'Skip npm package self-update').hideHelp())
   .action(async (targetPath = '.', options) => {
     await updateCommand(targetPath, options);
   });

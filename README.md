@@ -1,8 +1,8 @@
 <p align="center">
-  <a href="https://github.com/rpamis/comet">
+  <a href="https://github.com/rpamis/comet/blob/master/img/title-log.png">
     <picture>
-      <source srcset="img/title-log.png">
-      <img src="img/title-log.png" alt="Comet logo">
+      <source srcset="https://github.com/rpamis/comet/blob/master/img/title-log.png">
+      <img src="https://github.com/rpamis/comet/blob/master/img/title-log.png" alt="Comet logo">
     </picture>
   </a>
 </p>
@@ -72,7 +72,7 @@ comet init
 ## Screenshots
 
 <p align="center">
-  <img src="img/runner.png" alt="runner">
+  <img src="https://github.com/rpamis/comet/blob/master/img/runner.png" alt="runner">
 </p>
 
 <p align="center">Auto-install OpenSpec & Superpowers, one-click dev environment setup</p>
@@ -83,9 +83,9 @@ comet init
 | Command | Description |
 |---------|-------------|
 | `comet init [path]` | Initialize Comet workflow |
-| `comet status [path]` | Show active changes and workflow status |
-| `comet doctor [path]` | Diagnose Comet installation health |
-| `comet update [path]` | Update comet skills to latest version |
+| `comet status [path]` | Show active changes, task progress, and next workflow command |
+| `comet doctor [path]` | Diagnose project/global Comet installation health |
+| `comet update [path]` | Update the npm package and installed Comet skills |
 | `comet --help` | Show help |
 | `comet --version` | Show version |
 
@@ -98,13 +98,28 @@ comet init
 | `--overwrite` | Overwrite already installed components |
 | `--json` | Output structured JSON |
 
-### status / doctor / update Options
+When multiple existing components are found on the same platform, interactive init offers one bulk choice: overwrite all, skip all, or choose per component.
 
-| Option | Applies to | Description |
-|--------|-----------|-------------|
-| `--json` | `status`, `doctor` | Output structured JSON |
-| `--language <lang>` | `update` | Language for skills (`en`, `zh`) |
-| `--scope <scope>` | `update` | Install scope (`global`, `project`)|
+### status Options
+
+| Option | Description |
+|--------|-------------|
+| `--json` | Output active changes with `nextCommand` |
+
+### doctor Options
+
+| Option | Description |
+|--------|-------------|
+| `--json` | Output structured diagnostic results |
+| `--scope <scope>` | Diagnose `auto`, `project`, or `global` scope (default: `auto`) |
+
+### update Options
+
+| Option | Description |
+|--------|-------------|
+| `--json` | Output npm and skill update results as JSON |
+| `--language <lang>` | Override detected skill language (`en`, `zh`) |
+| `--scope <scope>` | Update only `global` or `project` scope |
 
 ## Supported Platforms
 
@@ -296,6 +311,8 @@ Long-term Skill users know these capabilities can be freely combined, but exactl
 - **How to make combined Skills multi-phase auto-flow** — Not relying on manual intervention. Comet's 5-phase flow automatically triggers Skills for core processes except necessary user selections, while the **state machine mechanism** also ensures state transition reliability.
 
 ## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, commit conventions, PR process, and guidance for adding platforms or skills.
 
 ```bash
 # Clone

@@ -1,8 +1,8 @@
 <p align="center">
-  <a href="https://github.com/rpamis/comet">
+  <a href="https://github.com/rpamis/comet/blob/master/img/title-log.png">
     <picture>
-      <source srcset="img/title-log.png">
-      <img src="img/title-log.png" alt="Comet logo">
+      <source srcset="https://github.com/rpamis/comet/blob/master/img/title-log.png">
+      <img src="https://github.com/rpamis/comet/blob/master/img/title-log.png" alt="Comet logo">
     </picture>
   </a>
 </p>
@@ -72,7 +72,7 @@ comet init
 ## 运行截图
 
 <p align="center">
-  <img src="img/runner.png" alt="runner">
+  <img src="https://github.com/rpamis/comet/blob/master/img/runner.png" alt="runner">
 </p>
 <p align="center">自动安装 OpenSpec、Superpowers，一键配置开发环境</p>
 <p align="center">多阶段 Skill 入口，自动识别当前 Spec 阶段，核心流程自动触发，关键节点人工审核</p>
@@ -82,9 +82,9 @@ comet init
 | 命令 | 描述 |
 |---------|-------------|
 | `comet init [path]` | 初始化 Comet 工作流 |
-| `comet status [path]` | 显示活跃更改和工作流状态 |
-| `comet doctor [path]` | 诊断 Comet 安装健康状态 |
-| `comet update [path]` | 更新 comet 技能到最新版本 |
+| `comet status [path]` | 显示活跃更改、任务进度和下一步工作流命令 |
+| `comet doctor [path]` | 诊断项目级/全局 Comet 安装健康状态 |
+| `comet update [path]` | 更新 npm 包和已安装的 Comet 技能 |
 | `comet --help` | 显示帮助 |
 | `comet --version` | 显示版本 |
 
@@ -97,13 +97,28 @@ comet init
 | `--overwrite` | 覆盖已安装的组件 |
 | `--json` | 输出结构化 JSON |
 
-### status / doctor / update 选项
+当同一平台检测到多个已安装组件时，交互式 init 会先提供一次批量选择：全部覆盖、全部跳过，或逐项选择。
 
-| 选项 | 适用于 | 描述 |
-|--------|-----------|-------------|
-| `--json` | `status`, `doctor` | 输出结构化 JSON |
-| `--language <lang>` | `update` | 技能语言 (`en`, `zh`) |
-| `--scope <scope>` | `update` | 安装范围 (`global`, `project`)|
+### status 选项
+
+| 选项 | 描述 |
+|--------|-------------|
+| `--json` | 输出活跃更改，并包含 `nextCommand` |
+
+### doctor 选项
+
+| 选项 | 描述 |
+|--------|-------------|
+| `--json` | 输出结构化诊断结果 |
+| `--scope <scope>` | 诊断 `auto`、`project` 或 `global` 范围（默认：`auto`） |
+
+### update 选项
+
+| 选项 | 描述 |
+|--------|-------------|
+| `--json` | 以 JSON 输出 npm 和 skill 更新结果 |
+| `--language <lang>` | 覆盖自动检测到的 skill 语言 (`en`, `zh`) |
+| `--scope <scope>` | 仅更新 `global` 或 `project` 范围 |
 
 ## 支持平台
 
@@ -295,6 +310,8 @@ your-project/
 - **如何让组合 Skill 多阶段自动流转** — 不是靠人工介入。Comet 的 5 阶段流程，除必要的用户选择项外，核心流程能够自动进行 Skill 触发，同时**状态机机制**也能保障状态扭转的可靠性。
 
 ## 开发
+
+贡献流程、提交规范、PR 流程，以及新增平台或 Skill 的说明见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ```bash
 # 克隆
