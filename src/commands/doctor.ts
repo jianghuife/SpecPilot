@@ -1,16 +1,20 @@
 import path from 'path';
+import os from 'os';
 import { execSync } from 'child_process';
 import { promises as fs } from 'fs';
 import { fileExists, readDir } from '../utils/file-system.js';
 import { isCommandAvailable } from '../core/openspec.js';
 import { readManifest, getAssetsDir } from '../core/skills.js';
 import { PLATFORMS } from '../core/platforms.js';
+import type { InstallScope } from '../core/types.js';
 
 interface CheckResult {
   check: string;
   status: 'pass' | 'warn' | 'fail';
   message: string;
 }
+
+type DoctorScope = InstallScope | 'auto';
 
 const VALID_YAML_FIELDS = new Set([
   'workflow',
@@ -21,6 +25,8 @@ const VALID_YAML_FIELDS = new Set([
   'verify_result',
   'design_doc',
   'plan',
+  'verification_report',
+  'branch_status',
   'archived',
   'verified_at',
 ]);
@@ -65,44 +71,71 @@ async function checkWorkingDirs(projectPath: string): Promise<CheckResult> {
   };
 }
 
-async function checkSkillCompleteness(projectPath: string): Promise<CheckResult[]> {
+function getScopeBases(
+  projectPath: string,
+  scope: DoctorScope,
+): Array<{
+  scope: InstallScope;
+  baseDir: string;
+}> {
+  if (scope === 'project') return [{ scope, baseDir: projectPath }];
+  if (scope === 'global') return [{ scope, baseDir: os.homedir() }];
+
+  const bases: Array<{ scope: InstallScope; baseDir: string }> = [
+    { scope: 'project', baseDir: projectPath },
+  ];
+  if (path.resolve(projectPath) !== path.resolve(os.homedir())) {
+    bases.push({ scope: 'global', baseDir: os.homedir() });
+  }
+  return bases;
+}
+
+async function checkSkillCompleteness(
+  projectPath: string,
+  scope: DoctorScope,
+): Promise<CheckResult[]> {
   const results: CheckResult[] = [];
   const manifest = await readManifest();
 
   let anyPlatform = false;
-  for (const platform of PLATFORMS) {
-    const skillsDir = path.join(projectPath, platform.skillsDir, 'skills');
-    if (!(await fileExists(skillsDir))) continue;
-    anyPlatform = true;
+  for (const base of getScopeBases(projectPath, scope)) {
+    for (const platform of PLATFORMS) {
+      const skillsDir = path.join(base.baseDir, platform.skillsDir, 'skills');
+      if (!(await fileExists(skillsDir))) continue;
+      anyPlatform = true;
 
-    const missing: string[] = [];
-    for (const relPath of manifest.skills) {
-      const fullPath = path.join(projectPath, platform.skillsDir, 'skills', relPath);
-      if (!(await fileExists(fullPath))) {
-        missing.push(relPath);
+      const missing: string[] = [];
+      for (const relPath of manifest.skills) {
+        const fullPath = path.join(base.baseDir, platform.skillsDir, 'skills', relPath);
+        if (!(await fileExists(fullPath))) {
+          missing.push(relPath);
+        }
       }
-    }
 
-    results.push(
-      missing.length === 0
-        ? {
-            check: `skills: ${platform.name}`,
-            status: 'pass' as const,
-            message: `complete (${manifest.skills.length} files)`,
-          }
-        : {
-            check: `skills: ${platform.name}`,
-            status: 'warn' as const,
-            message: `missing ${missing.length}: ${missing.join(', ')}`,
-          },
-    );
+      results.push(
+        missing.length === 0
+          ? {
+              check: `skills: ${platform.name} (${base.scope})`,
+              status: 'pass' as const,
+              message: `complete (${manifest.skills.length} files)`,
+            }
+          : {
+              check: `skills: ${platform.name} (${base.scope})`,
+              status: 'warn' as const,
+              message: `missing ${missing.length}: ${missing.join(', ')}`,
+            },
+      );
+    }
   }
 
   if (!anyPlatform) {
     results.push({
       check: 'skills',
       status: 'warn',
-      message: 'no platforms detected — run comet init',
+      message:
+        scope === 'auto'
+          ? 'no platforms detected in project or global scope — run comet init'
+          : `no platforms detected in ${scope} scope — run comet init`,
     });
   }
 
@@ -161,11 +194,13 @@ async function checkCometYamlValidity(projectPath: string): Promise<CheckResult[
   return results;
 }
 
-async function collectResults(projectPath: string): Promise<CheckResult[]> {
+async function collectResults(projectPath: string, scope: DoctorScope): Promise<CheckResult[]> {
   const results: CheckResult[] = [];
   results.push(await checkOpenSpecCli());
-  results.push(await checkWorkingDirs(projectPath));
-  results.push(...(await checkSkillCompleteness(projectPath)));
+  if (scope !== 'global') {
+    results.push(await checkWorkingDirs(projectPath));
+  }
+  results.push(...(await checkSkillCompleteness(projectPath, scope)));
   results.push(await checkScriptsPresent());
   results.push(...(await checkCometYamlValidity(projectPath)));
   return results;
@@ -179,6 +214,7 @@ function icon(status: string): string {
 
 interface DoctorOptions {
   json?: boolean;
+  scope?: DoctorScope;
 }
 
 export async function doctorCommand(
@@ -186,14 +222,15 @@ export async function doctorCommand(
   options: DoctorOptions = {},
 ): Promise<void> {
   const projectPath = path.resolve(targetPath);
-  const results = await collectResults(projectPath);
+  const scope = options.scope ?? 'auto';
+  const results = await collectResults(projectPath, scope);
 
   if (options.json) {
-    console.log(JSON.stringify({ results }, null, 2));
+    console.log(JSON.stringify({ scope, results }, null, 2));
     return;
   }
 
-  console.log('Comet Doctor\n');
+  console.log(`Comet Doctor (scope: ${scope})\n`);
 
   for (const r of results) {
     console.log(`  ${icon(r.status)} ${r.check}: ${r.message}`);

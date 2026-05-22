@@ -16,6 +16,24 @@ interface ChangeStatus {
   plan: string | null;
   tasksCompleted: number;
   tasksTotal: number;
+  nextCommand: string | null;
+}
+
+function getNextCommand(phase: string): string | null {
+  switch (phase) {
+    case 'open':
+      return '/comet-open';
+    case 'design':
+      return '/comet-design';
+    case 'build':
+      return '/comet-build';
+    case 'verify':
+      return '/comet-verify';
+    case 'archive':
+      return '/comet-archive';
+    default:
+      return null;
+  }
 }
 
 async function countTasks(tasksPath: string): Promise<{ done: number; total: number }> {
@@ -70,6 +88,7 @@ async function getActiveChanges(projectPath: string): Promise<ChangeStatus[]> {
       plan: state.plan === 'null' ? null : (state.plan ?? null),
       tasksCompleted: done,
       tasksTotal: total,
+      nextCommand: getNextCommand(state.phase ?? 'unknown'),
     });
   }
 
@@ -92,6 +111,7 @@ function displayStatus(changes: ChangeStatus[]): void {
     if (c.designDoc) console.log(`     design: ${c.designDoc}`);
     if (c.plan) console.log(`     plan:   ${c.plan}`);
     if (c.phase === 'verify') console.log(`     verify_result: ${c.verifyResult}`);
+    if (c.nextCommand) console.log(`     next: ${c.nextCommand}`);
     console.log();
   }
 }
