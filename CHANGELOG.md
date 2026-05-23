@@ -22,13 +22,14 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 ### Fixed
 
+- **macOS shell script state updates**: Replaced GNU-only `sed -i` writes in `comet-state.sh` with portable temp-file updates, fixing macOS CI failures during `scale`, `transition`, and YAML field updates
 - **Configured command persistence**: `comet-state.sh set` now escapes sed replacement metacharacters so command values containing `&`, `|`, or backslashes are preserved
 - **Optional schema fields**: YAML validation now recognizes `direct_override`, `build_command`, and `verify_command`
 - **Quoted YAML values**: State, guard, and validator scripts now strip only wrapping quotes instead of deleting all quote characters from values
 
 ### Tests
 
-- Added coverage for missing build decisions, direct-mode override blocking and allowance, configured build/verify commands, command metacharacter preservation, unfinished-task remediation output, archive step counts, and cross-platform path handling
+- Added coverage for missing build decisions, direct-mode override blocking and allowance, configured build/verify commands, command metacharacter preservation, unfinished-task remediation output, archive step counts, cross-platform path handling, and BSD/GNU sed portability
 
 ## What's Changed [0.2.5] - 2026-05-22
 

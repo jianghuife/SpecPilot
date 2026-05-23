@@ -317,6 +317,14 @@ describe('comet shell scripts', () => {
     expect(get.stdout.trim()).toBe(command);
   });
 
+  it('keeps shell scripts portable across GNU and BSD sed', async () => {
+    for (const name of ['comet-state.sh', 'comet-archive.sh', 'comet-guard.sh', 'comet-yaml-validate.sh']) {
+      const content = await fs.readFile(path.join(tmpDir, 'scripts', name), 'utf-8');
+
+      expect(content).not.toMatch(/\bsed\s+-i(?:\s|$)/);
+    }
+  });
+
   it('uses root-level build command config before inferred build commands', async () => {
     await createChange(
       tmpDir,

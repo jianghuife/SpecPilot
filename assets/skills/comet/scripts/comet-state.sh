@@ -91,8 +91,18 @@ strip_wrapping_quotes() {
   esac
 }
 
-escape_sed_replacement() {
-  printf '%s' "$1" | sed 's/[\\&|]/\\&/g'
+replace_yaml_field() {
+  local yaml_file="$1"
+  local field="$2"
+  local value="$3"
+  local tmp_file
+
+  tmp_file=$(mktemp)
+  awk -v field="$field" -v value="$value" '
+    index($0, field ":") == 1 { print field ": " value; next }
+    { print }
+  ' "$yaml_file" > "$tmp_file"
+  mv "$tmp_file" "$yaml_file"
 }
 
 file_nonempty() {
@@ -260,10 +270,7 @@ cmd_set() {
 
   # Write or update the field
   if grep -q "^${field}:" "$yaml_file"; then
-    local escaped_value
-    escaped_value=$(escape_sed_replacement "$value")
-    # Field exists, replace it (use | delimiter to avoid / conflicts in paths)
-    sed -i "s|^${field}:.*|${field}: ${escaped_value}|" "$yaml_file"
+    replace_yaml_field "$yaml_file" "$field" "$value"
   else
     # Field doesn't exist, append it
     echo "${field}: ${value}" >> "$yaml_file"
@@ -597,7 +604,7 @@ cmd_scale() {
   echo "  → Result: $result" >&2
 
   # Update verify_mode in .comet.yaml
-  sed -i "s/^verify_mode:.*/verify_mode: $result/" "$yaml_file"
+  replace_yaml_field "$yaml_file" "verify_mode" "$result"
 
   green "[SCALE] verify_mode=$result"
 }
