@@ -97,7 +97,7 @@ yaml_field_value() {
   local yaml="$CHANGE_DIR/.comet.yaml"
   if [ -f "$yaml" ]; then
     local value
-    value=$(grep "^${field}:" "$yaml" | sed "s/^${field}: *//")
+    value=$(grep "^${field}:" "$yaml" 2>/dev/null | sed "s/^${field}: *//" || true)
     strip_wrapping_quotes "$value"
   fi
 }

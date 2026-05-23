@@ -5,7 +5,7 @@ import os from 'os';
 import path from 'path';
 
 const scriptsDir = path.resolve('assets', 'skills', 'comet', 'scripts');
-const bashUname = spawnSync('bash', ['-lc', 'uname -s'], { encoding: 'utf-8' }).stdout.trim();
+const bashUname = (spawnSync('bash', ['-lc', 'uname -s'], { encoding: 'utf-8' }).stdout || '').trim();
 const isGitBash = /^(MINGW|MSYS|CYGWIN)/.test(bashUname);
 
 function toBashPath(filePath: string): string {
@@ -322,6 +322,24 @@ describe('comet shell scripts', () => {
       const content = await fs.readFile(path.join(tmpDir, 'scripts', name), 'utf-8');
 
       expect(content).not.toMatch(/\bsed\s+-i(?:\s|$)/);
+    }
+  });
+
+  it('keeps optional YAML field reads safe under pipefail', async () => {
+    for (const name of ['comet-state.sh', 'comet-guard.sh']) {
+      const content = await fs.readFile(path.join(tmpDir, 'scripts', name), 'utf-8');
+
+      expect(content).toMatch(/grep "\^\$\{field\}:" "\$[a-z_]+".*\|\| true\)/);
+    }
+  });
+
+  it('guards bash uname detection when bash cannot be spawned', async () => {
+    const files = [path.resolve('scripts', 'run-bats.js'), path.resolve('test', 'ts', 'comet-scripts.test.ts')];
+
+    for (const file of files) {
+      const content = await fs.readFile(file, 'utf-8');
+
+      expect(content).toContain(".stdout || ''");
     }
   });
 

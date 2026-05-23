@@ -8,7 +8,7 @@ function escapeRegExp(value) {
   return value.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
 }
 
-const bashUname = spawnSync('bash', ['-lc', 'uname -s'], { encoding: 'utf8' }).stdout.trim();
+const bashUname = (spawnSync('bash', ['-lc', 'uname -s'], { encoding: 'utf8' }).stdout || '').trim();
 const isGitBash = /^(MINGW|MSYS|CYGWIN)/.test(bashUname);
 
 function toBashPath(filePath) {

@@ -71,7 +71,7 @@ yaml_field() {
   local yaml_file="$2"
   if [ -f "$yaml_file" ]; then
     local value
-    value=$(grep "^${field}:" "$yaml_file" | sed "s/^${field}: *//")
+    value=$(grep "^${field}:" "$yaml_file" 2>/dev/null | sed "s/^${field}: *//" || true)
     strip_wrapping_quotes "$value"
   fi
 }
