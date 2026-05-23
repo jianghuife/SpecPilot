@@ -263,7 +263,6 @@ Comet ensures agent execution reliability through automated state transitions:
    - `isolation` must be `branch` or `worktree`
    - `build_mode` must be selected before leaving build
    - Full workflow `build_mode: direct` requires `direct_override: true`
-   - Guard failures include `Next:` remediation hints so agents know which user decision or command is required
 
 5. **Verification Evidence** — Guard enforces proof before phase advance
    - `verify-pass` transition requires `verification_report` pointing to an existing report file
@@ -273,7 +272,6 @@ Comet ensures agent execution reliability through automated state transitions:
 
 6. **Archive Automation** — `comet-archive.sh` handles the full archive flow in one command
    - Validates entry state, syncs delta specs to main specs
-   - Prints a diff before overwriting an existing main spec when it differs from the delta spec
    - Annotates design doc and plan frontmatter
    - Moves change to archive directory and updates `archived: true`
    - Supports `--dry-run` for preview
