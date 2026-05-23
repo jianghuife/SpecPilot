@@ -68,7 +68,7 @@ comet init
 > [!TIP]
 > 更新版本号
 >
-> 执行 comet update 或者 `npm install -g @rpamis/comet@latest` 即可更新到最新版本。
+> 执行 `comet update` 或者 `npm install -g @rpamis/comet@latest` 即可更新到最新版本。
 
 ## 运行截图
 
