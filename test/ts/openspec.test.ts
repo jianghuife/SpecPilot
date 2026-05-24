@@ -34,6 +34,14 @@ describe('openspec', () => {
     });
   });
 
+  describe('quoteShellArg', () => {
+    it('doubles trailing backslashes before the closing quote on Windows', async () => {
+      const { quoteShellArg } = await import('../../src/core/openspec.js');
+
+      expect(quoteShellArg('C:\\Users\\', 'win32')).toBe('"C:\\Users\\\\"');
+    });
+  });
+
   describe('installOpenSpec', () => {
     it('installs openspec when CLI is available', async () => {
       mockedExecSync.mockReturnValueOnce(Buffer.from('/usr/bin/openspec'));
@@ -61,16 +69,50 @@ describe('openspec', () => {
       expect(result).toBe('failed');
     });
 
-    it('passes --global flag for global scope', async () => {
+    it('does not pass unsupported --global flag for global scope', async () => {
       mockedExecSync.mockReturnValueOnce(Buffer.from('/usr/bin/openspec'));
       mockedExecSync.mockReturnValueOnce(Buffer.from('ok'));
 
-      const { installOpenSpec } = await import('../../src/core/openspec.js');
+      const { installOpenSpec, quoteShellArg } = await import('../../src/core/openspec.js');
       await installOpenSpec('/tmp/test', ['claude'], 'global');
 
-      // Second call should have --global flag
       const initCall = mockedExecSync.mock.calls[1][0] as string;
-      expect(initCall).toContain('--global');
+      expect(initCall).not.toContain('--global');
+      expect(initCall).toContain(`--tools ${quoteShellArg('claude')}`);
+    });
+
+    it('uses the home directory as the OpenSpec init target for global scope', async () => {
+      const { buildOpenSpecInitCommand } = await import('../../src/core/openspec.js');
+
+      expect(
+        buildOpenSpecInitCommand('/tmp/project', ['codex'], 'global', '/Users/Test User', 'darwin'),
+      ).toBe("openspec init '/Users/Test User' --tools 'codex'");
+      expect(
+        buildOpenSpecInitCommand('/tmp/project', ['codex'], 'global', '/home/test user', 'linux'),
+      ).toBe("openspec init '/home/test user' --tools 'codex'");
+      expect(
+        buildOpenSpecInitCommand(
+          'D:\\Project\\Comet',
+          ['codex'],
+          'global',
+          'C:\\Users\\Test User',
+          'win32',
+        ),
+      ).toBe('openspec init "C:\\Users\\Test User" --tools "codex"');
+    });
+
+    it('quotes the joined OpenSpec tools argument', async () => {
+      const { buildOpenSpecInitCommand } = await import('../../src/core/openspec.js');
+
+      expect(
+        buildOpenSpecInitCommand(
+          '/tmp/project',
+          ['future tool', 'codex'],
+          'project',
+          '/home/user',
+          'linux',
+        ),
+      ).toBe("openspec init '/tmp/project' --tools 'future tool,codex'");
     });
 
     it('installs openspec CLI when not on PATH', async () => {
