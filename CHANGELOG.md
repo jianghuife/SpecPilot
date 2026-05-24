@@ -20,6 +20,7 @@ All notable changes to @rpamis/comet will be documented in this file.
 ### Tests
 
 - Added coverage for `--full` handoff mode, missing OpenSpec artifacts rejection, post-handoff hash mismatch detection, and design doc frontmatter validation
+- Added `comet init` E2E tests covering project scope install, global scope install, skip-existing with `--yes`, overwrite with `--overwrite`, and multi-platform detection
 
 ## What's Changed [0.2.7] - 2026-05-24
 
