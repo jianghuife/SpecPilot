@@ -130,6 +130,12 @@ describe('detect', () => {
       expect(await hasSkills(tmpDir, mockPlatform, 'comet')).toBe(false);
     });
 
+    it('returns false when a platform directory exists without a skills directory', async () => {
+      await fs.mkdir(path.join(tmpDir, '.claude'), { recursive: true });
+
+      expect(await hasSkills(tmpDir, mockPlatform, 'comet')).toBe(false);
+    });
+
     it('detects plugin-installed superpowers for claude platform', async () => {
       const origEnv = process.env.CLAUDE_CONFIG_DIR;
       const pluginDir = path.join(tmpDir, '.claude');

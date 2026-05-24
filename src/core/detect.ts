@@ -76,9 +76,10 @@ async function hasSkills(
   scope: InstallScope = 'project',
 ): Promise<boolean> {
   const skillDirEntries = await Promise.all(
-    getPlatformSkillsDirs(platform, scope).map((skillsDir) =>
-      readDir(path.join(baseDir, skillsDir, 'skills')),
-    ),
+    getPlatformSkillsDirs(platform, scope).map(async (skillsDir) => {
+      const fullPath = path.join(baseDir, skillsDir, 'skills');
+      return (await fileExists(fullPath)) ? readDir(fullPath) : [];
+    }),
   );
   const entries = skillDirEntries.flat();
 
@@ -96,9 +97,10 @@ async function hasSkills(
 
   if (scope === 'project' && baseDir !== os.homedir()) {
     const globalSkillDirEntries = await Promise.all(
-      getPlatformSkillsDirs(platform, 'global').map((skillsDir) =>
-        readDir(path.join(os.homedir(), skillsDir, 'skills')),
-      ),
+      getPlatformSkillsDirs(platform, 'global').map(async (skillsDir) => {
+        const fullPath = path.join(os.homedir(), skillsDir, 'skills');
+        return (await fileExists(fullPath)) ? readDir(fullPath) : [];
+      }),
     );
     const globalEntries = globalSkillDirEntries.flat();
 

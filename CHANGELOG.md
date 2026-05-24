@@ -14,6 +14,7 @@ All notable changes to @rpamis/comet will be documented in this file.
 ### Fixed
 
 - **Antigravity global installs**: Fixed `comet init --scope global` and related health checks so Antigravity no longer installs or searches global skills under the project-style `.agents` directory
+- **Missing skills directories**: Added explicit existence checks before scanning project and global skills directories, keeping detection and update logic robust when platform directories exist without `skills/`
 
 ### Tests
 

@@ -57,6 +57,12 @@ describe('update command helpers', () => {
     await expect(detectInstalledCometLanguage(tmpDir, claudePlatform)).resolves.toBe('en');
   });
 
+  it('defaults installed comet language to English when the skills directory is missing', async () => {
+    await fs.mkdir(path.join(tmpDir, '.claude'), { recursive: true });
+
+    await expect(detectInstalledCometLanguage(tmpDir, claudePlatform)).resolves.toBe('en');
+  });
+
   it('finds only scopes and platforms that already have comet skills installed', async () => {
     const projectDir = path.join(tmpDir, 'project');
     const globalDir = path.join(tmpDir, 'home');
@@ -85,6 +91,15 @@ describe('update command helpers', () => {
       'project:claude:en',
       'global:codex:zh',
     ]);
+  });
+
+  it('ignores platform directories that do not contain a skills directory', async () => {
+    const projectDir = path.join(tmpDir, 'project');
+    await fs.mkdir(path.join(projectDir, '.claude'), { recursive: true });
+
+    await expect(detectInstalledCometTargets(projectDir, { scopes: ['project'] })).resolves.toEqual(
+      [],
+    );
   });
 
   it('respects explicit scope filtering when detecting installed targets', async () => {

@@ -52,6 +52,8 @@ async function hasLocalCometSkills(
   scope: InstallScope,
 ): Promise<boolean> {
   const skillsDir = path.join(baseDir, getPlatformSkillsDir(platform, scope), 'skills');
+  if (!(await fileExists(skillsDir))) return false;
+
   const entries = await readDir(skillsDir);
   return entries.some((entry) => entry.startsWith('comet'));
 }
@@ -62,6 +64,8 @@ async function detectInstalledCometLanguage(
   scope: InstallScope,
 ): Promise<SkillLanguage> {
   const skillsDir = path.join(baseDir, getPlatformSkillsDir(platform, scope), 'skills');
+  if (!(await fileExists(skillsDir))) return 'en';
+
   const entries = (await readDir(skillsDir)).filter((entry) => entry.startsWith('comet'));
 
   for (const entry of entries) {
