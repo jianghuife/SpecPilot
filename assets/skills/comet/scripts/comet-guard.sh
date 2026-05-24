@@ -98,8 +98,35 @@ yaml_field_value() {
   if [ -f "$yaml" ]; then
     local value
     value=$(grep "^${field}:" "$yaml" 2>/dev/null | sed "s/^${field}: *//" || true)
+    value=$(strip_inline_comment "$value")
     strip_wrapping_quotes "$value"
   fi
+}
+
+strip_inline_comment() {
+  local value="$1"
+  printf '%s\n' "$value" | awk -v squote="'" '
+    {
+      out = ""
+      quote = ""
+      for (i = 1; i <= length($0); i++) {
+        c = substr($0, i, 1)
+        if (quote == "") {
+          if (c == "\"" || c == squote) {
+            quote = c
+          } else if (c == "#" && (i == 1 || substr($0, i - 1, 1) ~ /[[:space:]]/)) {
+            sub(/[[:space:]]+$/, "", out)
+            print out
+            next
+          }
+        } else if (c == quote) {
+          quote = ""
+        }
+        out = out c
+      }
+      print out
+    }
+  '
 }
 
 strip_wrapping_quotes() {
@@ -130,6 +157,7 @@ project_config_value() {
   for config in ".comet.yaml" "comet.yaml" ".comet.yml" "comet.yml"; do
     if [ -f "$config" ]; then
       value=$(grep "^${field}:" "$config" 2>/dev/null | sed "s/^${field}: *//" || true)
+      value=$(strip_inline_comment "$value")
       value=$(strip_wrapping_quotes "$value")
       if [ -n "$value" ] && [ "$value" != "null" ]; then
         echo "$value"
@@ -410,9 +438,13 @@ design_doc_frontmatter_has() {
   local field="$2"
   local expected="$3"
   awk '
-    NR == 1 && $0 == "---" { in_fm = 1; next }
-    in_fm && $0 == "---" { exit }
-    in_fm { print }
+    {
+      line = $0
+      sub(/^\357\273\277/, "", line)
+    }
+    !in_fm && line == "---" { in_fm = 1; next }
+    in_fm && line == "---" { exit }
+    in_fm { print line }
   ' "$design_doc" | grep -Eq "^${field}: ['\"]?${expected}['\"]?[[:space:]]*$"
 }
 
@@ -550,7 +582,7 @@ else
     apply_state_update "$PHASE"
     case "$PHASE" in
       open)
-        new_phase=$(grep "^phase:" "$CHANGE_DIR/.comet.yaml" | sed 's/^phase: *//' | tr -d '"' | tr -d "'")
+        new_phase=$(yaml_field_value "phase")
         green "  [APPLY] .comet.yaml updated: phase=$new_phase"
         ;;
       design) green "  [APPLY] .comet.yaml updated: phase=build" ;;

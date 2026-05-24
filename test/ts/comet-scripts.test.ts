@@ -200,6 +200,84 @@ describe('comet shell scripts', () => {
     expect(result.stderr).toContain('[PASS] Design Doc declares OpenSpec as canonical spec');
   }, 20_000);
 
+  it('reads comet yaml fields without including trailing comments', async () => {
+    const handoffScript = path.join(tmpDir, 'scripts', 'comet-handoff.sh');
+    const validateScript = path.join(tmpDir, 'scripts', 'comet-yaml-validate.sh');
+    await createChange(
+      tmpDir,
+      'commented-yaml',
+      [
+        'workflow: full # full process',
+        'phase: design # ready for handoff',
+        'build_mode: null',
+        'isolation: null',
+        'verify_mode: null',
+        'design_doc: null',
+        'plan: null',
+        'verify_result: pending # not verified yet',
+        'verified_at: null',
+        'archived: false # active',
+        '',
+      ].join('\n'),
+    );
+
+    const phase = runBash(tmpDir, stateScript, ['get', 'commented-yaml', 'phase']);
+    const validate = runBash(tmpDir, validateScript, ['commented-yaml']);
+    const handoff = runBash(tmpDir, handoffScript, ['commented-yaml', 'design', '--write']);
+
+    expect(phase.status).toBe(0);
+    expect(phase.stdout.trim()).toBe('design');
+    expect(validate.status).toBe(0);
+    expect(handoff.status).toBe(0);
+  }, 20_000);
+
+  it('accepts design doc frontmatter after a BOM and leading blank lines', async () => {
+    const handoffScript = path.join(tmpDir, 'scripts', 'comet-handoff.sh');
+    await createChange(
+      tmpDir,
+      'frontmatter-prefix',
+      [
+        'workflow: full',
+        'phase: design',
+        'build_mode: null',
+        'isolation: null',
+        'verify_mode: null',
+        'design_doc: null',
+        'plan: null',
+        'verify_result: pending',
+        'verified_at: null',
+        'archived: false',
+        '',
+      ].join('\n'),
+    );
+    runBash(tmpDir, handoffScript, ['frontmatter-prefix', 'design', '--write']);
+    await writeFile(
+      path.join(tmpDir, 'docs', 'superpowers', 'specs', 'frontmatter-prefix-design.md'),
+      [
+        '\uFEFF',
+        '',
+        '---',
+        'comet_change: frontmatter-prefix',
+        'role: technical-design',
+        'canonical_spec: openspec',
+        '---',
+        '',
+      ].join('\n'),
+    );
+    runBash(tmpDir, stateScript, [
+      'set',
+      'frontmatter-prefix',
+      'design_doc',
+      'docs/superpowers/specs/frontmatter-prefix-design.md',
+    ]);
+
+    const result = runBash(tmpDir, guardScript, ['frontmatter-prefix', 'design']);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain('[PASS] Design Doc frontmatter links current change');
+    expect(result.stderr).toContain('[PASS] Design Doc declares OpenSpec as canonical spec');
+  }, 20_000);
+
   it('generates a full-mode design handoff when --full is passed', async () => {
     const handoffScript = path.join(tmpDir, 'scripts', 'comet-handoff.sh');
     await createChange(

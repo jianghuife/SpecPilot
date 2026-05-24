@@ -72,8 +72,35 @@ yaml_field() {
   if [ -f "$yaml_file" ]; then
     local value
     value=$(grep "^${field}:" "$yaml_file" 2>/dev/null | sed "s/^${field}: *//" || true)
+    value=$(strip_inline_comment "$value")
     strip_wrapping_quotes "$value"
   fi
+}
+
+strip_inline_comment() {
+  local value="$1"
+  printf '%s\n' "$value" | awk -v squote="'" '
+    {
+      out = ""
+      quote = ""
+      for (i = 1; i <= length($0); i++) {
+        c = substr($0, i, 1)
+        if (quote == "") {
+          if (c == "\"" || c == squote) {
+            quote = c
+          } else if (c == "#" && (i == 1 || substr($0, i - 1, 1) ~ /[[:space:]]/)) {
+            sub(/[[:space:]]+$/, "", out)
+            print out
+            next
+          }
+        } else if (c == quote) {
+          quote = ""
+        }
+        out = out c
+      }
+      print out
+    }
+  '
 }
 
 strip_wrapping_quotes() {

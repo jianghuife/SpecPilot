@@ -73,9 +73,47 @@ yaml_field() {
     bash "$STATE_SH" get "$CHANGE" "$field" 2>/dev/null
   else
     if [ -f "$YAML" ]; then
-      grep "^${field}:" "$YAML" | sed "s/^${field}: *//" | tr -d '"' | tr -d "'"
+      local value
+      value=$(grep "^${field}:" "$YAML" 2>/dev/null | sed "s/^${field}: *//" || true)
+      value=$(strip_inline_comment "$value")
+      strip_wrapping_quotes "$value"
     fi
   fi
+}
+
+strip_inline_comment() {
+  local value="$1"
+  printf '%s\n' "$value" | awk -v squote="'" '
+    {
+      out = ""
+      quote = ""
+      for (i = 1; i <= length($0); i++) {
+        c = substr($0, i, 1)
+        if (quote == "") {
+          if (c == "\"" || c == squote) {
+            quote = c
+          } else if (c == "#" && (i == 1 || substr($0, i - 1, 1) ~ /[[:space:]]/)) {
+            sub(/[[:space:]]+$/, "", out)
+            print out
+            next
+          }
+        } else if (c == quote) {
+          quote = ""
+        }
+        out = out c
+      }
+      print out
+    }
+  '
+}
+
+strip_wrapping_quotes() {
+  local value="$1"
+  case "$value" in
+    \"*\") printf '%s\n' "${value:1:${#value}-2}" ;;
+    \'*\') printf '%s\n' "${value:1:${#value}-2}" ;;
+    *) printf '%s\n' "$value" ;;
+  esac
 }
 
 if [ ! -f "$YAML" ]; then

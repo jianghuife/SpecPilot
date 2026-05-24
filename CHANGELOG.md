@@ -19,10 +19,15 @@ All notable changes to @rpamis/comet will be documented in this file.
 - **Error message formatting**: `comet-state.sh` unknown-field error message split from a single 270+ character line into multiple lines for readability
 - **CLAUDE.md and AGENTS.md**: Added project-level instructions covering test commands, shell script conventions, script dependency graph, `.comet.yaml` state machine sync rules, and changelog format
 
+### Fixed
+
+- **YAML and frontmatter parsing**: Comet scripts now ignore unquoted trailing comments in `.comet.yaml` field values and accept Design Doc frontmatter after a UTF-8 BOM or leading blank lines, preventing false guard and handoff failures
+
 ### Tests
 
 - Added coverage for `--full` handoff mode, missing OpenSpec artifacts rejection, post-handoff hash mismatch detection, and design doc frontmatter validation
 - Added `comet init` E2E tests covering project scope install, global scope install, skip-existing with `--yes`, overwrite with `--overwrite`, and multi-platform detection
+- Added regression coverage for `.comet.yaml` trailing comments and Design Doc frontmatter with a UTF-8 BOM or leading blank lines
 
 ## What's Changed [0.2.7] - 2026-05-24
 
