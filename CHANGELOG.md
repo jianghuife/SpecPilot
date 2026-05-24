@@ -2,6 +2,37 @@
 
 All notable changes to @rpamis/comet will be documented in this file.
 
+## What's Changed [0.2.8] - 2026-05-24
+
+### Added
+
+- **Design handoff script**: New `comet-handoff.sh` generates deterministic, source-traceable context packages (compact or full mode) from OpenSpec artifacts into `.comet/handoff/`, recording `handoff_context` and `handoff_hash` in `.comet.yaml`
+- **Handoff guard checks**: Design phase guard now validates handoff context existence, hash freshness (detects post-handoff OpenSpec mutations), markdown traceability markers, and design doc frontmatter fields (`comet_change`, `role: technical-design`, `canonical_spec: openspec`)
+- **`handoff_context` and `handoff_hash` fields**: New `.comet.yaml` fields for tracking script-generated handoff packages, with schema validation (path existence, sha256 hex digest format)
+- **`comet init --scope`**: New `--scope <global|project>` CLI flag for non-interactive scope selection
+- **CI init E2E job**: GitHub Actions now runs real `comet init` on Ubuntu, macOS, and Windows, verifying Comet skills, Superpowers, OpenSpec, and working directories land in correct filesystem locations for both project and global scope
+
+### Changed
+
+- **Chinese skill docs updated**: `comet-design/SKILL.md` and `comet/SKILL.md` now document the handoff flow, replacing agent-authored summaries with script-generated context packs
+- **JSON generation uses process substitution**: `write_json_context` in `comet-handoff.sh` uses `< <(source_files)` instead of pipe subshell, fixing variable scoping
+- **Error message formatting**: `comet-state.sh` unknown-field error message split from a single 270+ character line into multiple lines for readability
+- **CLAUDE.md and AGENTS.md**: Added project-level instructions covering test commands, shell script conventions, script dependency graph, `.comet.yaml` state machine sync rules, and changelog format
+
+### Fixed
+
+- **YAML and frontmatter parsing**: Comet scripts now ignore unquoted trailing comments in `.comet.yaml` field values and accept Design Doc frontmatter after a UTF-8 BOM or leading blank lines, preventing false guard and handoff failures
+- **Init E2E install checks**: CI now verifies Comet-owned skill artifacts in every supported platform directory and checks OpenSpec/Superpowers installer status from `comet init --json` for both project and global installs, avoiding false failures from external CLI-specific directory layouts
+- **Windows global init E2E home directory**: CI now sets `USERPROFILE` alongside `HOME` for global-scope init checks on Windows, matching Node's `os.homedir()` resolution and preventing false missing-skill failures
+
+### Tests
+
+- Added coverage for `--full` handoff mode, missing OpenSpec artifacts rejection, post-handoff hash mismatch detection, and design doc frontmatter validation
+- Added `comet init` E2E tests covering project scope install, global scope install, skip-existing with `--yes`, overwrite with `--overwrite`, and multi-platform detection
+- Added regression coverage for `.comet.yaml` trailing comments and Design Doc frontmatter with a UTF-8 BOM or leading blank lines
+- Added CI workflow regression coverage for project and global installation checks across Comet-owned files and external OpenSpec/Superpowers installer statuses
+- Added CI workflow regression coverage for Windows global init using the temporary `USERPROFILE` home directory
+
 ## What's Changed [0.2.7] - 2026-05-24
 
 ### Fixed

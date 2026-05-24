@@ -93,7 +93,8 @@ comet init
 
 | 选项 | 描述 |
 |--------|-------------|
-| `--yes` | 非交互模式，自动选择已检测平台 |
+| `--yes` | 非交互模式，自动选择已检测平台（未检测到则选择全部） |
+| `--scope <scope>` | 安装范围：`project` 或 `global` |
 | `--skip-existing` | 跳过已安装的组件 |
 | `--overwrite` | 覆盖已安装的组件 |
 | `--json` | 输出结构化 JSON |
@@ -164,6 +165,7 @@ comet init
 | 脚本 | 用途 |
 |--------|---------|
 | `comet-guard.sh` | 阶段转换守护 — 验证退出条件，`--apply` 自动更新 `.comet.yaml` |
+| `comet-handoff.sh` | 设计交接 — 从 OpenSpec 制品生成带 SHA256 追踪的确定性上下文包 |
 | `comet-archive.sh` | 一键归档 — 验证状态、同步 specs、移至归档、更新状态 |
 | `comet-yaml-validate.sh` | 模式校验器 — 校验 `.comet.yaml` 结构和字段值 |
 | `comet-state.sh` | 统一状态管理 — init/set/get/check/scale，agent 的专属 YAML 接口 |
@@ -286,6 +288,7 @@ your-project/
 │   ├── comet/SKILL.md
 │   │   └── scripts/
 │   │       ├── comet-guard.sh       # 阶段转换守护（--apply 自动更新状态）
+│   │       ├── comet-handoff.sh     # 设计交接（OpenSpec → Superpowers 上下文追踪）
 │   │       ├── comet-archive.sh     # 一键归档自动化
 │   │       ├── comet-yaml-validate.sh # 模式校验器
 │   │       └── comet-state.sh       # 统一状态管理（init/set/get/check/scale）
@@ -346,6 +349,10 @@ pnpm format
 ```
 
 详见 [CHANGELOG.md](CHANGELOG.md) 了解版本历史与更新。
+
+## 路线图
+
+在 [Comet Roadmap](https://github.com/orgs/rpamis/projects/1) 查看开发进展与即将推出的功能。
 
 ## 安全
 

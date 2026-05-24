@@ -79,3 +79,160 @@ jobs:
 
       - name: Run portable shell tests
         run: pnpm test:shell
+
+  init-e2e:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node-version: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      - name: Install OpenSpec CLI
+        run: npm install -g @fission-ai/openspec@latest
+
+      - name: Create temp project directory
+        run: mkdir -p "$RUNNER_TEMP/comet-e2e-project"
+        shell: bash
+
+      - name: Run comet init (project scope)
+        run: |
+          node bin/comet.js init "$RUNNER_TEMP/comet-e2e-project" --yes --json \
+            | tee "$RUNNER_TEMP/comet-init-project.json"
+        shell: bash
+
+      - name: Verify Comet skills installed (project)
+        run: |
+          PROJ="$RUNNER_TEMP/comet-e2e-project"
+          check_file() {
+            if [ ! -f "$1" ]; then
+              echo "Missing file: $1" >&2
+              exit 1
+            fi
+          }
+          for sd in .claude/skills .cursor/skills .codex/skills .opencode/skills \
+                    .windsurf/skills .cline/skills .roo/skills .continue/skills \
+                    .gemini/skills .amazonq/skills .qwen/skills .kilocode/skills \
+                    .augment/skills .kiro/skills .lingma/skills .junie/skills \
+                    .codebuddy/skills .cospec/skills .crush/skills .factory/skills \
+                    .iflow/skills .pi/skills .qoder/skills .agent/skills \
+                    .bob/skills .forge/skills .trae/skills .github/skills; do
+            check_file "$PROJ/$sd/comet/SKILL.md"
+            check_file "$PROJ/$sd/comet/scripts/comet-guard.sh"
+            check_file "$PROJ/$sd/comet/scripts/comet-state.sh"
+            check_file "$PROJ/$sd/comet/scripts/comet-handoff.sh"
+            check_file "$PROJ/$sd/comet/scripts/comet-yaml-validate.sh"
+            check_file "$PROJ/$sd/comet/scripts/comet-archive.sh"
+          done
+          echo "All 28 platforms project Comet skills: OK"
+        shell: bash
+
+      - name: Verify external installer status (project)
+        run: |
+          node - "$RUNNER_TEMP/comet-init-project.json" <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const components = ['openspec', 'superpowers'];
+          const failed = data.results.flatMap((r) =>
+            components
+              .filter((component) => r[component] !== 'installed')
+              .map((component) => `${r.platform}: ${component}=${r[component]}`),
+          );
+          if (failed.length > 0) {
+            console.error('External installers did not report installed for:');
+            for (const item of failed) {
+              console.error(`- ${item}`);
+            }
+            process.exit(1);
+          }
+          console.log(`OpenSpec and Superpowers reported installed for ${data.results.length} platforms`);
+          NODE
+        shell: bash
+
+      - name: Verify OpenSpec and working directories (project)
+        run: |
+          test -d "$RUNNER_TEMP/comet-e2e-project/openspec"
+          test -d "$RUNNER_TEMP/comet-e2e-project/docs/superpowers/specs"
+          test -d "$RUNNER_TEMP/comet-e2e-project/docs/superpowers/plans"
+          echo "OpenSpec + working dirs: OK"
+        shell: bash
+
+      - name: Create temp global home
+        run: mkdir -p "$RUNNER_TEMP/comet-e2e-global"
+        shell: bash
+
+      - name: Run comet init (global scope)
+        run: |
+          export HOME="$RUNNER_TEMP/comet-e2e-global"
+          export USERPROFILE="$RUNNER_TEMP/comet-e2e-global"
+          node bin/comet.js init "$RUNNER_TEMP/comet-e2e-global" --yes --scope global --json \
+            | tee "$RUNNER_TEMP/comet-init-global.json"
+        shell: bash
+
+      - name: Verify Comet skills installed (global)
+        run: |
+          HOME_DIR="$RUNNER_TEMP/comet-e2e-global"
+          check_file() {
+            if [ ! -f "$1" ]; then
+              echo "Missing file: $1" >&2
+              exit 1
+            fi
+          }
+          for sd in .claude/skills .cursor/skills .codex/skills .opencode/skills \
+                    .windsurf/skills .cline/skills .roo/skills .continue/skills \
+                    .gemini/skills .amazonq/skills .qwen/skills .kilocode/skills \
+                    .augment/skills .kiro/skills .lingma/skills .junie/skills \
+                    .codebuddy/skills .cospec/skills .crush/skills .factory/skills \
+                    .iflow/skills .pi/skills .qoder/skills .agent/skills \
+                    .bob/skills .forge/skills .trae/skills .github/skills; do
+            check_file "$HOME_DIR/$sd/comet/SKILL.md"
+            check_file "$HOME_DIR/$sd/comet/scripts/comet-guard.sh"
+            check_file "$HOME_DIR/$sd/comet/scripts/comet-state.sh"
+            check_file "$HOME_DIR/$sd/comet/scripts/comet-handoff.sh"
+            check_file "$HOME_DIR/$sd/comet/scripts/comet-yaml-validate.sh"
+            check_file "$HOME_DIR/$sd/comet/scripts/comet-archive.sh"
+          done
+          echo "All 28 platforms global Comet skills: OK"
+        shell: bash
+
+      - name: Verify external installer status (global)
+        run: |
+          node - "$RUNNER_TEMP/comet-init-global.json" <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const components = ['openspec', 'superpowers'];
+          const failed = data.results.flatMap((r) =>
+            components
+              .filter((component) => r[component] !== 'installed')
+              .map((component) => `${r.platform}: ${component}=${r[component]}`),
+          );
+          if (failed.length > 0) {
+            console.error('External installers did not report installed for:');
+            for (const item of failed) {
+              console.error(`- ${item}`);
+            }
+            process.exit(1);
+          }
+          console.log(`OpenSpec and Superpowers reported installed for ${data.results.length} platforms`);
+          NODE
+        shell: bash
+
+      - name: Verify no working directories (global)
+        run: |
+          test ! -d "$RUNNER_TEMP/comet-e2e-global/docs/superpowers/specs"
+          echo "Global scope has no working dirs: OK"
+        shell: bash

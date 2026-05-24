@@ -72,8 +72,35 @@ yaml_field() {
   if [ -f "$yaml_file" ]; then
     local value
     value=$(grep "^${field}:" "$yaml_file" 2>/dev/null | sed "s/^${field}: *//" || true)
+    value=$(strip_inline_comment "$value")
     strip_wrapping_quotes "$value"
   fi
+}
+
+strip_inline_comment() {
+  local value="$1"
+  printf '%s\n' "$value" | awk -v squote="'" '
+    {
+      out = ""
+      quote = ""
+      for (i = 1; i <= length($0); i++) {
+        c = substr($0, i, 1)
+        if (quote == "") {
+          if (c == "\"" || c == squote) {
+            quote = c
+          } else if (c == "#" && (i == 1 || substr($0, i - 1, 1) ~ /[[:space:]]/)) {
+            sub(/[[:space:]]+$/, "", out)
+            print out
+            next
+          }
+        } else if (c == quote) {
+          quote = ""
+        }
+        out = out c
+      }
+      print out
+    }
+  '
 }
 
 strip_wrapping_quotes() {
@@ -224,12 +251,16 @@ cmd_set() {
 
   # Validate field name
   case "$field" in
-    workflow|phase|build_mode|isolation|verify_mode|verify_result|verification_report|branch_status|archived|design_doc|plan|verified_at|direct_override|build_command|verify_command)
+    workflow|phase|build_mode|isolation|verify_mode|verify_result|verification_report|branch_status|archived|design_doc|plan|verified_at|direct_override|build_command|verify_command|handoff_context|handoff_hash)
       # Valid field
       ;;
     *)
       red "ERROR: Unknown field: '$field'" >&2
-      red "Valid fields: workflow, phase, design_doc, plan, build_mode, isolation, verify_mode, verify_result, verification_report, branch_status, verified_at, archived, direct_override, build_command, verify_command" >&2
+      red "Valid fields:" >&2
+      red "  workflow, phase, design_doc, plan, build_mode, isolation," >&2
+      red "  verify_mode, verify_result, verification_report, branch_status," >&2
+      red "  verified_at, archived, direct_override, build_command," >&2
+      red "  verify_command, handoff_context, handoff_hash" >&2
       exit 1
       ;;
   esac
@@ -263,7 +294,7 @@ cmd_set() {
     direct_override)
       validate_enum "$value" "true" "false"
       ;;
-    design_doc|plan|verification_report|verified_at|build_command|verify_command)
+    design_doc|plan|verification_report|verified_at|build_command|verify_command|handoff_context|handoff_hash)
       # No validation for path fields, date fields, or project command strings
       ;;
   esac

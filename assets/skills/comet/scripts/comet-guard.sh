@@ -98,8 +98,35 @@ yaml_field_value() {
   if [ -f "$yaml" ]; then
     local value
     value=$(grep "^${field}:" "$yaml" 2>/dev/null | sed "s/^${field}: *//" || true)
+    value=$(strip_inline_comment "$value")
     strip_wrapping_quotes "$value"
   fi
+}
+
+strip_inline_comment() {
+  local value="$1"
+  printf '%s\n' "$value" | awk -v squote="'" '
+    {
+      out = ""
+      quote = ""
+      for (i = 1; i <= length($0); i++) {
+        c = substr($0, i, 1)
+        if (quote == "") {
+          if (c == "\"" || c == squote) {
+            quote = c
+          } else if (c == "#" && (i == 1 || substr($0, i - 1, 1) ~ /[[:space:]]/)) {
+            sub(/[[:space:]]+$/, "", out)
+            print out
+            next
+          }
+        } else if (c == quote) {
+          quote = ""
+        }
+        out = out c
+      }
+      print out
+    }
+  '
 }
 
 strip_wrapping_quotes() {
@@ -130,6 +157,7 @@ project_config_value() {
   for config in ".comet.yaml" "comet.yaml" ".comet.yml" "comet.yml"; do
     if [ -f "$config" ]; then
       value=$(grep "^${field}:" "$config" 2>/dev/null | sed "s/^${field}: *//" || true)
+      value=$(strip_inline_comment "$value")
       value=$(strip_wrapping_quotes "$value")
       if [ -n "$value" ] && [ "$value" != "null" ]; then
         echo "$value"
@@ -154,6 +182,47 @@ run_command_string() {
   local command="$1"
   echo "+ $command" >&2
   bash -lc "$command"
+}
+
+hash_stream() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 | awk '{print $1}'
+  else
+    echo "sha256sum or shasum is required" >&2
+    return 1
+  fi
+}
+
+hash_file() {
+  local file="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$file" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$file" | awk '{print $1}'
+  else
+    echo "sha256sum or shasum is required" >&2
+    return 1
+  fi
+}
+
+handoff_source_files() {
+  printf '%s\n' "$CHANGE_DIR/proposal.md"
+  printf '%s\n' "$CHANGE_DIR/design.md"
+  printf '%s\n' "$CHANGE_DIR/tasks.md"
+  if [ -d "$CHANGE_DIR/specs" ]; then
+    find "$CHANGE_DIR/specs" -path '*/spec.md' -type f 2>/dev/null | sort
+  fi
+}
+
+compute_handoff_hash() {
+  handoff_source_files | while IFS= read -r file; do
+    if [ -f "$file" ]; then
+      printf 'path:%s\n' "$file"
+      printf 'sha256:%s\n' "$(hash_file "$file")"
+    fi
+  done | hash_stream
 }
 
 preflight() {
@@ -291,6 +360,118 @@ branch_status_handled() {
   [ "$status" = "handled" ]
 }
 
+design_handoff_context_valid() {
+  local context recorded_hash actual_hash markdown
+  context=$(yaml_field_value "handoff_context" 2>/dev/null || true)
+  recorded_hash=$(yaml_field_value "handoff_hash" 2>/dev/null || true)
+
+  if [ -z "$context" ] || [ "$context" = "null" ]; then
+    echo "handoff_context is missing from .comet.yaml" >&2
+    echo "Next: run bash \"\$COMET_HANDOFF\" $CHANGE design --write before invoking Superpowers." >&2
+    return 1
+  fi
+  if [ ! -s "$context" ]; then
+    echo "handoff_context does not point to a non-empty file: $context" >&2
+    echo "Next: regenerate the design handoff with comet-handoff.sh." >&2
+    return 1
+  fi
+  if [[ ! "$recorded_hash" =~ ^[a-f0-9]{64}$ ]]; then
+    echo "handoff_hash is missing or invalid: ${recorded_hash:-null}" >&2
+    echo "Next: regenerate the design handoff with comet-handoff.sh." >&2
+    return 1
+  fi
+
+  actual_hash=$(compute_handoff_hash)
+  if [ "$actual_hash" != "$recorded_hash" ]; then
+    echo "OpenSpec artifacts changed after handoff was generated." >&2
+    echo "Expected handoff_hash: $recorded_hash" >&2
+    echo "Actual handoff_hash:   $actual_hash" >&2
+    echo "Next: rerun comet-handoff.sh so Superpowers receives the current OpenSpec context." >&2
+    return 1
+  fi
+
+  markdown="${context%.json}.md"
+  if [ ! -s "$markdown" ]; then
+    echo "design handoff markdown is missing or empty: $markdown" >&2
+    echo "Next: regenerate the design handoff with comet-handoff.sh." >&2
+    return 1
+  fi
+}
+
+design_handoff_markdown_traceable() {
+  local context markdown missing=0
+  context=$(yaml_field_value "handoff_context" 2>/dev/null || true)
+  if [ -z "$context" ] || [ "$context" = "null" ]; then
+    echo "handoff_context is missing from .comet.yaml" >&2
+    return 1
+  fi
+  markdown="${context%.json}.md"
+  if [ ! -s "$markdown" ]; then
+    echo "design handoff markdown is missing or empty: $markdown" >&2
+    return 1
+  fi
+  grep -q '^Generated-by: comet-handoff\.sh$' "$markdown" || {
+    echo "handoff markdown is missing Generated-by marker" >&2
+    missing=1
+  }
+  grep -Eq '^- Mode: (compact|full)$' "$markdown" || {
+    echo "handoff markdown is missing Mode marker" >&2
+    missing=1
+  }
+  handoff_source_files | while IFS= read -r file; do
+    [ -f "$file" ] || continue
+    if ! grep -q "^- Source: $file$" "$markdown"; then
+      echo "handoff markdown is missing source reference: $file" >&2
+      exit 2
+    fi
+    if ! grep -q "^- SHA256: $(hash_file "$file")$" "$markdown"; then
+      echo "handoff markdown is missing current sha256 for: $file" >&2
+      exit 2
+    fi
+  done || missing=1
+
+  [ "$missing" -eq 0 ]
+}
+
+design_doc_frontmatter_has() {
+  local design_doc="$1"
+  local field="$2"
+  local expected="$3"
+  awk '
+    {
+      line = $0
+      sub(/^\357\273\277/, "", line)
+    }
+    !in_fm && line == "---" { in_fm = 1; next }
+    in_fm && line == "---" { exit }
+    in_fm { print line }
+  ' "$design_doc" | grep -Eq "^${field}: ['\"]?${expected}['\"]?[[:space:]]*$"
+}
+
+design_doc_links_current_change() {
+  local design_doc
+  design_doc=$(yaml_field_value "design_doc" 2>/dev/null || true)
+  if [ -z "$design_doc" ] || [ "$design_doc" = "null" ] || [ ! -s "$design_doc" ]; then
+    echo "design_doc must point to an existing Superpowers Design Doc before leaving design." >&2
+    return 1
+  fi
+  design_doc_frontmatter_has "$design_doc" "comet_change" "$CHANGE"
+}
+
+design_doc_declares_technical_role() {
+  local design_doc
+  design_doc=$(yaml_field_value "design_doc" 2>/dev/null || true)
+  [ -n "$design_doc" ] && [ "$design_doc" != "null" ] && [ -s "$design_doc" ] &&
+    design_doc_frontmatter_has "$design_doc" "role" "technical-design"
+}
+
+design_doc_declares_canonical_spec() {
+  local design_doc
+  design_doc=$(yaml_field_value "design_doc" 2>/dev/null || true)
+  [ -n "$design_doc" ] && [ "$design_doc" != "null" ] && [ -s "$design_doc" ] &&
+    design_doc_frontmatter_has "$design_doc" "canonical_spec" "openspec"
+}
+
 archived_is_true() {
   local val
   val=$(yaml_field_value "archived" 2>/dev/null || true)
@@ -315,10 +496,16 @@ guard_design() {
   design_doc=$(yaml_field_value "design_doc" 2>/dev/null || true)
 
   check "proposal.md exists" file_nonempty "$CHANGE_DIR/proposal.md"
+  check "design.md exists" file_nonempty "$CHANGE_DIR/design.md"
   check "tasks.md exists" file_nonempty "$CHANGE_DIR/tasks.md"
+  check "design handoff context exists" design_handoff_context_valid
+  check "design handoff markdown is traceable" design_handoff_markdown_traceable
 
   if [ -n "$design_doc" ] && [ "$design_doc" != "null" ]; then
     check "Design Doc ($design_doc) exists" file_nonempty "$design_doc"
+    check "Design Doc frontmatter links current change" design_doc_links_current_change
+    check "Design Doc declares technical design role" design_doc_declares_technical_role
+    check "Design Doc declares OpenSpec as canonical spec" design_doc_declares_canonical_spec
   else
     warn "  [WARN] No design_doc recorded in .comet.yaml"
   fi
@@ -395,7 +582,7 @@ else
     apply_state_update "$PHASE"
     case "$PHASE" in
       open)
-        new_phase=$(grep "^phase:" "$CHANGE_DIR/.comet.yaml" | sed 's/^phase: *//' | tr -d '"' | tr -d "'")
+        new_phase=$(yaml_field_value "phase")
         green "  [APPLY] .comet.yaml updated: phase=$new_phase"
         ;;
       design) green "  [APPLY] .comet.yaml updated: phase=build" ;;

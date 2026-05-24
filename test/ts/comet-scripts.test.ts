@@ -5,7 +5,9 @@ import os from 'os';
 import path from 'path';
 
 const scriptsDir = path.resolve('assets', 'skills', 'comet', 'scripts');
-const bashUname = (spawnSync('bash', ['-lc', 'uname -s'], { encoding: 'utf-8' }).stdout || '').trim();
+const bashUname = (
+  spawnSync('bash', ['-lc', 'uname -s'], { encoding: 'utf-8' }).stdout || ''
+).trim();
 const isGitBash = /^(MINGW|MSYS|CYGWIN)/.test(bashUname);
 
 function toBashPath(filePath: string): string {
@@ -46,11 +48,20 @@ describe('comet shell scripts', () => {
   let stateScript: string;
 
   beforeEach(async () => {
-    tmpDir = path.join(os.tmpdir(), `comet-scripts-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    tmpDir = path.join(
+      os.tmpdir(),
+      `comet-scripts-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    );
     await fs.mkdir(tmpDir, { recursive: true });
     const tmpScriptsDir = path.join(tmpDir, 'scripts');
     await fs.mkdir(tmpScriptsDir, { recursive: true });
-    for (const name of ['comet-archive.sh', 'comet-guard.sh', 'comet-state.sh', 'comet-yaml-validate.sh']) {
+    for (const name of [
+      'comet-archive.sh',
+      'comet-guard.sh',
+      'comet-handoff.sh',
+      'comet-state.sh',
+      'comet-yaml-validate.sh',
+    ]) {
       const content = await fs.readFile(path.join(scriptsDir, name), 'utf-8');
       await fs.writeFile(path.join(tmpScriptsDir, name), content.replace(/\r\n/g, '\n'));
     }
@@ -105,6 +116,318 @@ describe('comet shell scripts', () => {
     expect(result.stderr).toContain('[FAIL] Build passes');
   }, 20_000);
 
+  it('generates a design handoff and requires minimal design doc linkage before leaving design', async () => {
+    const handoffScript = path.join(tmpDir, 'scripts', 'comet-handoff.sh');
+    await createChange(
+      tmpDir,
+      'handoff-change',
+      [
+        'workflow: full',
+        'phase: design',
+        'build_mode: null',
+        'isolation: null',
+        'verify_mode: null',
+        'design_doc: null',
+        'plan: null',
+        'verify_result: pending',
+        'verified_at: null',
+        'archived: false',
+        '',
+      ].join('\n'),
+      '- [ ] build the handoff\n',
+    );
+    await writeFile(
+      path.join(tmpDir, 'openspec', 'changes', 'handoff-change', 'specs', 'capability', 'spec.md'),
+      'delta spec\n',
+    );
+
+    const handoff = runBash(tmpDir, handoffScript, ['handoff-change', 'design', '--write']);
+    const contextPath = runBash(tmpDir, stateScript, [
+      'get',
+      'handoff-change',
+      'handoff_context',
+    ]).stdout.trim();
+    const contextHash = runBash(tmpDir, stateScript, [
+      'get',
+      'handoff-change',
+      'handoff_hash',
+    ]).stdout.trim();
+
+    expect(handoff.status).toBe(0);
+    expect(contextPath).toBe('openspec/changes/handoff-change/.comet/handoff/design-context.json');
+    expect(contextHash).toMatch(/^[a-f0-9]{64}$/);
+    await expect(fs.stat(path.join(tmpDir, contextPath))).resolves.toBeDefined();
+    const contextMarkdown = await fs.readFile(
+      path.join(
+        tmpDir,
+        'openspec',
+        'changes',
+        'handoff-change',
+        '.comet',
+        'handoff',
+        'design-context.md',
+      ),
+      'utf-8',
+    );
+    expect(contextMarkdown).toContain('Mode: compact');
+    expect(contextMarkdown).toContain('Source: openspec/changes/handoff-change/proposal.md');
+    expect(contextMarkdown).toContain('SHA256:');
+
+    await writeFile(
+      path.join(tmpDir, 'docs', 'superpowers', 'specs', 'handoff-design.md'),
+      [
+        '---',
+        'comet_change: handoff-change',
+        'role: technical-design',
+        'canonical_spec: openspec',
+        '---',
+        '',
+      ].join('\n'),
+    );
+    runBash(tmpDir, stateScript, [
+      'set',
+      'handoff-change',
+      'design_doc',
+      'docs/superpowers/specs/handoff-design.md',
+    ]);
+
+    const result = runBash(tmpDir, guardScript, ['handoff-change', 'design']);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain('[PASS] design handoff context exists');
+    expect(result.stderr).toContain('[PASS] design handoff markdown is traceable');
+    expect(result.stderr).toContain('[PASS] Design Doc frontmatter links current change');
+    expect(result.stderr).toContain('[PASS] Design Doc declares OpenSpec as canonical spec');
+  }, 20_000);
+
+  it('reads comet yaml fields without including trailing comments', async () => {
+    const handoffScript = path.join(tmpDir, 'scripts', 'comet-handoff.sh');
+    const validateScript = path.join(tmpDir, 'scripts', 'comet-yaml-validate.sh');
+    await createChange(
+      tmpDir,
+      'commented-yaml',
+      [
+        'workflow: full # full process',
+        'phase: design # ready for handoff',
+        'build_mode: null',
+        'isolation: null',
+        'verify_mode: null',
+        'design_doc: null',
+        'plan: null',
+        'verify_result: pending # not verified yet',
+        'verified_at: null',
+        'archived: false # active',
+        '',
+      ].join('\n'),
+    );
+
+    const phase = runBash(tmpDir, stateScript, ['get', 'commented-yaml', 'phase']);
+    const validate = runBash(tmpDir, validateScript, ['commented-yaml']);
+    const handoff = runBash(tmpDir, handoffScript, ['commented-yaml', 'design', '--write']);
+
+    expect(phase.status).toBe(0);
+    expect(phase.stdout.trim()).toBe('design');
+    expect(validate.status).toBe(0);
+    expect(handoff.status).toBe(0);
+  }, 20_000);
+
+  it('accepts design doc frontmatter after a BOM and leading blank lines', async () => {
+    const handoffScript = path.join(tmpDir, 'scripts', 'comet-handoff.sh');
+    await createChange(
+      tmpDir,
+      'frontmatter-prefix',
+      [
+        'workflow: full',
+        'phase: design',
+        'build_mode: null',
+        'isolation: null',
+        'verify_mode: null',
+        'design_doc: null',
+        'plan: null',
+        'verify_result: pending',
+        'verified_at: null',
+        'archived: false',
+        '',
+      ].join('\n'),
+    );
+    runBash(tmpDir, handoffScript, ['frontmatter-prefix', 'design', '--write']);
+    await writeFile(
+      path.join(tmpDir, 'docs', 'superpowers', 'specs', 'frontmatter-prefix-design.md'),
+      [
+        '\uFEFF',
+        '',
+        '---',
+        'comet_change: frontmatter-prefix',
+        'role: technical-design',
+        'canonical_spec: openspec',
+        '---',
+        '',
+      ].join('\n'),
+    );
+    runBash(tmpDir, stateScript, [
+      'set',
+      'frontmatter-prefix',
+      'design_doc',
+      'docs/superpowers/specs/frontmatter-prefix-design.md',
+    ]);
+
+    const result = runBash(tmpDir, guardScript, ['frontmatter-prefix', 'design']);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain('[PASS] Design Doc frontmatter links current change');
+    expect(result.stderr).toContain('[PASS] Design Doc declares OpenSpec as canonical spec');
+  }, 20_000);
+
+  it('generates a full-mode design handoff when --full is passed', async () => {
+    const handoffScript = path.join(tmpDir, 'scripts', 'comet-handoff.sh');
+    await createChange(
+      tmpDir,
+      'full-handoff',
+      [
+        'workflow: full',
+        'phase: design',
+        'build_mode: null',
+        'isolation: null',
+        'verify_mode: null',
+        'design_doc: null',
+        'plan: null',
+        'verify_result: pending',
+        'verified_at: null',
+        'archived: false',
+        '',
+      ].join('\n'),
+    );
+
+    const handoff = runBash(tmpDir, handoffScript, ['full-handoff', 'design', '--write', '--full']);
+
+    expect(handoff.status).toBe(0);
+    const contextMarkdown = await fs.readFile(
+      path.join(
+        tmpDir,
+        'openspec',
+        'changes',
+        'full-handoff',
+        '.comet',
+        'handoff',
+        'design-context.md',
+      ),
+      'utf-8',
+    );
+    expect(contextMarkdown).toContain('Mode: full');
+    expect(contextMarkdown).not.toContain('[TRUNCATED]');
+  }, 20_000);
+
+  it('rejects handoff generation when required OpenSpec artifacts are missing', async () => {
+    const handoffScript = path.join(tmpDir, 'scripts', 'comet-handoff.sh');
+    const changeDir = path.join(tmpDir, 'openspec', 'changes', 'missing-artifacts');
+    await fs.mkdir(changeDir, { recursive: true });
+    await writeFile(
+      path.join(changeDir, '.comet.yaml'),
+      [
+        'workflow: full',
+        'phase: design',
+        'build_mode: null',
+        'isolation: null',
+        'verify_mode: null',
+        'design_doc: null',
+        'plan: null',
+        'verify_result: pending',
+        'verified_at: null',
+        'archived: false',
+        '',
+      ].join('\n'),
+    );
+    await writeFile(path.join(changeDir, 'proposal.md'), 'proposal\n');
+    // design.md and tasks.md intentionally omitted
+
+    const result = runBash(tmpDir, handoffScript, ['missing-artifacts', 'design', '--write']);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('required OpenSpec artifact missing or empty');
+  }, 20_000);
+
+  it('detects OpenSpec artifacts changed after handoff was generated', async () => {
+    const handoffScript = path.join(tmpDir, 'scripts', 'comet-handoff.sh');
+    await createChange(
+      tmpDir,
+      'stale-handoff',
+      [
+        'workflow: full',
+        'phase: design',
+        'build_mode: null',
+        'isolation: null',
+        'verify_mode: null',
+        'design_doc: null',
+        'plan: null',
+        'verify_result: pending',
+        'verified_at: null',
+        'archived: false',
+        '',
+      ].join('\n'),
+    );
+
+    runBash(tmpDir, handoffScript, ['stale-handoff', 'design', '--write']);
+
+    // Mutate proposal.md after handoff was generated
+    await writeFile(
+      path.join(tmpDir, 'openspec', 'changes', 'stale-handoff', 'proposal.md'),
+      'mutated proposal\n',
+    );
+
+    const result = runBash(tmpDir, guardScript, ['stale-handoff', 'design']);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('[FAIL] design handoff context exists');
+    expect(result.stderr).toContain('OpenSpec artifacts changed after handoff was generated');
+  }, 20_000);
+
+  it('blocks design exit when design doc frontmatter is missing required fields', async () => {
+    const handoffScript = path.join(tmpDir, 'scripts', 'comet-handoff.sh');
+    await createChange(
+      tmpDir,
+      'bad-frontmatter',
+      [
+        'workflow: full',
+        'phase: design',
+        'build_mode: null',
+        'isolation: null',
+        'verify_mode: null',
+        'design_doc: null',
+        'plan: null',
+        'verify_result: pending',
+        'verified_at: null',
+        'archived: false',
+        '',
+      ].join('\n'),
+    );
+
+    runBash(tmpDir, handoffScript, ['bad-frontmatter', 'design', '--write']);
+
+    // Design doc with wrong comet_change
+    await writeFile(
+      path.join(tmpDir, 'docs', 'superpowers', 'specs', 'bad-design.md'),
+      [
+        '---',
+        'comet_change: wrong-change',
+        'role: technical-design',
+        'canonical_spec: openspec',
+        '---',
+        '',
+      ].join('\n'),
+    );
+    runBash(tmpDir, stateScript, [
+      'set',
+      'bad-frontmatter',
+      'design_doc',
+      'docs/superpowers/specs/bad-design.md',
+    ]);
+
+    const result = runBash(tmpDir, guardScript, ['bad-frontmatter', 'design']);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('[FAIL] Design Doc frontmatter links current change');
+  }, 20_000);
+
   it('blocks build completion until isolation and build mode are selected', async () => {
     await createChange(
       tmpDir,
@@ -129,7 +452,11 @@ describe('comet shell scripts', () => {
     );
 
     const guard = runBash(tmpDir, guardScript, ['missing-build-decisions', 'build']);
-    const transition = runBash(tmpDir, stateScript, ['transition', 'missing-build-decisions', 'build-complete']);
+    const transition = runBash(tmpDir, stateScript, [
+      'transition',
+      'missing-build-decisions',
+      'build-complete',
+    ]);
 
     expect(guard.status).not.toBe(0);
     expect(guard.stderr).toContain('[FAIL] isolation selected');
@@ -168,7 +495,9 @@ describe('comet shell scripts', () => {
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('[FAIL] build_mode allowed for workflow');
     expect(result.stderr).toContain('direct is only allowed for hotfix/tweak');
-    expect(result.stderr).toContain('Next: switch build_mode to executing-plans or subagent-driven-development');
+    expect(result.stderr).toContain(
+      'Next: switch build_mode to executing-plans or subagent-driven-development',
+    );
   }, 20_000);
 
   it('prints actionable remediation for unfinished tasks', async () => {
@@ -223,7 +552,11 @@ describe('comet shell scripts', () => {
       ].join('\n'),
     );
 
-    const result = runBash(tmpDir, stateScript, ['transition', 'direct-full-transition', 'build-complete']);
+    const result = runBash(tmpDir, stateScript, [
+      'transition',
+      'direct-full-transition',
+      'build-complete',
+    ]);
 
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('build_mode=direct is only allowed for hotfix/tweak');
@@ -278,7 +611,10 @@ describe('comet shell scripts', () => {
         '',
       ].join('\n'),
     );
-    await writeFile(path.join(tmpDir, 'build-check.js'), 'console.error("configured failure"); process.exit(1);\n');
+    await writeFile(
+      path.join(tmpDir, 'build-check.js'),
+      'console.error("configured failure"); process.exit(1);\n',
+    );
     await writeFile(
       path.join(tmpDir, 'package.json'),
       JSON.stringify({ scripts: { build: 'node -e "process.exit(0)"' } }),
@@ -310,7 +646,12 @@ describe('comet shell scripts', () => {
       ].join('\n'),
     );
 
-    const set = runBash(tmpDir, stateScript, ['set', 'command-metacharacters', 'build_command', command]);
+    const set = runBash(tmpDir, stateScript, [
+      'set',
+      'command-metacharacters',
+      'build_command',
+      command,
+    ]);
     const get = runBash(tmpDir, stateScript, ['get', 'command-metacharacters', 'build_command']);
 
     expect(set.status).toBe(0);
@@ -318,7 +659,13 @@ describe('comet shell scripts', () => {
   });
 
   it('keeps shell scripts portable across GNU and BSD sed', async () => {
-    for (const name of ['comet-state.sh', 'comet-archive.sh', 'comet-guard.sh', 'comet-yaml-validate.sh']) {
+    for (const name of [
+      'comet-state.sh',
+      'comet-archive.sh',
+      'comet-guard.sh',
+      'comet-handoff.sh',
+      'comet-yaml-validate.sh',
+    ]) {
       const content = await fs.readFile(path.join(tmpDir, 'scripts', name), 'utf-8');
 
       expect(content).not.toMatch(/\bsed\s+-i(?:\s|$)/);
@@ -334,7 +681,10 @@ describe('comet shell scripts', () => {
   });
 
   it('guards bash uname detection when bash cannot be spawned', async () => {
-    const files = [path.resolve('scripts', 'run-bats.js'), path.resolve('test', 'ts', 'comet-scripts.test.ts')];
+    const files = [
+      path.resolve('scripts', 'run-bats.js'),
+      path.resolve('test', 'ts', 'comet-scripts.test.ts'),
+    ];
 
     for (const file of files) {
       const content = await fs.readFile(file, 'utf-8');
@@ -362,7 +712,10 @@ describe('comet shell scripts', () => {
       ].join('\n'),
     );
     await writeFile(path.join(tmpDir, 'comet.yaml'), 'build_command: node root-build-check.js\n');
-    await writeFile(path.join(tmpDir, 'root-build-check.js'), 'console.error("root configured failure"); process.exit(1);\n');
+    await writeFile(
+      path.join(tmpDir, 'root-build-check.js'),
+      'console.error("root configured failure"); process.exit(1);\n',
+    );
     await writeFile(
       path.join(tmpDir, 'package.json'),
       JSON.stringify({ scripts: { build: 'node -e "process.exit(0)"' } }),
@@ -395,8 +748,14 @@ describe('comet shell scripts', () => {
         '',
       ].join('\n'),
     );
-    await writeFile(path.join(tmpDir, 'docs', 'superpowers', 'reports', 'configured-verify.md'), 'PASS\n');
-    await writeFile(path.join(tmpDir, 'verify-check.js'), 'console.error("verify configured failure"); process.exit(1);\n');
+    await writeFile(
+      path.join(tmpDir, 'docs', 'superpowers', 'reports', 'configured-verify.md'),
+      'PASS\n',
+    );
+    await writeFile(
+      path.join(tmpDir, 'verify-check.js'),
+      'console.error("verify configured failure"); process.exit(1);\n',
+    );
     await writeFile(
       path.join(tmpDir, 'package.json'),
       JSON.stringify({ scripts: { build: 'node -e "process.exit(0)"' } }),
@@ -454,11 +813,22 @@ describe('comet shell scripts', () => {
         '',
       ].join('\n'),
     );
-    await writeFile(path.join(tmpDir, 'docs', 'superpowers', 'specs', 'ready-design.md'), 'design\n');
+    await writeFile(
+      path.join(tmpDir, 'docs', 'superpowers', 'specs', 'ready-design.md'),
+      'design\n',
+    );
     await writeFile(path.join(tmpDir, 'docs', 'superpowers', 'plans', 'ready-plan.md'), 'plan\n');
     await writeFile(path.join(tmpDir, 'docs', 'superpowers', 'reports', 'ready.md'), 'PASS\n');
     await writeFile(
-      path.join(tmpDir, 'openspec', 'changes', 'ready-to-archive', 'specs', 'capability', 'spec.md'),
+      path.join(
+        tmpDir,
+        'openspec',
+        'changes',
+        'ready-to-archive',
+        'specs',
+        'capability',
+        'spec.md',
+      ),
       'delta spec\n',
     );
 
@@ -475,7 +845,10 @@ describe('comet shell scripts', () => {
     await writeFile(path.join(tmpDir, 'README.md'), 'base\n');
     execFileSync('git', ['add', '.'], { cwd: tmpDir });
     execFileSync('git', ['commit', '-m', 'base'], { cwd: tmpDir, stdio: 'ignore' });
-    const baseRef = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: tmpDir, encoding: 'utf-8' }).trim();
+    const baseRef = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: tmpDir,
+      encoding: 'utf-8',
+    }).trim();
 
     await createChange(
       tmpDir,
@@ -588,7 +961,11 @@ describe('comet shell scripts', () => {
     const fail = runBash(tmpDir, stateScript, ['transition', 'verify-change', 'verify-fail']);
     const failedPhase = runBash(tmpDir, stateScript, ['get', 'verify-change', 'phase']);
     const failedResult = runBash(tmpDir, stateScript, ['get', 'verify-change', 'verify_result']);
-    const failedBranchStatus = runBash(tmpDir, stateScript, ['get', 'verify-change', 'branch_status']);
+    const failedBranchStatus = runBash(tmpDir, stateScript, [
+      'get',
+      'verify-change',
+      'branch_status',
+    ]);
 
     expect(fail.status).toBe(0);
     expect(failedPhase.stdout.trim()).toBe('build');
@@ -597,12 +974,16 @@ describe('comet shell scripts', () => {
 
     runBash(tmpDir, stateScript, ['set', 'verify-change', 'phase', 'verify']);
     runBash(tmpDir, stateScript, ['set', 'verify-change', 'verify_result', 'pending']);
-    await writeFile(path.join(tmpDir, 'docs', 'superpowers', 'reports', 'verify-change.md'), 'PASS\n');
-    runBash(
-      tmpDir,
-      stateScript,
-      ['set', 'verify-change', 'verification_report', 'docs/superpowers/reports/verify-change.md'],
+    await writeFile(
+      path.join(tmpDir, 'docs', 'superpowers', 'reports', 'verify-change.md'),
+      'PASS\n',
     );
+    runBash(tmpDir, stateScript, [
+      'set',
+      'verify-change',
+      'verification_report',
+      'docs/superpowers/reports/verify-change.md',
+    ]);
     runBash(tmpDir, stateScript, ['set', 'verify-change', 'branch_status', 'handled']);
 
     const pass = runBash(tmpDir, stateScript, ['transition', 'verify-change', 'verify-pass']);
@@ -670,7 +1051,10 @@ describe('comet shell scripts', () => {
         '',
       ].join('\n'),
     );
-    await writeFile(path.join(tmpDir, 'docs', 'superpowers', 'reports', 'guard-verify.md'), 'PASS\n');
+    await writeFile(
+      path.join(tmpDir, 'docs', 'superpowers', 'reports', 'guard-verify.md'),
+      'PASS\n',
+    );
     await writeFile(
       path.join(tmpDir, 'package.json'),
       JSON.stringify({ scripts: { build: 'node -e "process.exit(0)"' } }),
@@ -729,7 +1113,11 @@ describe('comet shell scripts', () => {
       ].join('\n'),
     );
 
-    const result = runBash(tmpDir, stateScript, ['transition', '2026-05-21-done-change', 'archived']);
+    const result = runBash(tmpDir, stateScript, [
+      'transition',
+      '2026-05-21-done-change',
+      'archived',
+    ]);
     const archived = runBash(tmpDir, stateScript, ['get', '2026-05-21-done-change', 'archived']);
 
     expect(result.status).toBe(0);

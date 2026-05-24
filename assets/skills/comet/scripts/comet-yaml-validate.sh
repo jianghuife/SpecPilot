@@ -46,7 +46,34 @@ WARNINGS=0
 field_value() {
   local value
   value=$(grep "^${1}:" "$YAML" 2>/dev/null | sed "s/^${1}: *//" || true)
+  value=$(strip_inline_comment "$value")
   strip_wrapping_quotes "$value"
+}
+
+strip_inline_comment() {
+  local value="$1"
+  printf '%s\n' "$value" | awk -v squote="'" '
+    {
+      out = ""
+      quote = ""
+      for (i = 1; i <= length($0); i++) {
+        c = substr($0, i, 1)
+        if (quote == "") {
+          if (c == "\"" || c == squote) {
+            quote = c
+          } else if (c == "#" && (i == 1 || substr($0, i - 1, 1) ~ /[[:space:]]/)) {
+            sub(/[[:space:]]+$/, "", out)
+            print out
+            next
+          }
+        } else if (c == quote) {
+          quote = ""
+        }
+        out = out c
+      }
+      print out
+    }
+  '
 }
 
 strip_wrapping_quotes() {
@@ -107,6 +134,8 @@ archived=$(field_value "archived")
 direct_override=$(field_value "direct_override")
 design_doc=$(field_value "design_doc")
 plan=$(field_value "plan")
+handoff_context=$(field_value "handoff_context")
+handoff_hash=$(field_value "handoff_hash")
 
 validate_enum "workflow"      "$workflow"      "full hotfix tweak"
 validate_enum "phase"         "$phase"          "open design build verify archive"
@@ -132,8 +161,20 @@ if [ -n "$plan" ] && [ "$plan" != "null" ]; then
   fi
 fi
 
+if [ -n "$handoff_context" ] && [ "$handoff_context" != "null" ]; then
+  if [ ! -f "$handoff_context" ]; then
+    fail "handoff_context='$handoff_context' does not exist on disk"
+  fi
+fi
+
+if [ -n "$handoff_hash" ] && [ "$handoff_hash" != "null" ]; then
+  if [[ ! "$handoff_hash" =~ ^[a-f0-9]{64}$ ]]; then
+    fail "handoff_hash='$handoff_hash' is not a sha256 hex digest"
+  fi
+fi
+
 # --- Unknown keys check ---
-KNOWN_KEYS="workflow phase design_doc plan build_mode isolation verify_mode verify_result verification_report branch_status verified_at archived direct_override build_command verify_command"
+KNOWN_KEYS="workflow phase design_doc plan build_mode isolation verify_mode verify_result verification_report branch_status verified_at archived direct_override build_command verify_command handoff_context handoff_hash"
 while IFS=: read -r key _; do
   key="${key// /}"
   [ -z "$key" ] && continue
