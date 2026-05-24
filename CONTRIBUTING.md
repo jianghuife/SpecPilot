@@ -74,3 +74,10 @@ src/
 - **Decision Core first**: Agent-facing instructions go at the top (phase detection, dispatch logic, error handling)
 - **Reference Appendix**: Field reference, script locations, best practices go at the bottom
 - **Write Chinese version first**, get approval, then sync to English
+
+## Security
+
+- Scan for API keys, secrets, tokens, and private keys before publishing.
+- Keep `.npmignore` aligned so source-only and local configuration files are not published to npm.
+- Keep `.gitignore` coverage for secrets, credentials, and IDE-specific files.
+- Validate user-provided change names against path traversal before using them in filesystem paths.

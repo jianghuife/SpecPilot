@@ -191,7 +191,7 @@ describe('comet init E2E', () => {
       '.iflow',
       '.pi',
       '.qoder',
-      '.agent',
+      '.agents',
       '.bob',
       '.forge',
       '.trae',
@@ -202,6 +202,29 @@ describe('comet init E2E', () => {
         const dest = path.join(tmpDir, platform, 'skills', skillPath);
         await expect(fs.access(dest)).resolves.toBeUndefined();
       }
+    }
+  }, 20_000);
+
+  it('installs Antigravity Comet skills to the Gemini global skills directory', async () => {
+    mockExternalSuccess();
+
+    await fs.mkdir(path.join(tmpDir, '.agents'), { recursive: true });
+    const fakeHome = path.join(tmpDir, 'fake-home');
+    await fs.mkdir(fakeHome, { recursive: true });
+
+    vi.spyOn(os, 'homedir').mockReturnValue(fakeHome);
+
+    const { initCommand } = await import('../../src/commands/init.js');
+    const result = await captureJsonOutput(() =>
+      initCommand(tmpDir, { yes: true, scope: 'global', json: true }),
+    );
+
+    expect(result.selectedPlatforms).toEqual(['antigravity']);
+
+    const manifest = await readManifest();
+    for (const skillPath of manifest.skills) {
+      const dest = path.join(fakeHome, '.gemini', 'antigravity', 'skills', skillPath);
+      await expect(fs.access(dest)).resolves.toBeUndefined();
     }
   }, 20_000);
 });

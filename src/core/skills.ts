@@ -2,7 +2,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { fileExists, readJson, copyFile, ensureDir } from '../utils/file-system.js';
-import type { Platform } from './platforms.js';
+import { getPlatformSkillsDir, type Platform } from './platforms.js';
+import type { InstallScope } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,6 +29,7 @@ async function copyCometSkillsForPlatform(
   platform: Platform,
   overwrite: boolean,
   languageSkillsDir: string = 'skills',
+  scope: InstallScope = 'project',
 ): Promise<{ copied: number; skipped: number }> {
   const assetsDir = getAssetsDir();
   const manifestPath = path.join(assetsDir, 'manifest.json');
@@ -48,7 +50,7 @@ async function copyCometSkillsForPlatform(
     const sourceDir = isScript ? 'skills' : languageSkillsDir;
 
     const src = path.join(assetsDir, sourceDir, skillRelPath);
-    const dest = path.join(baseDir, platform.skillsDir, 'skills', skillRelPath);
+    const dest = path.join(baseDir, getPlatformSkillsDir(platform, scope), 'skills', skillRelPath);
 
     if (!overwrite && (await fileExists(dest))) {
       skippedCount++;

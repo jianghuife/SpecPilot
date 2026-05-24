@@ -8,7 +8,7 @@ import {
   hasSkills,
   hasPluginSuperpowers,
 } from '../../src/core/detect.js';
-import type { Platform } from '../../src/core/platforms.js';
+import { PLATFORMS, type Platform } from '../../src/core/platforms.js';
 
 const mockPlatform: Platform = {
   id: 'claude',
@@ -75,6 +75,15 @@ describe('detect', () => {
       const detected = await detectPlatforms(tmpDir);
       expect(detected.size).toBe(0);
     });
+
+    it('detects Antigravity from the project skills directory', async () => {
+      const antigravity = PLATFORMS.find((platform) => platform.id === 'antigravity');
+      expect(antigravity?.skillsDir).toBe('.agents');
+
+      await fs.mkdir(path.join(tmpDir, '.agents'));
+      const detected = await detectPlatforms(tmpDir);
+      expect(detected.has('antigravity')).toBe(true);
+    });
   });
 
   describe('hasSkills', () => {
@@ -100,12 +109,30 @@ describe('detect', () => {
       expect(await hasSkills(tmpDir, mockPlatform, 'comet')).toBe(true);
     });
 
+    it('detects Antigravity global skills in the Gemini Antigravity directory', async () => {
+      const antigravity = PLATFORMS.find((platform) => platform.id === 'antigravity');
+      expect(antigravity).toBeDefined();
+      if (!antigravity) return;
+
+      await fs.mkdir(path.join(tmpDir, '.gemini', 'antigravity', 'skills', 'comet'), {
+        recursive: true,
+      });
+
+      expect(await hasSkills(tmpDir, antigravity, 'comet', [], 'global')).toBe(true);
+    });
+
     it('returns false for missing skills', async () => {
       await fs.mkdir(path.join(tmpDir, '.claude', 'skills'), { recursive: true });
       expect(await hasSkills(tmpDir, mockPlatform, 'comet')).toBe(false);
     });
 
     it('returns false when skills directory does not exist', async () => {
+      expect(await hasSkills(tmpDir, mockPlatform, 'comet')).toBe(false);
+    });
+
+    it('returns false when a platform directory exists without a skills directory', async () => {
+      await fs.mkdir(path.join(tmpDir, '.claude'), { recursive: true });
+
       expect(await hasSkills(tmpDir, mockPlatform, 'comet')).toBe(false);
     });
 
