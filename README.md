@@ -94,7 +94,8 @@ comet init
 
 | Option | Description |
 |--------|-------------|
-| `--yes` | Non-interactive mode, auto-select detected platforms |
+| `--yes` | Non-interactive mode, auto-select detected platforms (or all if none detected) |
+| `--scope <scope>` | Install scope: `project` or `global` |
 | `--skip-existing` | Skip already installed components |
 | `--overwrite` | Overwrite already installed components |
 | `--json` | Output structured JSON |
@@ -165,6 +166,7 @@ After `comet init`, three groups of skills are installed to the selected platfor
 | Script | Purpose |
 |--------|---------|
 | `comet-guard.sh` | Phase transition guard — validates exit conditions, `--apply` auto-updates `.comet.yaml` |
+| `comet-handoff.sh` | Design handoff — generates deterministic context packages from OpenSpec artifacts with SHA256 tracing |
 | `comet-archive.sh` | One-command archive — validates state, syncs specs, moves to archive, updates status |
 | `comet-yaml-validate.sh` | Schema validator — validates `.comet.yaml` structure and field values |
 | `comet-state.sh` | Unified state management — init/set/get/check/scale, agents' exclusive YAML interface |
@@ -287,6 +289,7 @@ your-project/
 │   ├── comet/SKILL.md
 │   │   └── scripts/
 │   │       ├── comet-guard.sh       # Phase transition guard (--apply auto-updates state)
+│   │       ├── comet-handoff.sh     # Design handoff (OpenSpec → Superpowers context tracing)
 │   │       ├── comet-archive.sh     # One-command archive automation
 │   │       ├── comet-yaml-validate.sh # Schema validator
 │   │       └── comet-state.sh       # Unified state management (init/set/get/check/scale)
