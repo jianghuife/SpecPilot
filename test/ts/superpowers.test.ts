@@ -28,14 +28,14 @@ describe('superpowers', () => {
       expect(SKILLS_AGENT_MAP['cursor']).toBe('cursor');
     });
 
-    it('maps roocode to roo-code', async () => {
+    it('maps roocode to roo', async () => {
       const { SKILLS_AGENT_MAP } = await import('../../src/core/superpowers.js');
-      expect(SKILLS_AGENT_MAP['roocode']).toBe('roo-code');
+      expect(SKILLS_AGENT_MAP['roocode']).toBe('roo');
     });
 
-    it('maps kilocode to kilo-code', async () => {
+    it('maps kilocode to kilo', async () => {
       const { SKILLS_AGENT_MAP } = await import('../../src/core/superpowers.js');
-      expect(SKILLS_AGENT_MAP['kilocode']).toBe('kilo-code');
+      expect(SKILLS_AGENT_MAP['kilocode']).toBe('kilo');
     });
 
     it('maps auggie to augment', async () => {
@@ -43,9 +43,21 @@ describe('superpowers', () => {
       expect(SKILLS_AGENT_MAP['auggie']).toBe('augment');
     });
 
-    it('maps forgecode to forge', async () => {
+    it('maps forgecode unchanged', async () => {
       const { SKILLS_AGENT_MAP } = await import('../../src/core/superpowers.js');
-      expect(SKILLS_AGENT_MAP['forgecode']).toBe('forge');
+      expect(SKILLS_AGENT_MAP['forgecode']).toBe('forgecode');
+    });
+
+    it('maps platforms to valid skills CLI agent ids', async () => {
+      const { SKILLS_AGENT_MAP } = await import('../../src/core/superpowers.js');
+      expect(SKILLS_AGENT_MAP['gemini']).toBe('gemini-cli');
+      expect(SKILLS_AGENT_MAP['qwen']).toBe('qwen-code');
+      expect(SKILLS_AGENT_MAP['kiro']).toBe('kiro-cli');
+      expect(SKILLS_AGENT_MAP['iflow']).toBe('iflow-cli');
+      expect(SKILLS_AGENT_MAP['factory']).toBe('droid');
+      expect(SKILLS_AGENT_MAP['amazon-q']).toBe('universal');
+      expect(SKILLS_AGENT_MAP['costrict']).toBe('universal');
+      expect(SKILLS_AGENT_MAP['lingma']).toBe('universal');
     });
 
     it('has entries for all 28 platforms', async () => {
@@ -74,7 +86,8 @@ describe('superpowers', () => {
       expect(result).toBe('installed');
       const cmd = mockedExecSync.mock.calls[0][0] as string;
       expect(cmd).toContain('npx skills add obra/superpowers');
-      expect(cmd).toContain('--agent claude-code,cursor');
+      expect(cmd).toContain('--agent claude-code --agent cursor');
+      expect(cmd).not.toContain('--agent claude-code,cursor');
       expect(cmd).toContain('-y');
     });
 

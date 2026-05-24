@@ -1,9 +1,28 @@
 import { execSync } from 'child_process';
+import os from 'os';
 import { PLATFORMS } from './platforms.js';
 
 import type { InstallScope } from './types.js';
 
 const VALID_TOOL_IDS = new Set(PLATFORMS.map((p) => p.openspecToolId));
+
+function quoteShellArg(value: string, platform: NodeJS.Platform = process.platform): string {
+  if (platform === 'win32') {
+    return `"${value.replace(/"/g, '\\"')}"`;
+  }
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+function buildOpenSpecInitCommand(
+  projectPath: string,
+  toolIds: string[],
+  scope: InstallScope,
+  homeDir = os.homedir(),
+  platform: NodeJS.Platform = process.platform,
+): string {
+  const targetPath = scope === 'global' ? homeDir : projectPath;
+  return `openspec init ${quoteShellArg(targetPath, platform)} --tools ${toolIds.join(',')}`;
+}
 
 function isCommandAvailable(command: string): boolean {
   try {
@@ -53,11 +72,7 @@ async function installOpenSpec(
   }
 
   try {
-    const flags = ['--tools', toolIds.join(','), scope === 'global' ? '--global' : '']
-      .filter(Boolean)
-      .join(' ');
-
-    execSync(`openspec init ${flags}`, {
+    execSync(buildOpenSpecInitCommand(projectPath, toolIds, scope), {
       cwd: projectPath,
       stdio: 'pipe',
       timeout: 120_000,
@@ -69,4 +84,4 @@ async function installOpenSpec(
   }
 }
 
-export { installOpenSpec, isCommandAvailable };
+export { installOpenSpec, isCommandAvailable, buildOpenSpecInitCommand, quoteShellArg };

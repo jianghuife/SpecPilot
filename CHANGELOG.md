@@ -2,6 +2,21 @@
 
 All notable changes to @rpamis/comet will be documented in this file.
 
+## What's Changed [0.2.7] - 2026-05-24
+
+### Fixed
+
+- **OpenSpec global init**: `comet init` global scope now passes the home directory as OpenSpec's init target instead of using the unsupported `openspec init --global` flag
+- **Cross-platform path quoting**: OpenSpec init targets are shell-quoted for Windows, macOS, and Linux paths, including home directories with spaces
+- **Superpowers multi-platform install**: Superpowers installation now passes repeated `--agent` flags instead of a comma-separated agent list, matching the `skills` CLI behavior
+- **Superpowers agent mappings**: Updated Comet platform mappings to valid `skills` CLI agent IDs, with unsupported platform-specific IDs falling back to `universal`
+
+### Tests
+
+- Added regression coverage for OpenSpec global init command construction across Windows, macOS, and Linux
+- Added Superpowers coverage for valid `skills` CLI agent mappings and multi-agent argument formatting
+- Smoke-tested project and global initialization outputs for all 28 supported platforms in isolated temporary directories
+
 ## What's Changed [0.2.6] - 2026-05-23
 
 ### Added

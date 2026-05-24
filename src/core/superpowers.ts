@@ -9,27 +9,27 @@ const SKILLS_AGENT_MAP: Record<string, string> = {
   opencode: 'opencode',
   windsurf: 'windsurf',
   cline: 'cline',
-  roocode: 'roo-code',
+  roocode: 'roo',
   continue: 'continue',
   'github-copilot': 'github-copilot',
-  gemini: 'gemini',
-  'amazon-q': 'amazon-q',
-  qwen: 'qwen',
-  kilocode: 'kilo-code',
+  gemini: 'gemini-cli',
+  'amazon-q': 'universal',
+  qwen: 'qwen-code',
+  kilocode: 'kilo',
   auggie: 'augment',
-  kiro: 'kiro',
-  lingma: 'lingma',
+  kiro: 'kiro-cli',
+  lingma: 'universal',
   junie: 'junie',
   codebuddy: 'codebuddy',
-  costrict: 'costrict',
+  costrict: 'universal',
   crush: 'crush',
-  factory: 'factory',
-  iflow: 'iflow',
+  factory: 'droid',
+  iflow: 'iflow-cli',
   pi: 'pi',
   qoder: 'qoder',
   antigravity: 'antigravity',
   bob: 'bob',
-  forgecode: 'forge',
+  forgecode: 'forgecode',
   trae: 'trae',
 };
 
@@ -45,7 +45,7 @@ async function installSuperpowersForPlatforms(
     throw new Error(`Unknown platform IDs: ${unknownIds.join(', ')}`);
   }
 
-  const agentNames = platformIds.map((id) => SKILLS_AGENT_MAP[id]).filter(Boolean);
+  const agentNames = [...new Set(platformIds.map((id) => SKILLS_AGENT_MAP[id]).filter(Boolean))];
 
   if (agentNames.length === 0) {
     console.error(`    No valid agent names resolved for platforms: ${platformIds.join(', ')}`);
@@ -53,7 +53,8 @@ async function installSuperpowersForPlatforms(
   }
 
   try {
-    const flags = ['-y', scope === 'global' ? '-g' : '', `--agent ${agentNames.join(',')}`]
+    const agentFlags = agentNames.map((name) => `--agent ${name}`).join(' ');
+    const flags = ['-y', scope === 'global' ? '-g' : '', agentFlags]
       .filter(Boolean)
       .join(' ');
 
