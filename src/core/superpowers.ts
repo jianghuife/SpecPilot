@@ -1,5 +1,6 @@
 import { execSync } from 'child_process';
 
+import { quoteShellArg } from './openspec.js';
 import type { InstallScope } from './types.js';
 
 const SKILLS_AGENT_MAP: Record<string, string> = {
@@ -35,11 +36,12 @@ const SKILLS_AGENT_MAP: Record<string, string> = {
 
 const VALID_PLATFORM_IDS = new Set(Object.keys(SKILLS_AGENT_MAP));
 
-async function installSuperpowersForPlatforms(
-  projectPath: string,
+function buildSuperpowersInstallCommand(
+  _projectPath: string,
   scope: InstallScope,
   platformIds: string[],
-): Promise<'installed' | 'failed' | 'skipped'> {
+  platform: NodeJS.Platform = process.platform,
+): string {
   const unknownIds = platformIds.filter((id) => !VALID_PLATFORM_IDS.has(id));
   if (unknownIds.length > 0) {
     throw new Error(`Unknown platform IDs: ${unknownIds.join(', ')}`);
@@ -48,15 +50,23 @@ async function installSuperpowersForPlatforms(
   const agentNames = [...new Set(platformIds.map((id) => SKILLS_AGENT_MAP[id]).filter(Boolean))];
 
   if (agentNames.length === 0) {
-    console.error(`    No valid agent names resolved for platforms: ${platformIds.join(', ')}`);
-    return 'failed';
+    throw new Error(`No valid agent names resolved for platforms: ${platformIds.join(', ')}`);
   }
 
-  try {
-    const agentFlags = agentNames.map((name) => `--agent ${name}`).join(' ');
-    const flags = ['-y', scope === 'global' ? '-g' : '', agentFlags].filter(Boolean).join(' ');
+  const agentFlags = agentNames.map((name) => `--agent ${quoteShellArg(name, platform)}`).join(' ');
+  const flags = ['-y', scope === 'global' ? '-g' : '', agentFlags].filter(Boolean).join(' ');
+  return `npx skills add obra/superpowers ${flags}`;
+}
 
-    execSync(`npx skills add obra/superpowers ${flags}`, {
+async function installSuperpowersForPlatforms(
+  projectPath: string,
+  scope: InstallScope,
+  platformIds: string[],
+): Promise<'installed' | 'failed' | 'skipped'> {
+  const command = buildSuperpowersInstallCommand(projectPath, scope, platformIds);
+
+  try {
+    execSync(command, {
       cwd: projectPath,
       stdio: 'pipe',
       timeout: 120_000,
@@ -68,4 +78,4 @@ async function installSuperpowersForPlatforms(
   }
 }
 
-export { installSuperpowersForPlatforms, SKILLS_AGENT_MAP };
+export { installSuperpowersForPlatforms, buildSuperpowersInstallCommand, SKILLS_AGENT_MAP };

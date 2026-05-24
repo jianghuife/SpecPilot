@@ -8,7 +8,7 @@ const VALID_TOOL_IDS = new Set(PLATFORMS.map((p) => p.openspecToolId));
 
 function quoteShellArg(value: string, platform: NodeJS.Platform = process.platform): string {
   if (platform === 'win32') {
-    return `"${value.replace(/"/g, '\\"')}"`;
+    return `"${value.replace(/"/g, '\\"').replace(/\\+$/, (match) => match + match)}"`;
   }
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
@@ -21,7 +21,7 @@ function buildOpenSpecInitCommand(
   platform: NodeJS.Platform = process.platform,
 ): string {
   const targetPath = scope === 'global' ? homeDir : projectPath;
-  return `openspec init ${quoteShellArg(targetPath, platform)} --tools ${toolIds.join(',')}`;
+  return `openspec init ${quoteShellArg(targetPath, platform)} --tools ${quoteShellArg(toolIds.join(','), platform)}`;
 }
 
 function isCommandAvailable(command: string): boolean {

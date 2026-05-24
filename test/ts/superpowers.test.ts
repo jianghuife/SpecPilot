@@ -63,11 +63,34 @@ describe('superpowers', () => {
     it('has entries for all 28 platforms', async () => {
       const { SKILLS_AGENT_MAP } = await import('../../src/core/superpowers.js');
       const platformIds = [
-        'claude', 'cursor', 'codex', 'opencode', 'windsurf', 'cline',
-        'roocode', 'continue', 'github-copilot', 'gemini', 'amazon-q',
-        'qwen', 'kilocode', 'auggie', 'kiro', 'lingma', 'junie',
-        'codebuddy', 'costrict', 'crush', 'factory', 'iflow', 'pi',
-        'qoder', 'antigravity', 'bob', 'forgecode', 'trae',
+        'claude',
+        'cursor',
+        'codex',
+        'opencode',
+        'windsurf',
+        'cline',
+        'roocode',
+        'continue',
+        'github-copilot',
+        'gemini',
+        'amazon-q',
+        'qwen',
+        'kilocode',
+        'auggie',
+        'kiro',
+        'lingma',
+        'junie',
+        'codebuddy',
+        'costrict',
+        'crush',
+        'factory',
+        'iflow',
+        'pi',
+        'qoder',
+        'antigravity',
+        'bob',
+        'forgecode',
+        'trae',
       ];
       for (const id of platformIds) {
         expect(SKILLS_AGENT_MAP).toHaveProperty(id);
@@ -81,14 +104,25 @@ describe('superpowers', () => {
       mockedExecSync.mockReturnValueOnce(Buffer.from('installed'));
 
       const { installSuperpowersForPlatforms } = await import('../../src/core/superpowers.js');
-      const result = await installSuperpowersForPlatforms('/tmp/test', 'project', ['claude', 'cursor']);
+      const result = await installSuperpowersForPlatforms('/tmp/test', 'project', [
+        'claude',
+        'cursor',
+      ]);
 
       expect(result).toBe('installed');
       const cmd = mockedExecSync.mock.calls[0][0] as string;
       expect(cmd).toContain('npx skills add obra/superpowers');
-      expect(cmd).toContain('--agent claude-code --agent cursor');
+      expect(cmd).toContain('--agent "claude-code" --agent "cursor"');
       expect(cmd).not.toContain('--agent claude-code,cursor');
       expect(cmd).toContain('-y');
+    });
+
+    it('quotes agent names when building install flags', async () => {
+      const { buildSuperpowersInstallCommand } = await import('../../src/core/superpowers.js');
+
+      expect(
+        buildSuperpowersInstallCommand('/tmp/test', 'project', ['claude', 'cursor'], 'linux'),
+      ).toBe("npx skills add obra/superpowers -y --agent 'claude-code' --agent 'cursor'");
     });
 
     it('passes -g flag for global scope', async () => {
@@ -123,7 +157,12 @@ describe('superpowers', () => {
     it('throws when mixed with unknown platform ids', async () => {
       const { installSuperpowersForPlatforms } = await import('../../src/core/superpowers.js');
       await expect(
-        installSuperpowersForPlatforms('/tmp/test', 'project', ['claude', 'unknown-1', 'cursor', 'unknown-2']),
+        installSuperpowersForPlatforms('/tmp/test', 'project', [
+          'claude',
+          'unknown-1',
+          'cursor',
+          'unknown-2',
+        ]),
       ).rejects.toThrow('Unknown platform IDs: unknown-1, unknown-2');
     });
   });
