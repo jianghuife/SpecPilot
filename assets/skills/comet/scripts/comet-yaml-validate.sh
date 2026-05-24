@@ -107,6 +107,8 @@ archived=$(field_value "archived")
 direct_override=$(field_value "direct_override")
 design_doc=$(field_value "design_doc")
 plan=$(field_value "plan")
+handoff_context=$(field_value "handoff_context")
+handoff_hash=$(field_value "handoff_hash")
 
 validate_enum "workflow"      "$workflow"      "full hotfix tweak"
 validate_enum "phase"         "$phase"          "open design build verify archive"
@@ -132,8 +134,20 @@ if [ -n "$plan" ] && [ "$plan" != "null" ]; then
   fi
 fi
 
+if [ -n "$handoff_context" ] && [ "$handoff_context" != "null" ]; then
+  if [ ! -f "$handoff_context" ]; then
+    fail "handoff_context='$handoff_context' does not exist on disk"
+  fi
+fi
+
+if [ -n "$handoff_hash" ] && [ "$handoff_hash" != "null" ]; then
+  if [[ ! "$handoff_hash" =~ ^[a-f0-9]{64}$ ]]; then
+    fail "handoff_hash='$handoff_hash' is not a sha256 hex digest"
+  fi
+fi
+
 # --- Unknown keys check ---
-KNOWN_KEYS="workflow phase design_doc plan build_mode isolation verify_mode verify_result verification_report branch_status verified_at archived direct_override build_command verify_command"
+KNOWN_KEYS="workflow phase design_doc plan build_mode isolation verify_mode verify_result verification_report branch_status verified_at archived direct_override build_command verify_command handoff_context handoff_hash"
 while IFS=: read -r key _; do
   key="${key// /}"
   [ -z "$key" ] && continue

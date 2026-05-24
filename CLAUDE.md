@@ -1,1 +1,55 @@
-skill优化的时候先写中文版本，用户确认之后再修改英文版本
+## 测试
+
+```bash
+npx vitest run test/ts/comet-scripts.test.ts   # shell 脚本测试
+npx vitest run                                   # 全量测试
+```
+
+## Shell 脚本规范
+
+脚本位于 `assets/skills/comet/scripts/`，必须跨平台兼容（macOS / Linux / Windows Git Bash）：
+
+- **禁止** `sed -i`（GNU/BSD 不兼容），用 `awk` 做字段替换
+- 必须兼容 `sha256sum`（GNU）和 `shasum -a 256`（BSD/macOS）
+- 所有可选 grep 结果加 `|| true` 防止 `pipefail` 误杀
+- 新增脚本必须加入 `beforeEach` 的拷贝列表和 manifest.json
+
+## 脚本依赖关系
+
+```
+comet-state.sh ← comet-guard.sh, comet-handoff.sh, comet-archive.sh
+comet-yaml-validate.sh ← comet-guard.sh (preflight 阶段)
+comet-handoff.sh ← comet-state.sh (写入 handoff_context/handoff_hash)
+```
+
+新增共享工具函数时（如 hash、yaml 解析），如果两个脚本都需要，允许在各自脚本中独立实现，不强制抽共享文件。
+
+## .comet.yaml 状态机
+
+每个 change 的状态文件，字段变更需要同步三处：
+1. `comet-state.sh` — `cmd_set` 白名单 + enum 验证
+2. `comet-yaml-validate.sh` — schema 校验 + KNOWN_KEYS
+3. `test/ts/comet-scripts.test.ts` — 测试中的 yaml 字符串
+
+## 双语言 Skill
+
+skill 优化时先写中文版本（`assets/skills-zh/`），用户确认后再修改英文版本（`assets/skills/`）。
+
+## Changelog 规范
+
+文件：`CHANGELOG.md`，新版本条目置顶。
+
+```
+## What's Changed [x.y.z] - YYYY-MM-DD
+
+### Added / Changed / Fixed / Tests / Removed / Security
+
+- **功能名**: 描述做了什么以及为什么
+```
+
+要点：
+- 版本号与 `package.json` 的 `version` 字段一致
+- 每条以 `- **粗体关键词**: ` 开头，后接具体变更内容
+- 按类型分组：Added → Changed → Fixed → Tests → Removed → Security
+- 描述侧重 **行为变更**（what + why），不是实现细节
+- `### Tests` 条目汇总新增测试覆盖的场景，不逐条列出测试用例

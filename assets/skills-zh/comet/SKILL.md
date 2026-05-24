@@ -201,10 +201,11 @@ Comet 脚本随 skill 包分发在 `comet/scripts/` 下。**不硬编码路径**
 COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
 COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
 COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
+COMET_HANDOFF="${COMET_HANDOFF:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-handoff.sh' -type f -print -quit 2>/dev/null)}"
 COMET_ARCHIVE="${COMET_ARCHIVE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-archive.sh' -type f -print -quit 2>/dev/null)}"
 
 # 脚本定位失败时停止流程
-if [ -z "$COMET_GUARD" ] || [ -z "$COMET_STATE" ] || [ -z "$COMET_ARCHIVE" ]; then
+if [ -z "$COMET_GUARD" ] || [ -z "$COMET_STATE" ] || [ -z "$COMET_HANDOFF" ] || [ -z "$COMET_ARCHIVE" ]; then
   echo "ERROR: Comet scripts not found. Ensure the comet skill is installed." >&2
   echo "Expected path pattern: */comet/scripts/comet-*.sh under project or platform skill directories" >&2
   return 1
@@ -234,7 +235,7 @@ bash "$COMET_STATE" transition <archive-name> archived
 bash "$COMET_ARCHIVE" <change-name>
 ```
 
-加载 comet 后，agent 应执行以上三条变量赋值一次，后续全程复用 `$COMET_GUARD`、`$COMET_STATE`、`$COMET_ARCHIVE`。
+加载 comet 后，agent 应执行以上变量赋值一次，后续全程复用 `$COMET_GUARD`、`$COMET_STATE`、`$COMET_HANDOFF`、`$COMET_ARCHIVE`。
 
 ### 文件结构
 
@@ -248,6 +249,7 @@ openspec/                              # OpenSpec — WHAT
 │   │   ├── proposal.md                # Why + What
 │   │   ├── design.md                  # 高层架构决策
 │   │   ├── specs/<capability>/spec.md # Delta 能力规格
+│   │   ├── .comet/handoff/            # 脚本生成的阶段交接包
 │   │   └── tasks.md                   # 任务清单
 │   └── archive/YYYY-MM-DD-<name>/     # 已归档
 └── specs/<capability>/spec.md         # 主 specs（归档时从 delta 覆盖）
@@ -261,11 +263,12 @@ docs/superpowers/                      # Superpowers — HOW
 
 1. **brainstorming 不可跳过** — 每次变更必须经过深度设计（hotfix 和 tweak 除外）
 2. **delta spec 是活文档** — 阶段 3 期间可自由修改，归档时同步
-3. **保持 tasks.md 同步** — 完成一个勾一个
-4. **频繁提交** — 每个任务一次提交，message 体现设计意图
-5. **先验证再归档** — `/comet-verify` 通过后才执行 `/comet-archive`
-6. **增量更新分级** — 小编辑、中重 brainstorming、大新 change
-7. **Plan 必须关联 change** — 文件头包含 `change:` 和 `design-doc:` 元数据
-8. **归档闭环** — design doc 和 plan 必须标注 `archived-with` 状态
-9. **修改已有功能** — 直接 open 新 change 即可
-10. **Preset 有上限** — hotfix/tweak 满足升级条件时及时切换到完整流程
+3. **交接包由脚本生成** — OpenSpec → Superpowers 的上下文必须通过 `comet-handoff.sh` 生成 compact 可追溯摘录（必要时 `--full`），并由 guard 校验 source/hash/mode
+4. **保持 tasks.md 同步** — 完成一个勾一个
+5. **频繁提交** — 每个任务一次提交，message 体现设计意图
+6. **先验证再归档** — `/comet-verify` 通过后才执行 `/comet-archive`
+7. **增量更新分级** — 小编辑、中重 brainstorming、大新 change
+8. **Plan 必须关联 change** — 文件头包含 `change:` 和 `design-doc:` 元数据
+9. **归档闭环** — design doc 和 plan 必须标注 `archived-with` 状态
+10. **修改已有功能** — 直接 open 新 change 即可
+11. **Preset 有上限** — hotfix/tweak 满足升级条件时及时切换到完整流程

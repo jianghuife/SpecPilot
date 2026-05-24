@@ -2,6 +2,25 @@
 
 All notable changes to @rpamis/comet will be documented in this file.
 
+## What's Changed [0.2.8] - 2026-05-24
+
+### Added
+
+- **Design handoff script**: New `comet-handoff.sh` generates deterministic, source-traceable context packages (compact or full mode) from OpenSpec artifacts into `.comet/handoff/`, recording `handoff_context` and `handoff_hash` in `.comet.yaml`
+- **Handoff guard checks**: Design phase guard now validates handoff context existence, hash freshness (detects post-handoff OpenSpec mutations), markdown traceability markers, and design doc frontmatter fields (`comet_change`, `role: technical-design`, `canonical_spec: openspec`)
+- **`handoff_context` and `handoff_hash` fields**: New `.comet.yaml` fields for tracking script-generated handoff packages, with schema validation (path existence, sha256 hex digest format)
+
+### Changed
+
+- **Chinese skill docs updated**: `comet-design/SKILL.md` and `comet/SKILL.md` now document the handoff flow, replacing agent-authored summaries with script-generated context packs
+- **JSON generation uses process substitution**: `write_json_context` in `comet-handoff.sh` uses `< <(source_files)` instead of pipe subshell, fixing variable scoping
+- **Error message formatting**: `comet-state.sh` unknown-field error message split from a single 270+ character line into multiple lines for readability
+- **CLAUDE.md and AGENTS.md**: Added project-level instructions covering test commands, shell script conventions, script dependency graph, `.comet.yaml` state machine sync rules, and changelog format
+
+### Tests
+
+- Added coverage for `--full` handoff mode, missing OpenSpec artifacts rejection, post-handoff hash mismatch detection, and design doc frontmatter validation
+
 ## What's Changed [0.2.7] - 2026-05-24
 
 ### Fixed

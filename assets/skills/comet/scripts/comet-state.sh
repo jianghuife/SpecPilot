@@ -224,12 +224,16 @@ cmd_set() {
 
   # Validate field name
   case "$field" in
-    workflow|phase|build_mode|isolation|verify_mode|verify_result|verification_report|branch_status|archived|design_doc|plan|verified_at|direct_override|build_command|verify_command)
+    workflow|phase|build_mode|isolation|verify_mode|verify_result|verification_report|branch_status|archived|design_doc|plan|verified_at|direct_override|build_command|verify_command|handoff_context|handoff_hash)
       # Valid field
       ;;
     *)
       red "ERROR: Unknown field: '$field'" >&2
-      red "Valid fields: workflow, phase, design_doc, plan, build_mode, isolation, verify_mode, verify_result, verification_report, branch_status, verified_at, archived, direct_override, build_command, verify_command" >&2
+      red "Valid fields:" >&2
+      red "  workflow, phase, design_doc, plan, build_mode, isolation," >&2
+      red "  verify_mode, verify_result, verification_report, branch_status," >&2
+      red "  verified_at, archived, direct_override, build_command," >&2
+      red "  verify_command, handoff_context, handoff_hash" >&2
       exit 1
       ;;
   esac
@@ -263,7 +267,7 @@ cmd_set() {
     direct_override)
       validate_enum "$value" "true" "false"
       ;;
-    design_doc|plan|verification_report|verified_at|build_command|verify_command)
+    design_doc|plan|verification_report|verified_at|build_command|verify_command|handoff_context|handoff_hash)
       # No validation for path fields, date fields, or project command strings
       ;;
   esac
