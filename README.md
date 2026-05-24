@@ -351,6 +351,10 @@ pnpm format
 
 See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 
+## Roadmap
+
+Track our development progress and upcoming features on the [Comet Roadmap](https://github.com/orgs/rpamis/projects/1).
+
 ## Security
 
 - Pre-publish scan for API keys, secrets, tokens, and private keys

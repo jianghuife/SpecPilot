@@ -350,6 +350,10 @@ pnpm format
 
 详见 [CHANGELOG.md](CHANGELOG.md) 了解版本历史与更新。
 
+## 路线图
+
+在 [Comet Roadmap](https://github.com/orgs/rpamis/projects/1) 查看开发进展与即将推出的功能。
+
 ## 安全
 
 - 发布前扫描 API keys、secrets、tokens、private keys
