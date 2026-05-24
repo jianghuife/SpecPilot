@@ -25,6 +25,7 @@ All notable changes to @rpamis/comet will be documented in this file.
 - **Init E2E install checks**: CI now verifies Comet-owned skill artifacts in every supported platform directory and checks OpenSpec/Superpowers installer status from `comet init --json` for both project and global installs, avoiding false failures from external CLI-specific directory layouts
 - **Windows global init E2E home directory**: CI now sets `USERPROFILE` alongside `HOME` for global-scope init checks on Windows, matching Node's `os.homedir()` resolution and preventing false missing-skill failures
 - **README state documentation**: README examples now show accurate `.comet.yaml` build-state defaults, verification evidence timing, handoff fields, and project-only working directory creation
+- **Windows Superpowers init timeout**: Superpowers external installer timeout increased to tolerate slower Windows `npx skills add` runs, reducing flaky init E2E failures
 
 ### Tests
 
@@ -33,6 +34,7 @@ All notable changes to @rpamis/comet will be documented in this file.
 - Added regression coverage for `.comet.yaml` trailing comments and Design Doc frontmatter with a UTF-8 BOM or leading blank lines
 - Added CI workflow regression coverage for project and global installation checks across Comet-owned files and external OpenSpec/Superpowers installer statuses
 - Added CI workflow regression coverage for Windows global init using the temporary `USERPROFILE` home directory
+- Added regression coverage for the longer Superpowers installer timeout used by init
 
 ## What's Changed [0.2.7] - 2026-05-24
 

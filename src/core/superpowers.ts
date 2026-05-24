@@ -35,6 +35,7 @@ const SKILLS_AGENT_MAP: Record<string, string> = {
 };
 
 const VALID_PLATFORM_IDS = new Set(Object.keys(SKILLS_AGENT_MAP));
+const SUPERPOWERS_INSTALL_TIMEOUT_MS = 300_000;
 
 function buildSuperpowersInstallCommand(
   _projectPath: string,
@@ -69,7 +70,7 @@ async function installSuperpowersForPlatforms(
     execSync(command, {
       cwd: projectPath,
       stdio: 'pipe',
-      timeout: 120_000,
+      timeout: SUPERPOWERS_INSTALL_TIMEOUT_MS,
     });
     return 'installed';
   } catch (error) {
