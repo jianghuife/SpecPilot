@@ -2,22 +2,23 @@ import { describe, expect, it } from 'vitest';
 import { promises as fs } from 'fs';
 
 describe('CI workflows', () => {
-  it('validates init e2e installs every skill family into every platform directory', async () => {
+  it('validates init e2e through owned files and installer status', async () => {
     const workflow = (await fs.readFile('.github/workflows/ci.yml', 'utf-8')).replace(/\r\n/g, '\n');
 
     expect(workflow).toContain('comet-init-project.json');
     expect(workflow).toContain('comet-init-global.json');
-    expect(workflow).toContain('check_glob "$PROJ/$sd/openspec-*"');
-    expect(workflow).toContain('check_dir "$PROJ/$sd/brainstorming"');
-    expect(workflow).toContain('check_dir "$PROJ/$sd/using-superpowers"');
     expect(workflow).toContain('check_file "$PROJ/$sd/comet/SKILL.md"');
-    expect(workflow).toContain('check_glob "$HOME_DIR/$sd/openspec-*"');
-    expect(workflow).toContain('check_dir "$HOME_DIR/$sd/brainstorming"');
-    expect(workflow).toContain('check_dir "$HOME_DIR/$sd/using-superpowers"');
     expect(workflow).toContain('check_file "$HOME_DIR/$sd/comet/SKILL.md"');
-    expect(workflow).toContain("r.superpowers !== 'installed'");
-    expect(workflow).toContain('All 28 platforms project skills (OpenSpec + Superpowers + Comet): OK');
-    expect(workflow).toContain('All 28 platforms global skills (OpenSpec + Superpowers + Comet): OK');
+    expect(workflow).toContain("const components = ['openspec', 'superpowers'];");
+    expect(workflow).toContain("r[component] !== 'installed'");
+    expect(workflow).not.toContain('check_glob "$PROJ/$sd/openspec-*"');
+    expect(workflow).not.toContain('check_dir "$PROJ/$sd/brainstorming"');
+    expect(workflow).not.toContain('check_dir "$PROJ/$sd/using-superpowers"');
+    expect(workflow).not.toContain('check_glob "$HOME_DIR/$sd/openspec-*"');
+    expect(workflow).not.toContain('check_dir "$HOME_DIR/$sd/brainstorming"');
+    expect(workflow).not.toContain('check_dir "$HOME_DIR/$sd/using-superpowers"');
+    expect(workflow).toContain('All 28 platforms project Comet skills: OK');
+    expect(workflow).toContain('All 28 platforms global Comet skills: OK');
   });
 
   it('defines PR title linting with Comet-specific semantic scopes', async () => {

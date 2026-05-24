@@ -22,14 +22,14 @@ All notable changes to @rpamis/comet will be documented in this file.
 ### Fixed
 
 - **YAML and frontmatter parsing**: Comet scripts now ignore unquoted trailing comments in `.comet.yaml` field values and accept Design Doc frontmatter after a UTF-8 BOM or leading blank lines, preventing false guard and handoff failures
-- **Init E2E skill checks**: CI now verifies OpenSpec, Superpowers, and Comet skill artifacts in every supported platform directory for both project and global installs, with explicit missing-path diagnostics
+- **Init E2E install checks**: CI now verifies Comet-owned skill artifacts in every supported platform directory and checks OpenSpec/Superpowers installer status from `comet init --json` for both project and global installs, avoiding false failures from external CLI-specific directory layouts
 
 ### Tests
 
 - Added coverage for `--full` handoff mode, missing OpenSpec artifacts rejection, post-handoff hash mismatch detection, and design doc frontmatter validation
 - Added `comet init` E2E tests covering project scope install, global scope install, skip-existing with `--yes`, overwrite with `--overwrite`, and multi-platform detection
 - Added regression coverage for `.comet.yaml` trailing comments and Design Doc frontmatter with a UTF-8 BOM or leading blank lines
-- Added CI workflow regression coverage for project and global installation checks across OpenSpec, Superpowers, and Comet skill artifacts
+- Added CI workflow regression coverage for project and global installation checks across Comet-owned files and external OpenSpec/Superpowers installer statuses
 
 ## What's Changed [0.2.7] - 2026-05-24
 
