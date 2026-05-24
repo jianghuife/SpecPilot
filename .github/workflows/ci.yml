@@ -110,12 +110,32 @@ jobs:
         shell: bash
 
       - name: Run comet init (project scope)
-        run: node bin/comet.js init "$RUNNER_TEMP/comet-e2e-project" --yes --json
+        run: |
+          node bin/comet.js init "$RUNNER_TEMP/comet-e2e-project" --yes --json \
+            | tee "$RUNNER_TEMP/comet-init-project.json"
         shell: bash
 
-      - name: Verify all platforms installed (project)
+      - name: Verify all platform skills installed (project)
         run: |
           PROJ="$RUNNER_TEMP/comet-e2e-project"
+          check_file() {
+            if [ ! -f "$1" ]; then
+              echo "Missing file: $1" >&2
+              exit 1
+            fi
+          }
+          check_dir() {
+            if [ ! -d "$1" ]; then
+              echo "Missing directory: $1" >&2
+              exit 1
+            fi
+          }
+          check_glob() {
+            if ! compgen -G "$1" >/dev/null; then
+              echo "Missing path matching: $1" >&2
+              exit 1
+            fi
+          }
           for sd in .claude/skills .cursor/skills .codex/skills .opencode/skills \
                     .windsurf/skills .cline/skills .roo/skills .continue/skills \
                     .gemini/skills .amazonq/skills .qwen/skills .kilocode/skills \
@@ -123,16 +143,34 @@ jobs:
                     .codebuddy/skills .cospec/skills .crush/skills .factory/skills \
                     .iflow/skills .pi/skills .qoder/skills .agent/skills \
                     .bob/skills .forge/skills .trae/skills .github/skills; do
-            test -f "$PROJ/$sd/comet/SKILL.md"
-            test -f "$PROJ/$sd/comet/scripts/comet-guard.sh"
-            test -f "$PROJ/$sd/comet/scripts/comet-state.sh"
-            test -f "$PROJ/$sd/comet/scripts/comet-handoff.sh"
-            test -f "$PROJ/$sd/comet/scripts/comet-yaml-validate.sh"
-            test -f "$PROJ/$sd/comet/scripts/comet-archive.sh"
-            test -d "$PROJ/$sd/brainstorming"
-            test -d "$PROJ/$sd/using-superpowers"
+            check_glob "$PROJ/$sd/openspec-*"
+            check_dir "$PROJ/$sd/brainstorming"
+            check_dir "$PROJ/$sd/using-superpowers"
+            check_file "$PROJ/$sd/comet/SKILL.md"
+            check_file "$PROJ/$sd/comet/scripts/comet-guard.sh"
+            check_file "$PROJ/$sd/comet/scripts/comet-state.sh"
+            check_file "$PROJ/$sd/comet/scripts/comet-handoff.sh"
+            check_file "$PROJ/$sd/comet/scripts/comet-yaml-validate.sh"
+            check_file "$PROJ/$sd/comet/scripts/comet-archive.sh"
           done
-          echo "All 28 platforms (Comet + Superpowers): OK"
+          echo "All 28 platforms project skills (OpenSpec + Superpowers + Comet): OK"
+        shell: bash
+
+      - name: Verify Superpowers install status (project)
+        run: |
+          node - "$RUNNER_TEMP/comet-init-project.json" <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const failed = data.results.filter((r) => r.superpowers !== 'installed');
+          if (failed.length > 0) {
+            console.error('Superpowers install did not report installed for:');
+            for (const r of failed) {
+              console.error(`- ${r.platform}: ${r.superpowers}`);
+            }
+            process.exit(1);
+          }
+          console.log(`Superpowers reported installed for ${data.results.length} platforms`);
+          NODE
         shell: bash
 
       - name: Verify OpenSpec and working directories (project)
@@ -150,12 +188,31 @@ jobs:
       - name: Run comet init (global scope)
         run: |
           export HOME="$RUNNER_TEMP/comet-e2e-global"
-          node bin/comet.js init "$RUNNER_TEMP/comet-e2e-global" --yes --scope global --json
+          node bin/comet.js init "$RUNNER_TEMP/comet-e2e-global" --yes --scope global --json \
+            | tee "$RUNNER_TEMP/comet-init-global.json"
         shell: bash
 
-      - name: Verify all platforms installed (global)
+      - name: Verify all platform skills installed (global)
         run: |
           HOME_DIR="$RUNNER_TEMP/comet-e2e-global"
+          check_file() {
+            if [ ! -f "$1" ]; then
+              echo "Missing file: $1" >&2
+              exit 1
+            fi
+          }
+          check_dir() {
+            if [ ! -d "$1" ]; then
+              echo "Missing directory: $1" >&2
+              exit 1
+            fi
+          }
+          check_glob() {
+            if ! compgen -G "$1" >/dev/null; then
+              echo "Missing path matching: $1" >&2
+              exit 1
+            fi
+          }
           for sd in .claude/skills .cursor/skills .codex/skills .opencode/skills \
                     .windsurf/skills .cline/skills .roo/skills .continue/skills \
                     .gemini/skills .amazonq/skills .qwen/skills .kilocode/skills \
@@ -163,14 +220,34 @@ jobs:
                     .codebuddy/skills .cospec/skills .crush/skills .factory/skills \
                     .iflow/skills .pi/skills .qoder/skills .agent/skills \
                     .bob/skills .forge/skills .trae/skills .github/skills; do
-            test -f "$HOME_DIR/$sd/comet/SKILL.md"
-            test -f "$HOME_DIR/$sd/comet/scripts/comet-guard.sh"
-            test -f "$HOME_DIR/$sd/comet/scripts/comet-state.sh"
-            test -f "$HOME_DIR/$sd/comet/scripts/comet-handoff.sh"
-            test -f "$HOME_DIR/$sd/comet/scripts/comet-yaml-validate.sh"
-            test -f "$HOME_DIR/$sd/comet/scripts/comet-archive.sh"
+            check_glob "$HOME_DIR/$sd/openspec-*"
+            check_dir "$HOME_DIR/$sd/brainstorming"
+            check_dir "$HOME_DIR/$sd/using-superpowers"
+            check_file "$HOME_DIR/$sd/comet/SKILL.md"
+            check_file "$HOME_DIR/$sd/comet/scripts/comet-guard.sh"
+            check_file "$HOME_DIR/$sd/comet/scripts/comet-state.sh"
+            check_file "$HOME_DIR/$sd/comet/scripts/comet-handoff.sh"
+            check_file "$HOME_DIR/$sd/comet/scripts/comet-yaml-validate.sh"
+            check_file "$HOME_DIR/$sd/comet/scripts/comet-archive.sh"
           done
-          echo "All 28 platforms global Comet skills: OK"
+          echo "All 28 platforms global skills (OpenSpec + Superpowers + Comet): OK"
+        shell: bash
+
+      - name: Verify Superpowers install status (global)
+        run: |
+          node - "$RUNNER_TEMP/comet-init-global.json" <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const failed = data.results.filter((r) => r.superpowers !== 'installed');
+          if (failed.length > 0) {
+            console.error('Superpowers install did not report installed for:');
+            for (const r of failed) {
+              console.error(`- ${r.platform}: ${r.superpowers}`);
+            }
+            process.exit(1);
+          }
+          console.log(`Superpowers reported installed for ${data.results.length} platforms`);
+          NODE
         shell: bash
 
       - name: Verify no working directories (global)
