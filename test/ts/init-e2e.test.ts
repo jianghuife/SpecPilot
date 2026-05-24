@@ -158,31 +158,46 @@ describe('comet init E2E', () => {
     expect(claude?.comet).toBe('installed');
   }, 20_000);
 
-  it('handles multiple platforms in a single run', async () => {
+  it('installs all platforms from clean directory with --yes', async () => {
     mockExternalSuccess();
-    const platformDirs = [
-      '.claude', '.cursor', '.codex', '.opencode', '.windsurf', '.cline', '.roo',
-      '.continue', '.gemini', '.amazonq', '.qwen', '.kilocode', '.augment', '.kiro',
-      '.lingma', '.junie', '.codebuddy', '.cospec', '.crush', '.factory', '.iflow',
-      '.pi', '.qoder', '.agent', '.bob', '.forge', '.trae',
-    ];
-    for (const dir of platformDirs) {
-      await fs.mkdir(path.join(tmpDir, dir), { recursive: true });
-    }
-    await fs.mkdir(path.join(tmpDir, '.github'), { recursive: true });
-    await fs.writeFile(path.join(tmpDir, '.github', 'copilot-instructions.md'), 'marker');
 
     const { initCommand } = await import('../../src/commands/init.js');
     const result = await captureJsonOutput(() => initCommand(tmpDir, { yes: true, json: true }));
 
-    expect(result.selectedPlatforms).toContain('claude');
-    expect(result.selectedPlatforms).toContain('cursor');
-    expect(result.selectedPlatforms).toContain('github-copilot');
     expect((result.results as unknown[]).length).toBeGreaterThanOrEqual(28);
 
     const manifest = await readManifest();
-    const allDirs = [...platformDirs, '.github'];
-    for (const platform of allDirs) {
+    const platformDirs = [
+      '.claude',
+      '.cursor',
+      '.codex',
+      '.opencode',
+      '.windsurf',
+      '.cline',
+      '.roo',
+      '.continue',
+      '.gemini',
+      '.amazonq',
+      '.qwen',
+      '.kilocode',
+      '.augment',
+      '.kiro',
+      '.lingma',
+      '.junie',
+      '.codebuddy',
+      '.cospec',
+      '.crush',
+      '.factory',
+      '.iflow',
+      '.pi',
+      '.qoder',
+      '.agent',
+      '.bob',
+      '.forge',
+      '.trae',
+      '.github',
+    ];
+    for (const platform of platformDirs) {
       for (const skillPath of manifest.skills) {
         const dest = path.join(tmpDir, platform, 'skills', skillPath);
         await expect(fs.access(dest)).resolves.toBeUndefined();

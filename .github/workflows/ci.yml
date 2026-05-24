@@ -104,175 +104,64 @@ jobs:
       - name: Install OpenSpec CLI
         run: npm install -g @fission-ai/openspec@latest
 
-      - name: Create temp project directory with all platform markers
-        run: |
-          PROJ="$RUNNER_TEMP/comet-e2e-project"
-          for dir in .claude .cursor .codex .opencode .windsurf .cline .roo \
-                     .continue .gemini .amazonq .qwen .kilocode .augment .kiro \
-                     .lingma .junie .codebuddy .cospec .crush .factory .iflow \
-                     .pi .qoder .agent .bob .forge .trae; do
-            mkdir -p "$PROJ/$dir"
-          done
-          mkdir -p "$PROJ/.github/copilot-instructions.md"
-          echo "marker" > "$PROJ/.github/copilot-instructions.md"
+      - name: Create temp project directory
+        run: mkdir -p "$RUNNER_TEMP/comet-e2e-project"
         shell: bash
 
-      - name: Run comet init (project scope, all platforms)
+      - name: Run comet init (project scope)
         run: node bin/comet.js init "$RUNNER_TEMP/comet-e2e-project" --yes --json
         shell: bash
 
-      - name: Verify Comet skills on all platforms (project)
+      - name: Verify all platforms installed (project)
         run: |
           PROJ="$RUNNER_TEMP/comet-e2e-project"
-          SKILLS_DIRS=(
-            ".claude/skills"
-            ".cursor/skills"
-            ".codex/skills"
-            ".opencode/skills"
-            ".windsurf/skills"
-            ".cline/skills"
-            ".roo/skills"
-            ".continue/skills"
-            ".gemini/skills"
-            ".amazonq/skills"
-            ".qwen/skills"
-            ".kilocode/skills"
-            ".augment/skills"
-            ".kiro/skills"
-            ".lingma/skills"
-            ".junie/skills"
-            ".codebuddy/skills"
-            ".cospec/skills"
-            ".crush/skills"
-            ".factory/skills"
-            ".iflow/skills"
-            ".pi/skills"
-            ".qoder/skills"
-            ".agent/skills"
-            ".bob/skills"
-            ".forge/skills"
-            ".trae/skills"
-          )
-          for sd in "${SKILLS_DIRS[@]}"; do
+          for sd in .claude/skills .cursor/skills .codex/skills .opencode/skills \
+                    .windsurf/skills .cline/skills .roo/skills .continue/skills \
+                    .gemini/skills .amazonq/skills .qwen/skills .kilocode/skills \
+                    .augment/skills .kiro/skills .lingma/skills .junie/skills \
+                    .codebuddy/skills .cospec/skills .crush/skills .factory/skills \
+                    .iflow/skills .pi/skills .qoder/skills .agent/skills \
+                    .bob/skills .forge/skills .trae/skills .github/skills; do
             test -f "$PROJ/$sd/comet/SKILL.md"
             test -f "$PROJ/$sd/comet/scripts/comet-guard.sh"
             test -f "$PROJ/$sd/comet/scripts/comet-state.sh"
             test -f "$PROJ/$sd/comet/scripts/comet-handoff.sh"
             test -f "$PROJ/$sd/comet/scripts/comet-yaml-validate.sh"
             test -f "$PROJ/$sd/comet/scripts/comet-archive.sh"
-          done
-          # github-copilot uses .github/skills
-          test -f "$PROJ/.github/skills/comet/SKILL.md"
-          test -f "$PROJ/.github/skills/comet/scripts/comet-guard.sh"
-          echo "All 28 platforms Comet skills: OK"
-        shell: bash
-
-      - name: Verify Superpowers on all platforms (project)
-        run: |
-          PROJ="$RUNNER_TEMP/comet-e2e-project"
-          SKILLS_DIRS=(
-            ".claude/skills"
-            ".cursor/skills"
-            ".codex/skills"
-            ".opencode/skills"
-            ".windsurf/skills"
-            ".cline/skills"
-            ".roo/skills"
-            ".continue/skills"
-            ".gemini/skills"
-            ".amazonq/skills"
-            ".qwen/skills"
-            ".kilocode/skills"
-            ".augment/skills"
-            ".kiro/skills"
-            ".lingma/skills"
-            ".junie/skills"
-            ".codebuddy/skills"
-            ".cospec/skills"
-            ".crush/skills"
-            ".factory/skills"
-            ".iflow/skills"
-            ".pi/skills"
-            ".qoder/skills"
-            ".agent/skills"
-            ".bob/skills"
-            ".forge/skills"
-            ".trae/skills"
-            ".github/skills"
-          )
-          for sd in "${SKILLS_DIRS[@]}"; do
             test -d "$PROJ/$sd/brainstorming"
             test -d "$PROJ/$sd/using-superpowers"
           done
-          echo "All platforms Superpowers: OK"
+          echo "All 28 platforms (Comet + Superpowers): OK"
         shell: bash
 
-      - name: Verify OpenSpec (project)
+      - name: Verify OpenSpec and working directories (project)
         run: |
           test -d "$RUNNER_TEMP/comet-e2e-project/openspec"
-          echo "OpenSpec: OK"
-        shell: bash
-
-      - name: Verify working directories (project)
-        run: |
           test -d "$RUNNER_TEMP/comet-e2e-project/docs/superpowers/specs"
           test -d "$RUNNER_TEMP/comet-e2e-project/docs/superpowers/plans"
-          echo "Working dirs: OK"
+          echo "OpenSpec + working dirs: OK"
         shell: bash
 
-      - name: Create temp global home with all platform markers
-        run: |
-          HOME_DIR="$RUNNER_TEMP/comet-e2e-global"
-          for dir in .claude .cursor .codex .opencode .windsurf .cline .roo \
-                     .continue .gemini .amazonq .qwen .kilocode .augment .kiro \
-                     .lingma .junie .codebuddy .cospec .crush .factory .iflow \
-                     .pi .qoder .agent .bob .forge .trae; do
-            mkdir -p "$HOME_DIR/$dir"
-          done
-          mkdir -p "$HOME_DIR/.github"
-          echo "marker" > "$HOME_DIR/.github/copilot-instructions.md"
+      - name: Create temp global home
+        run: mkdir -p "$RUNNER_TEMP/comet-e2e-global"
         shell: bash
 
-      - name: Run comet init (global scope, all platforms)
+      - name: Run comet init (global scope)
         run: |
           export HOME="$RUNNER_TEMP/comet-e2e-global"
           node bin/comet.js init "$RUNNER_TEMP/comet-e2e-global" --yes --scope global --json
         shell: bash
 
-      - name: Verify Comet skills on all platforms (global)
+      - name: Verify all platforms installed (global)
         run: |
           HOME_DIR="$RUNNER_TEMP/comet-e2e-global"
-          SKILLS_DIRS=(
-            ".claude/skills"
-            ".cursor/skills"
-            ".codex/skills"
-            ".opencode/skills"
-            ".windsurf/skills"
-            ".cline/skills"
-            ".roo/skills"
-            ".continue/skills"
-            ".gemini/skills"
-            ".amazonq/skills"
-            ".qwen/skills"
-            ".kilocode/skills"
-            ".augment/skills"
-            ".kiro/skills"
-            ".lingma/skills"
-            ".junie/skills"
-            ".codebuddy/skills"
-            ".cospec/skills"
-            ".crush/skills"
-            ".factory/skills"
-            ".iflow/skills"
-            ".pi/skills"
-            ".qoder/skills"
-            ".agent/skills"
-            ".bob/skills"
-            ".forge/skills"
-            ".trae/skills"
-            ".github/skills"
-          )
-          for sd in "${SKILLS_DIRS[@]}"; do
+          for sd in .claude/skills .cursor/skills .codex/skills .opencode/skills \
+                    .windsurf/skills .cline/skills .roo/skills .continue/skills \
+                    .gemini/skills .amazonq/skills .qwen/skills .kilocode/skills \
+                    .augment/skills .kiro/skills .lingma/skills .junie/skills \
+                    .codebuddy/skills .cospec/skills .crush/skills .factory/skills \
+                    .iflow/skills .pi/skills .qoder/skills .agent/skills \
+                    .bob/skills .forge/skills .trae/skills .github/skills; do
             test -f "$HOME_DIR/$sd/comet/SKILL.md"
             test -f "$HOME_DIR/$sd/comet/scripts/comet-guard.sh"
             test -f "$HOME_DIR/$sd/comet/scripts/comet-state.sh"
@@ -280,7 +169,7 @@ jobs:
             test -f "$HOME_DIR/$sd/comet/scripts/comet-yaml-validate.sh"
             test -f "$HOME_DIR/$sd/comet/scripts/comet-archive.sh"
           done
-          echo "All platforms global Comet skills: OK"
+          echo "All 28 platforms global Comet skills: OK"
         shell: bash
 
       - name: Verify no working directories (global)
