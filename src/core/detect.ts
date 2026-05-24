@@ -2,7 +2,7 @@ import path from 'path';
 import os from 'os';
 
 import { fileExists, readDir } from '../utils/file-system.js';
-import { PLATFORMS, type Platform } from './platforms.js';
+import { PLATFORMS, getPlatformSkillsDirs, type Platform } from './platforms.js';
 
 import type { InstallScope } from './types.js';
 
@@ -55,9 +55,12 @@ async function detectPlatforms(projectPath: string): Promise<Set<string>> {
         }
       }
     } else {
-      const dirPath = path.join(projectPath, platform.skillsDir);
-      if (await fileExists(dirPath)) {
-        detected.add(platform.id);
+      for (const skillsDir of getPlatformSkillsDirs(platform, 'project')) {
+        const dirPath = path.join(projectPath, skillsDir);
+        if (await fileExists(dirPath)) {
+          detected.add(platform.id);
+          break;
+        }
       }
     }
   }
@@ -70,9 +73,14 @@ async function hasSkills(
   platform: Platform,
   component: 'openspec' | 'superpowers' | 'comet',
   _selectedPlatforms: Platform[] = [],
+  scope: InstallScope = 'project',
 ): Promise<boolean> {
-  const skillsDir = path.join(baseDir, platform.skillsDir, 'skills');
-  const entries = await readDir(skillsDir);
+  const skillDirEntries = await Promise.all(
+    getPlatformSkillsDirs(platform, scope).map((skillsDir) =>
+      readDir(path.join(baseDir, skillsDir, 'skills')),
+    ),
+  );
+  const entries = skillDirEntries.flat();
 
   switch (component) {
     case 'openspec':
@@ -86,9 +94,13 @@ async function hasSkills(
       break;
   }
 
-  if (baseDir !== os.homedir()) {
-    const globalSkillsDir = path.join(os.homedir(), platform.skillsDir, 'skills');
-    const globalEntries = await readDir(globalSkillsDir);
+  if (scope === 'project' && baseDir !== os.homedir()) {
+    const globalSkillDirEntries = await Promise.all(
+      getPlatformSkillsDirs(platform, 'global').map((skillsDir) =>
+        readDir(path.join(os.homedir(), skillsDir, 'skills')),
+      ),
+    );
+    const globalEntries = globalSkillDirEntries.flat();
 
     switch (component) {
       case 'openspec':

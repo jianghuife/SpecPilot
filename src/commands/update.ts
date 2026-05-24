@@ -7,7 +7,7 @@ import { spawn } from 'child_process';
 import { fileExists, readDir, readJson } from '../utils/file-system.js';
 import { getBaseDir } from '../core/detect.js';
 import { copyCometSkillsForPlatform, getManifestSkills } from '../core/skills.js';
-import { PLATFORMS, type Platform } from '../core/platforms.js';
+import { PLATFORMS, getPlatformSkillsDir, type Platform } from '../core/platforms.js';
 import type { InstallScope } from '../core/types.js';
 
 const require = createRequire(import.meta.url);
@@ -46,8 +46,12 @@ function getScopedBaseDir(
   return scope === 'global' ? globalBaseDir : projectPath;
 }
 
-async function hasLocalCometSkills(baseDir: string, platform: Platform): Promise<boolean> {
-  const skillsDir = path.join(baseDir, platform.skillsDir, 'skills');
+async function hasLocalCometSkills(
+  baseDir: string,
+  platform: Platform,
+  scope: InstallScope,
+): Promise<boolean> {
+  const skillsDir = path.join(baseDir, getPlatformSkillsDir(platform, scope), 'skills');
   const entries = await readDir(skillsDir);
   return entries.some((entry) => entry.startsWith('comet'));
 }
@@ -55,8 +59,9 @@ async function hasLocalCometSkills(baseDir: string, platform: Platform): Promise
 async function detectInstalledCometLanguage(
   baseDir: string,
   platform: Platform,
+  scope: InstallScope,
 ): Promise<SkillLanguage> {
-  const skillsDir = path.join(baseDir, platform.skillsDir, 'skills');
+  const skillsDir = path.join(baseDir, getPlatformSkillsDir(platform, scope), 'skills');
   const entries = (await readDir(skillsDir)).filter((entry) => entry.startsWith('comet'));
 
   for (const entry of entries) {
@@ -85,12 +90,12 @@ async function detectInstalledCometTargets(
     const baseDir = getScopedBaseDir(scope, projectPath, options.globalBaseDir);
 
     for (const platform of PLATFORMS) {
-      if (!(await hasLocalCometSkills(baseDir, platform))) continue;
+      if (!(await hasLocalCometSkills(baseDir, platform, scope))) continue;
 
       targets.push({
         scope,
         platform,
-        language: await detectInstalledCometLanguage(baseDir, platform),
+        language: await detectInstalledCometLanguage(baseDir, platform, scope),
       });
     }
   }
@@ -146,7 +151,7 @@ function formatSkillUpdateCommand(
   languageSkillsDir: string,
 ): string {
   const destPrefix = scope === 'global' ? '~/' : '';
-  return `copy assets/${languageSkillsDir} -> ${destPrefix}${platform.skillsDir}/skills/ (${scope})`;
+  return `copy assets/${languageSkillsDir} -> ${destPrefix}${getPlatformSkillsDir(platform, scope)}/skills/ (${scope})`;
 }
 
 function getNpmExecutable(): string {
@@ -236,6 +241,7 @@ export async function updateCommand(
       target.platform,
       true,
       languageSkillsDir,
+      target.scope,
     );
     totalCopied += copied;
     targetResults.push({

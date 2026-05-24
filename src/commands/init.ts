@@ -1,7 +1,7 @@
 import path from 'path';
 import os from 'os';
 import { checkbox, select } from '@inquirer/prompts';
-import { PLATFORMS, type Platform } from '../core/platforms.js';
+import { PLATFORMS, getPlatformSkillsDir, type Platform } from '../core/platforms.js';
 import { detectPlatforms, hasSkills, getBaseDir, type InstallScope } from '../core/detect.js';
 import {
   copyCometSkillsForPlatform,
@@ -159,7 +159,7 @@ function displaySummary(results: PlatformResult[], scope: InstallScope): void {
   if (installed.length > 0) {
     console.log(`  Installed:`);
     for (const r of installed) {
-      console.log(`    ${r.platform.name} -> ${r.platform.skillsDir}/skills/`);
+      console.log(`    ${r.platform.name} -> ${getPlatformSkillsDir(r.platform, scope)}/skills/`);
     }
   }
   if (skipped.length > 0) {
@@ -226,9 +226,9 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
   const plans: PlatformPlan[] = [];
 
   for (const platform of selectedPlatforms) {
-    const hasOS = await hasSkills(baseDir, platform, 'openspec', selectedPlatforms);
-    const hasSP = await hasSkills(baseDir, platform, 'superpowers', selectedPlatforms);
-    const hasCM = await hasSkills(baseDir, platform, 'comet', selectedPlatforms);
+    const hasOS = await hasSkills(baseDir, platform, 'openspec', selectedPlatforms, scope);
+    const hasSP = await hasSkills(baseDir, platform, 'superpowers', selectedPlatforms, scope);
+    const hasCM = await hasSkills(baseDir, platform, 'comet', selectedPlatforms, scope);
 
     let osAction = resolveAction(hasOS, options);
     let spAction = resolveAction(hasSP, options);
@@ -293,7 +293,8 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
 
   for (const plan of plans) {
     const { platform, cmAction } = plan;
-    const skillsPath = `${scope === 'global' ? '~/' : ''}${platform.skillsDir}/skills/`;
+    const platformSkillsDir = getPlatformSkillsDir(platform, scope);
+    const skillsPath = `${scope === 'global' ? '~/' : ''}${platformSkillsDir}/skills/`;
 
     let cmStatus: InstallStatus = 'skipped';
     if (cmAction !== 'skip') {
@@ -302,6 +303,7 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
         platform,
         cmAction === 'overwrite',
         language.skillsDir,
+        scope,
       );
       cmStatus = copied > 0 ? 'installed' : 'skipped';
       log(`  Comet -> ${platform.name}: ${cmStatus} (${copied} files) -> ${skillsPath}`);

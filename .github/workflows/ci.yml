@@ -129,7 +129,7 @@ jobs:
                     .gemini/skills .amazonq/skills .qwen/skills .kilocode/skills \
                     .augment/skills .kiro/skills .lingma/skills .junie/skills \
                     .codebuddy/skills .cospec/skills .crush/skills .factory/skills \
-                    .iflow/skills .pi/skills .qoder/skills .agent/skills \
+                    .iflow/skills .pi/skills .qoder/skills .agents/skills \
                     .bob/skills .forge/skills .trae/skills .github/skills; do
             check_file "$PROJ/$sd/comet/SKILL.md"
             check_file "$PROJ/$sd/comet/scripts/comet-guard.sh"
@@ -197,7 +197,7 @@ jobs:
                     .gemini/skills .amazonq/skills .qwen/skills .kilocode/skills \
                     .augment/skills .kiro/skills .lingma/skills .junie/skills \
                     .codebuddy/skills .cospec/skills .crush/skills .factory/skills \
-                    .iflow/skills .pi/skills .qoder/skills .agent/skills \
+                    .iflow/skills .pi/skills .qoder/skills .gemini/antigravity/skills \
                     .bob/skills .forge/skills .trae/skills .github/skills; do
             check_file "$HOME_DIR/$sd/comet/SKILL.md"
             check_file "$HOME_DIR/$sd/comet/scripts/comet-guard.sh"

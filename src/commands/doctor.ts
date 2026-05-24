@@ -5,7 +5,7 @@ import { promises as fs } from 'fs';
 import { fileExists, readDir } from '../utils/file-system.js';
 import { isCommandAvailable } from '../core/openspec.js';
 import { readManifest, getAssetsDir } from '../core/skills.js';
-import { PLATFORMS } from '../core/platforms.js';
+import { PLATFORMS, getPlatformSkillsDirs } from '../core/platforms.js';
 import type { InstallScope } from '../core/types.js';
 
 interface CheckResult {
@@ -100,13 +100,23 @@ async function checkSkillCompleteness(
   let anyPlatform = false;
   for (const base of getScopeBases(projectPath, scope)) {
     for (const platform of PLATFORMS) {
-      const skillsDir = path.join(base.baseDir, platform.skillsDir, 'skills');
+      const detectedSkillsDir = (
+        await Promise.all(
+          getPlatformSkillsDirs(platform, base.scope).map(async (skillsDir) => ({
+            skillsDir,
+            exists: await fileExists(path.join(base.baseDir, skillsDir, 'skills')),
+          })),
+        )
+      ).find((candidate) => candidate.exists)?.skillsDir;
+      if (!detectedSkillsDir) continue;
+
+      const skillsDir = path.join(base.baseDir, detectedSkillsDir, 'skills');
       if (!(await fileExists(skillsDir))) continue;
       anyPlatform = true;
 
       const missing: string[] = [];
       for (const relPath of manifest.skills) {
-        const fullPath = path.join(base.baseDir, platform.skillsDir, 'skills', relPath);
+        const fullPath = path.join(base.baseDir, detectedSkillsDir, 'skills', relPath);
         if (!(await fileExists(fullPath))) {
           missing.push(relPath);
         }

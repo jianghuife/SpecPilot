@@ -5,12 +5,26 @@
  * Reference: OpenSpec/src/core/config.ts
  */
 
+import type { InstallScope } from './types.js';
+
 export interface Platform {
   id: string;
   name: string;
   skillsDir: string;
+  globalSkillsDir?: string;
   detectionPaths?: string[];
   openspecToolId: string;
+}
+
+export function getPlatformSkillsDir(platform: Platform, scope: InstallScope): string {
+  if (scope === 'global' && platform.globalSkillsDir) {
+    return platform.globalSkillsDir;
+  }
+  return platform.skillsDir;
+}
+
+export function getPlatformSkillsDirs(platform: Platform, scope: InstallScope): string[] {
+  return [getPlatformSkillsDir(platform, scope)];
 }
 
 export const PLATFORMS: Platform[] = [
@@ -49,7 +63,13 @@ export const PLATFORMS: Platform[] = [
   { id: 'iflow', name: 'iFlow', skillsDir: '.iflow', openspecToolId: 'iflow' },
   { id: 'pi', name: 'Pi', skillsDir: '.pi', openspecToolId: 'pi' },
   { id: 'qoder', name: 'Qoder', skillsDir: '.qoder', openspecToolId: 'qoder' },
-  { id: 'antigravity', name: 'Antigravity', skillsDir: '.agent', openspecToolId: 'antigravity' },
+  {
+    id: 'antigravity',
+    name: 'Antigravity',
+    skillsDir: '.agents',
+    globalSkillsDir: '.gemini/antigravity',
+    openspecToolId: 'antigravity',
+  },
   { id: 'bob', name: 'Bob Shell', skillsDir: '.bob', openspecToolId: 'bob' },
   { id: 'forgecode', name: 'ForgeCode', skillsDir: '.forge', openspecToolId: 'forgecode' },
   { id: 'trae', name: 'Trae', skillsDir: '.trae', openspecToolId: 'trae' },
