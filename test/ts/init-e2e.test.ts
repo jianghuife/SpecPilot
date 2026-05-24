@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { execSync } from 'child_process';
 import { promises as fs } from 'fs';
+import * as fsSync from 'fs';
 import os from 'os';
 import path from 'path';
 
@@ -16,12 +17,76 @@ vi.mock('@inquirer/prompts', () => ({
 }));
 
 const manifestPath = path.resolve('assets', 'manifest.json');
+const platformDirs = [
+  '.claude',
+  '.cursor',
+  '.codex',
+  '.opencode',
+  '.windsurf',
+  '.cline',
+  '.roo',
+  '.continue',
+  '.gemini',
+  '.amazonq',
+  '.qwen',
+  '.kilocode',
+  '.augment',
+  '.kiro',
+  '.lingma',
+  '.junie',
+  '.codebuddy',
+  '.cospec',
+  '.crush',
+  '.factory',
+  '.iflow',
+  '.pi',
+  '.qoder',
+  '.agent',
+  '.bob',
+  '.forge',
+  '.trae',
+  '.github',
+];
 
 async function readManifest() {
   return JSON.parse(await fs.readFile(manifestPath, 'utf-8'));
 }
 
 function mockExternalSuccess() {
+  mockedExecSync.mockImplementation((cmd: string | Buffer, options?: { cwd?: string }) => {
+    const s = typeof cmd === 'string' ? cmd : cmd.toString();
+    if (s.startsWith('which') || s.startsWith('where')) return Buffer.from('/usr/bin/openspec');
+    if (s.startsWith('openspec init')) {
+      const match = s.match(/openspec init (?:"([^"]+)"|'([^']+)'|(\S+))/);
+      const target = match?.[1] ?? match?.[2] ?? match?.[3] ?? options?.cwd;
+      if (target) {
+        for (const platform of platformDirs) {
+          fsSync.mkdirSync(path.join(target, platform, 'skills', 'openspec-core'), {
+            recursive: true,
+          });
+        }
+      }
+      return Buffer.from('ok');
+    }
+    if (s.startsWith('npx skills')) {
+      const target = s.includes(' -g ') ? os.homedir() : options?.cwd;
+      if (target) {
+        for (const platform of platformDirs) {
+          fsSync.mkdirSync(path.join(target, platform, 'skills', 'brainstorming'), {
+            recursive: true,
+          });
+          fsSync.mkdirSync(path.join(target, platform, 'skills', 'using-superpowers'), {
+            recursive: true,
+          });
+        }
+      }
+      return Buffer.from('installed');
+    }
+    return Buffer.from('');
+  });
+}
+
+function mockExternalCommandOnly() {
   mockedExecSync.mockImplementation((cmd: string | Buffer) => {
     const s = typeof cmd === 'string' ? cmd : cmd.toString();
     if (s.startsWith('which') || s.startsWith('where')) return Buffer.from('/usr/bin/openspec');
@@ -167,41 +232,25 @@ describe('comet init E2E', () => {
     expect((result.results as unknown[]).length).toBeGreaterThanOrEqual(28);
 
     const manifest = await readManifest();
-    const platformDirs = [
-      '.claude',
-      '.cursor',
-      '.codex',
-      '.opencode',
-      '.windsurf',
-      '.cline',
-      '.roo',
-      '.continue',
-      '.gemini',
-      '.amazonq',
-      '.qwen',
-      '.kilocode',
-      '.augment',
-      '.kiro',
-      '.lingma',
-      '.junie',
-      '.codebuddy',
-      '.cospec',
-      '.crush',
-      '.factory',
-      '.iflow',
-      '.pi',
-      '.qoder',
-      '.agent',
-      '.bob',
-      '.forge',
-      '.trae',
-      '.github',
-    ];
     for (const platform of platformDirs) {
       for (const skillPath of manifest.skills) {
         const dest = path.join(tmpDir, platform, 'skills', skillPath);
         await expect(fs.access(dest)).resolves.toBeUndefined();
       }
     }
+  }, 20_000);
+
+  it('reports failed external components when installers do not land in target skill dirs', async () => {
+    mockExternalCommandOnly();
+    await fs.mkdir(path.join(tmpDir, '.cursor'), { recursive: true });
+
+    const { initCommand } = await import('../../src/commands/init.js');
+    const result = await captureJsonOutput(() => initCommand(tmpDir, { yes: true, json: true }));
+
+    const cursor = (result.results as { platform: string; openspec: string; superpowers: string }[]).find(
+      (r) => r.platform === 'cursor',
+    );
+    expect(cursor?.openspec).toBe('failed');
+    expect(cursor?.superpowers).toBe('failed');
   }, 20_000);
 });
