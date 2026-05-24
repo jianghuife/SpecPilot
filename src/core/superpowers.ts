@@ -54,9 +54,7 @@ async function installSuperpowersForPlatforms(
 
   try {
     const agentFlags = agentNames.map((name) => `--agent ${name}`).join(' ');
-    const flags = ['-y', scope === 'global' ? '-g' : '', agentFlags]
-      .filter(Boolean)
-      .join(' ');
+    const flags = ['-y', scope === 'global' ? '-g' : '', agentFlags].filter(Boolean).join(' ');
 
     execSync(`npx skills add obra/superpowers ${flags}`, {
       cwd: projectPath,
