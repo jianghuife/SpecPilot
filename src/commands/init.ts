@@ -2,13 +2,7 @@ import path from 'path';
 import os from 'os';
 import { checkbox, select } from '@inquirer/prompts';
 import { PLATFORMS, type Platform } from '../core/platforms.js';
-import {
-  detectPlatforms,
-  hasSkills,
-  hasSkillsInDir,
-  getBaseDir,
-  type InstallScope,
-} from '../core/detect.js';
+import { detectPlatforms, hasSkills, getBaseDir, type InstallScope } from '../core/detect.js';
 import {
   copyCometSkillsForPlatform,
   createWorkingDirs,
@@ -300,19 +294,6 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
   for (const plan of plans) {
     const { platform, cmAction } = plan;
     const skillsPath = `${scope === 'global' ? '~/' : ''}${platform.skillsDir}/skills/`;
-    const osStatus =
-      plan.osAction === 'skip'
-        ? 'skipped'
-        : osGlobalStatus === 'installed' && (await hasSkillsInDir(baseDir, platform, 'openspec'))
-          ? 'installed'
-          : 'failed';
-    const spStatus =
-      plan.spAction === 'skip'
-        ? 'skipped'
-        : spGlobalStatus === 'installed' &&
-            (await hasSkillsInDir(baseDir, platform, 'superpowers'))
-          ? 'installed'
-          : 'failed';
 
     let cmStatus: InstallStatus = 'skipped';
     if (cmAction !== 'skip') {
@@ -330,8 +311,8 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
 
     results.push({
       platform,
-      openspec: osStatus,
-      superpowers: spStatus,
+      openspec: osToolIds.includes(platform.openspecToolId) ? osGlobalStatus : 'skipped',
+      superpowers: plan.spAction !== 'skip' ? spGlobalStatus : 'skipped',
       comet: cmStatus,
     });
   }

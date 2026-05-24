@@ -43,24 +43,6 @@ async function hasPluginSuperpowers(): Promise<boolean> {
   return false;
 }
 
-async function hasSkillsInDir(
-  baseDir: string,
-  platform: Platform,
-  component: 'openspec' | 'superpowers' | 'comet',
-): Promise<boolean> {
-  const skillsDir = path.join(baseDir, platform.skillsDir, 'skills');
-  const entries = await readDir(skillsDir);
-
-  switch (component) {
-    case 'openspec':
-      return entries.some((e) => e.startsWith('openspec-'));
-    case 'superpowers':
-      return SUPERPOWERS_SKILLS.some((name) => entries.includes(name));
-    case 'comet':
-      return entries.some((e) => e.startsWith('comet'));
-  }
-}
-
 async function detectPlatforms(projectPath: string): Promise<Set<string>> {
   const detected = new Set<string>();
 
@@ -89,10 +71,36 @@ async function hasSkills(
   component: 'openspec' | 'superpowers' | 'comet',
   _selectedPlatforms: Platform[] = [],
 ): Promise<boolean> {
-  if (await hasSkillsInDir(baseDir, platform, component)) return true;
+  const skillsDir = path.join(baseDir, platform.skillsDir, 'skills');
+  const entries = await readDir(skillsDir);
+
+  switch (component) {
+    case 'openspec':
+      if (entries.some((e) => e.startsWith('openspec-'))) return true;
+      break;
+    case 'superpowers':
+      if (SUPERPOWERS_SKILLS.some((name) => entries.includes(name))) return true;
+      break;
+    case 'comet':
+      if (entries.some((e) => e.startsWith('comet'))) return true;
+      break;
+  }
 
   if (baseDir !== os.homedir()) {
-    if (await hasSkillsInDir(os.homedir(), platform, component)) return true;
+    const globalSkillsDir = path.join(os.homedir(), platform.skillsDir, 'skills');
+    const globalEntries = await readDir(globalSkillsDir);
+
+    switch (component) {
+      case 'openspec':
+        if (globalEntries.some((e) => e.startsWith('openspec-'))) return true;
+        break;
+      case 'superpowers':
+        if (SUPERPOWERS_SKILLS.some((name) => globalEntries.includes(name))) return true;
+        break;
+      case 'comet':
+        if (globalEntries.some((e) => e.startsWith('comet'))) return true;
+        break;
+    }
   }
 
   // Check Claude Code plugin cache for plugin-installed superpowers
@@ -103,5 +111,5 @@ async function hasSkills(
   return false;
 }
 
-export { detectPlatforms, hasSkills, hasSkillsInDir, hasPluginSuperpowers, getBaseDir };
+export { detectPlatforms, hasSkills, hasPluginSuperpowers, getBaseDir };
 export type { InstallScope };
