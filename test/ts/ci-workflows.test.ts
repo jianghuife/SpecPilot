@@ -7,6 +7,7 @@ describe('CI workflows', () => {
 
     expect(workflow).toContain('comet-init-project.json');
     expect(workflow).toContain('comet-init-global.json');
+    expect(workflow).toContain('export USERPROFILE="$RUNNER_TEMP/comet-e2e-global"');
     expect(workflow).toContain('check_file "$PROJ/$sd/comet/SKILL.md"');
     expect(workflow).toContain('check_file "$HOME_DIR/$sd/comet/SKILL.md"');
     expect(workflow).toContain("const components = ['openspec', 'superpowers'];");

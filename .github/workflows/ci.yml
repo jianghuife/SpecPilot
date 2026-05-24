@@ -178,6 +178,7 @@ jobs:
       - name: Run comet init (global scope)
         run: |
           export HOME="$RUNNER_TEMP/comet-e2e-global"
+          export USERPROFILE="$RUNNER_TEMP/comet-e2e-global"
           node bin/comet.js init "$RUNNER_TEMP/comet-e2e-global" --yes --scope global --json \
             | tee "$RUNNER_TEMP/comet-init-global.json"
         shell: bash
