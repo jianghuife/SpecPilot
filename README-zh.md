@@ -386,6 +386,10 @@ your-project/
 
 在 [Comet Roadmap](https://github.com/orgs/rpamis/projects/1) 查看开发进展与即将推出的功能。
 
+## Star历史
+
+[![Star History Chart](https://api.star-history.com/svg?repos=rpamis/comet&type=Date)](https://star-history.com/#rpamis/comet&Date)
+
 ## License
 
 [MIT](LICENSE.md)

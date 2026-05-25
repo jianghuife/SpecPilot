@@ -387,6 +387,10 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 
 Track our development progress and upcoming features on the [Comet Roadmap](https://github.com/orgs/rpamis/projects/1).
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=rpamis/comet&type=Date)](https://star-history.com/#rpamis/comet&Date)
+
 ## License
 
 [MIT](LICENSE.md)
