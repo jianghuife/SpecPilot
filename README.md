@@ -96,6 +96,12 @@ comet init
 >
 > `comet update` or `npm install -g @rpamis/comet@latest` to get the latest features and fixes.
 
+## Support for OpenClaw and Hermes, and other AI platforms
+
+```bash
+npx skills add rpamis/comet
+```
+
 ## Screenshots
 
 <p align="center">

@@ -96,6 +96,12 @@ comet init
 >
 > 执行 `comet update` 或者 `npm install -g @rpamis/comet@latest` 即可更新到最新版本。
 
+## 对OpenClaw和Hermes、或其他AI平台的支持
+
+```bash
+npx skills add rpamis/comet
+```
+
 ## 运行截图
 
 <p align="center">
