@@ -47,6 +47,12 @@ Initialize Comet state file:
 bash "$COMET_STATE" init <name> hotfix
 ```
 
+Verify initialized state:
+
+```bash
+bash "$COMET_STATE" check <name> open
+```
+
 Run phase guard to transition open → build:
 
 ```bash
@@ -56,6 +62,8 @@ bash "$COMET_GUARD" <change-name> open --apply
 ### 2. Direct Build (preset build)
 
 Use hotfix defaults: `build_mode: direct`. Skip `superpowers:brainstorming` and `superpowers:writing-plans` (unless tasks > 3; if exceeds 3 tasks, transfer to `/comet-build`'s plan and execution method selection).
+
+Before continuing or starting changes, handle uncommitted changes through `comet/reference/dirty-worktree.md`. If attribution shows the fix scope exceeds hotfix, handle it through this file's "Upgrade Conditions".
 
 **Immediately execute:** Execute tasks one by one according to tasks.md:
 

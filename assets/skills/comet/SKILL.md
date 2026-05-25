@@ -22,13 +22,19 @@ Agents need only read this section for decision-making. Refer to the Reference A
 
 ### Automatic Phase Detection
 
-**Step 0: Active Change Discovery**
+**Step 0: Active Change Discovery and Intent Detection**
 
-1. Run `openspec list --json` to get all active changes
+1. Detect presets first; if hotfix/tweak matches, invoke the corresponding preset skill directly and do not enter the normal open branch
+2. When no preset matches, run `openspec list --json` to get all active changes
+
+**Preset detection has highest priority**:
+- User explicitly describes a bug fix / hotfix + meets hotfix conditions → directly invoke `/comet-hotfix`
+- User explicitly describes copy/config/docs/prompt small adjustment + meets tweak conditions → directly invoke `/comet-tweak`
+- No preset match → follow the table below
 
 | Active changes | User input | Behavior |
 |----------------|------------|----------|
-| None | any | → Invoke `/comet-open` |
+| None | non-preset input | → Invoke `/comet-open` |
 | Exactly 1 | `/comet <description>` | → **Ask**: continue this change or create a new change |
 | Multiple | `/comet <description>` | → **Ask**: continue existing or create new; if continuing, list changes for selection |
 | Exactly 1 | `/comet` with no description | → Auto-select, enter Step 1 |
@@ -40,16 +46,13 @@ When the user chooses "create a new change", **must invoke `/comet-open`**. Do n
 Calling `/opsx:new` directly leaves `.comet.yaml` missing and breaks later phase detection.
 </IMPORTANT>
 
-**Preset detection**:
-- User describes as bug fix / hotfix + meets hotfix conditions → directly invoke `/comet-hotfix`
-- User describes as copy, config, docs, prompt or small non-bug adjustment + meets tweak conditions → directly invoke `/comet-tweak`
-
 **Step 1: Read `.comet.yaml` state metadata**
 
 Prefer reading `openspec/changes/<name>/.comet.yaml`. If not available, fall back to `openspec status --change "<name>" --json`, `tasks.md`, and `docs/superpowers/` file checks.
 
 **Resume rules**:
 - On every context resume, rerun Step 0 and Step 1; do not trust conversation history for phase detection
+- If there is an active change and the worktree has uncommitted changes, handle them through `comet/reference/dirty-worktree.md`. That protocol defines checks, attribution, and prohibitions; this file does not repeat them
 - If `phase: build`, read the next unchecked task from tasks.md and continue
 - If `phase: verify` and `verify_result: fail`, first run `bash "$COMET_STATE" transition <name> verify-fail`, then invoke `/comet-build`
 - If `phase: open` but proposal/design/tasks are complete, run `bash "$COMET_GUARD" <change-name> open --apply` to repair state, then continue detection

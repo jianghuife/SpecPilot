@@ -2,6 +2,7 @@
   "version": "0.2.6",
   "skills": [
     "comet/SKILL.md",
+    "comet/reference/dirty-worktree.md",
     "comet/scripts/comet-guard.sh",
     "comet/scripts/comet-state.sh",
     "comet/scripts/comet-handoff.sh",

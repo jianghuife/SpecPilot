@@ -2,6 +2,20 @@
 
 All notable changes to @rpamis/comet will be documented in this file.
 
+## What's Changed [0.3.0] - 2026-05-25
+
+### Added
+
+- **Dirty worktree recovery protocol**: Added shared English and Chinese `comet/reference/dirty-worktree.md` references so agents consistently protect, inspect, and attribute user or mixed-source working tree changes during resume
+
+### Changed
+
+- **Comet resume behavior**: Updated `/comet`, build, verify, hotfix, and tweak skills so manual code edits made during interruptions are treated as code evidence, not automatic state transitions; agents must attribute dirty worktree changes before continuing or advancing guards
+
+### Fixed
+
+- **Reference skill installation**: Added the dirty worktree reference file to the Comet manifest so installed English and Chinese skill sets can resolve `comet/reference/dirty-worktree.md`
+
 ## What's Changed [0.2.9] - 2026-05-24
 
 ### Changed
