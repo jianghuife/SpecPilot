@@ -32,7 +32,11 @@
 
 **OpenSpec + Superpowers dual-star development workflow** — one command from idea to archive.
 
-OpenSpec handles **WHAT** (outlines, proposals, spec lifecycle, archiving). Superpowers handles **HOW** (technical design, planning, execution, wrap-up). Comet chains both into a five-phase automated pipeline.
+OpenSpec handles **WHAT** (outlines, proposals, spec lifecycle, archiving). 
+
+Superpowers handles **HOW** (technical design, planning, execution, wrap-up). 
+
+Comet chains both into a five-phase automated pipeline.
 
 ## Why Comet
 
@@ -388,6 +392,10 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 ## Roadmap
 
 Track our development progress and upcoming features on the [Comet Roadmap](https://github.com/orgs/rpamis/projects/1).
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=rpamis/comet&type=Date)](https://star-history.com/#rpamis/comet&Date)
 
 ## License
 
