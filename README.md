@@ -30,7 +30,11 @@
 
 **OpenSpec + Superpowers dual-star development workflow** — one command from idea to archive.
 
-OpenSpec handles **WHAT** (outlines, proposals, spec lifecycle, archiving). Superpowers handles **HOW** (technical design, planning, execution, wrap-up). Comet chains both into a five-phase automated pipeline.
+OpenSpec handles **WHAT** (outlines, proposals, spec lifecycle, archiving). 
+
+Superpowers handles **HOW** (technical design, planning, execution, wrap-up). 
+
+Comet chains both into a five-phase automated pipeline.
 
 ## Why Comet
 

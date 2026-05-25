@@ -30,7 +30,11 @@
 
 **OpenSpec + Superpowers 双星开发工作流** — 从创意到归档，一条命令。
 
-OpenSpec 处理 **WHAT**（大纲、提案、spec 生命周期、归档）。Superpowers 处理 **HOW**（技术设计、规划、执行、收尾）。Comet 将二者串联为五阶段自动化流水线。
+OpenSpec 处理 **WHAT**（大纲、提案、spec 生命周期、归档）。
+
+Superpowers 处理 **HOW**（技术设计、规划、执行、收尾）。
+
+Comet 将二者串联为五阶段自动化流水线。
 
 ## 为什么需要 Comet
 
