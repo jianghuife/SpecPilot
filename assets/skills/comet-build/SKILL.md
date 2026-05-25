@@ -158,6 +158,8 @@ Build is the longest phase and may span many tasks. To support resume after cont
 
 - **After each task**: immediately check off tasks.md and commit code so `.comet.yaml` and file state are durable
 - **After context compaction**: read `.comet.yaml` to confirm the phase is still build, read the plan header `base-ref`, then read tasks.md to find the next unchecked task
+- **User manual-change resume**: handle uncommitted changes through `comet/reference/dirty-worktree.md`. That protocol defines checks, attribution, and prohibitions. Build-specific handling:
+  1. After attribution, if the diff implies plan or spec changes, handle it through Step 5 "Spec Incremental Updates"
 - **Long task split**: if a single task exceeds 200 lines of code changes, consider splitting it into multiple subtasks and commits
 
 ## Exit Conditions

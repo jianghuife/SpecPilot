@@ -50,6 +50,12 @@ Initialize Comet state file:
 bash "$COMET_STATE" init <name> tweak
 ```
 
+Verify initialized state:
+
+```bash
+bash "$COMET_STATE" check <name> open
+```
+
 Run phase guard to transition open → build:
 
 ```bash
@@ -59,6 +65,8 @@ bash "$COMET_GUARD" <change-name> open --apply
 ### 2. Lightweight Build (preset build)
 
 Use tweak defaults: `build_mode: direct`. Skip `superpowers:brainstorming` and `superpowers:writing-plans`.
+
+Before continuing or starting changes, handle uncommitted changes through `comet/reference/dirty-worktree.md`. If attribution shows the scope exceeds tweak, handle it through this file's "Upgrade Conditions".
 
 **Immediately execute:** Execute tasks one by one according to tasks.md:
 

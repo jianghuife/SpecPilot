@@ -63,6 +63,8 @@ bash "$COMET_GUARD" <change-name> open --apply
 
 使用 hotfix 默认值：`build_mode: direct`。跳过 `superpowers:brainstorming` 和 `superpowers:writing-plans`（除非任务 > 3 个；若超过 3 个任务，转入 `/comet-build` 的计划与执行方式选择）。
 
+继续或开始修改前，按 `comet/reference/dirty-worktree.md` 协议处理未提交改动。若归因后发现修复范围超出 hotfix，按本文件“升级条件”处理。
+
 **立即执行：** 按 tasks.md 逐个执行任务：
 
 1. 读取 `openspec/changes/<name>/tasks.md`，获取未完成任务列表

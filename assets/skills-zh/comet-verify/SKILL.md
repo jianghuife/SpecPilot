@@ -35,6 +35,18 @@ bash "$COMET_STATE" scale <name>
 
 脚本自动统计任务数、增量规格数、变更文件数，判断使用 light 或 full 验证模式，并设置 verify_mode 字段。
 
+验证开始前，按 `comet/reference/dirty-worktree.md` 协议检查并处理未提交改动。verify 阶段的特殊处理：
+
+1. 若 dirty diff 属于当前 change 且涉及实现、测试、tasks、delta spec 或 design doc 变更，不在 verify 阶段直接修复或提交；先记录失败并回退到 build 阶段
+2. 若 dirty diff 只是 verify 本阶段产物（例如验证报告草稿、分支处理记录），可继续在 verify 阶段完成并记录状态
+3. 若 dirty diff 已实现但 tasks.md 未勾选，视为 build 状态滞后；先记录失败并回退到 build 阶段，由 `/comet-build` 验证实现、补勾任务并提交
+
+回退到 build 阶段：
+
+```bash
+bash "$COMET_STATE" transition <name> verify-fail
+```
+
 注意：如果 build 阶段每个任务都已提交，脚本基于工作区 diff 的文件数可能低估改动规模。此时必须读取 plan 文件头的 `base-ref` 并用提交区间复核：
 
 ```bash
@@ -54,7 +66,7 @@ bash "$COMET_STATE" set <name> verify_mode full
 当规模评估结果为"小"时，跳过 `openspec-verify-change`，直接执行以下检查：
 
 1. tasks.md 全部任务已完成 `[x]`
-2. 改动文件与 tasks.md 描述一致（`git diff --stat` 对照 tasks 内容）
+2. 改动文件与 tasks.md 描述一致（`git diff --stat` / `git diff --cached --stat` / `git diff --stat <base-ref>...HEAD` 对照 tasks 内容）
 3. 编译通过（执行项目对应的构建命令，如 `npm run build`、`mvn compile`、`cargo build` 等）
 4. 相关测试通过
 5. 无明显安全问题（无硬编码密钥、无新增 unsafe 操作）

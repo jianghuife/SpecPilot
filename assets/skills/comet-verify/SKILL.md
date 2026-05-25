@@ -35,6 +35,18 @@ bash "$COMET_STATE" scale <name>
 
 Script automatically counts tasks, delta specs, and changed files to determine whether to use light or full verification mode, and sets the verify_mode field.
 
+Before verification starts, inspect and handle uncommitted changes through `comet/reference/dirty-worktree.md`. Verify-specific handling:
+
+1. If dirty diff belongs to the current change and involves implementation, tests, tasks, delta spec, or design doc changes, do not fix or commit directly in verify; record failure and return to build
+2. If dirty diff is only a verify-phase artifact, such as a verification report draft or branch-handling record, continue in verify and record state
+3. If dirty diff has implemented work but tasks.md is unchecked, treat it as stale build state; record failure and return to build so `/comet-build` verifies the implementation, checks off tasks, and commits
+
+Return to build:
+
+```bash
+bash "$COMET_STATE" transition <name> verify-fail
+```
+
 Note: if the build phase committed after each task, worktree diff can underestimate change size. In that case, read the plan header `base-ref` and re-check the full commit range:
 
 ```bash
@@ -54,7 +66,7 @@ bash "$COMET_STATE" set <name> verify_mode full
 When scale assessment result is "small", skip `openspec-verify-change`, directly execute the following checks:
 
 1. All tasks in tasks.md completed `[x]`
-2. Changed files consistent with tasks.md description (compare `git diff --stat` against task content)
+2. Changed files consistent with tasks.md description (compare `git diff --stat` / `git diff --cached --stat` / `git diff --stat <base-ref>...HEAD` against task content)
 3. Build passes (run project-appropriate build command, e.g., `npm run build`, `mvn compile`, `cargo build`)
 4. Related tests pass
 5. No obvious security issues (no hardcoded secrets, no new unsafe operations)
@@ -118,10 +130,25 @@ After the skill loads, follow its guidance to complete. Branch handling options:
 - All tests pass
 - No hardcoded secrets or security issues
 
+### 4. Record Verification Evidence
+
+The verification report must be written to disk and recorded in `.comet.yaml`; branch handling must also be written to state after it completes. Do not manually set `verify_result: pass`; guard performs the transition.
+
+```bash
+mkdir -p docs/superpowers/reports
+# Write this verification result to a report file, for example:
+# docs/superpowers/reports/YYYY-MM-DD-<change-name>-verify.md
+
+bash "$COMET_STATE" set <name> verification_report docs/superpowers/reports/YYYY-MM-DD-<change-name>-verify.md
+bash "$COMET_STATE" set <name> branch_status handled
+```
+
 ## Exit Conditions
 
 - Verification report passed
 - Branch handled
+- `.comet.yaml` `verification_report` points to an existing verification report file
+- `.comet.yaml` has `branch_status: handled`
 - **Phase guard**: Run `bash "$COMET_GUARD" <change-name> verify --apply`; after all PASS, it uses `comet-state transition verify-pass` to advance to `phase: archive`
 
 After verification and branch handling are complete, run guard to auto-transition:
