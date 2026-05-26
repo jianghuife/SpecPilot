@@ -73,7 +73,22 @@ async function installSuperpowersForPlatforms(
     });
     return 'installed';
   } catch (error) {
-    console.error(`    Superpowers install failed: ${(error as Error).message}`);
+    const execError = error as Error & { stderr?: Buffer };
+    console.error(`    Superpowers install failed: ${execError.message}`);
+    const stderr = execError.stderr?.toString().trim();
+    if (stderr) {
+      const cleaned = stderr
+        .replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '')
+        .replace(/\[999D\[J/g, '')
+        .replace(/\[\?25[hl]/g, '')
+        .split('\n')
+        .filter((line) => line.trim() && !/^(│|├|╮|╯|●|◇|◒|◐|◓|◑|■)/.test(line.trim()))
+        .join('\n')
+        .trim();
+      if (cleaned) {
+        console.error(`    ${cleaned.split('\n').join('\n    ')}`);
+      }
+    }
     return 'failed';
   }
 }

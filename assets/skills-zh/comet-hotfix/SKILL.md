@@ -96,8 +96,8 @@ bash "$COMET_GUARD" <change-name> build --apply
 3. 如根因未消除，返回 Step 2 继续修复
 
 **升级条件**：
-- 根因消除检查发现深层架构问题 → 停止 hotfix，升级为 `/comet`
-- 修复需要额外接口变更 → 停止 hotfix，升级为 `/comet`
+- 根因消除检查发现深层架构问题 → 停止 hotfix，按升级条件阻塞确认处理
+- 修复需要额外接口变更 → 停止 hotfix，按升级条件阻塞确认处理
 
 ### 3b. 验证（preset verify）
 
@@ -121,11 +121,15 @@ bash "$COMET_GUARD" <change-name> build --apply
 ## 连续执行模式
 
 <IMPORTANT>
-Hotfix 流程为 **一次性连续执行**。调用 `/comet-hotfix` 后，agent 必须自动走完全部 4 个阶段，中间不停顿等待用户输入（除非遇到升级条件需要用户确认）。
+Hotfix 流程为 **一次性连续执行**。调用 `/comet-hotfix` 后，agent 在 hotfix 自有步骤间自动推进，不主动停顿。但以下情况必须暂停等待用户确认：
+
+1. 遇到升级条件（见"升级条件"章节）
+2. 任务超过 3 个转入 `/comet-build` 时的工作区隔离和执行方式选择
+3. 验证阶段（comet-verify）的验证失败决策和分支处理决策
 
 执行顺序：快速开启 → 直接构建 → 验证 → 归档 → 完成
 
-每个阶段完成后立即进入下一阶段，无需用户再次输入。阶段内部仍必须按上文要求调用对应 Comet/OpenSpec/Superpowers skill。
+每个阶段完成后立即进入下一阶段。阶段内部仍必须按上文要求调用对应 Comet/OpenSpec/Superpowers skill，被调用的 skill 如有自己的用户决策点，按该 skill 规则执行。
 </IMPORTANT>
 
 ---
@@ -142,7 +146,9 @@ Hotfix 流程为 **一次性连续执行**。调用 `/comet-hotfix` 后，agent 
 | 引入新的 public API | 修复产生了新的对外接口 |
 | 修复范围超出单一函数/模块 | 需要多处协调修改 |
 
-升级方式：在当前 change 基础上补充 Design Doc（执行 `/comet-design`），后续正常走完整流程。
+满足升级条件时必须暂停并等待用户明确确认升级为完整 `/comet` 流程。不得直接进入 `/comet-design`，不得自动补充 Design Doc。
+
+用户确认升级后，在当前 change 基础上补充 Design Doc：**立即使用 Skill 工具加载 `comet-design` skill**，后续正常走完整流程。若用户不确认升级，停止 hotfix 并报告当前变更已超出 hotfix 适用范围。
 
 ---
 

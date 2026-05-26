@@ -71,6 +71,8 @@ bash "$COMET_STATE" set <name> plan docs/superpowers/plans/YYYY-MM-DD-feature.md
 - 变更涉及 ≤ 3 个文件 → 推荐 A
 - 需要并行开发、当前分支有未提交工作 → 推荐 B
 
+这是用户决策点。必须暂停并等待用户明确选择，**不得根据推荐规则自行选择 `branch` 或 `worktree`**。推荐规则只能用于说明建议，不能替代用户确认。
+
 用户选择后，更新 `isolation` 字段。`isolation` 只允许以下值之一：
 
 ```bash
@@ -88,7 +90,7 @@ bash "$COMET_STATE" set <name> isolation <value>
 **执行隔离**：
 
 - **branch**：执行 `git checkout -b <change-name>`，后续工作在新分支上进行
-- **worktree**：调用 `superpowers:using-git-worktrees` 技能或使用原生 `EnterWorktree` 工具创建隔离工作区
+- **worktree**：必须使用 Skill 工具加载 `superpowers:using-git-worktrees` 技能创建隔离工作区。禁止用普通 shell 命令或原生工具绕过该技能；如该技能不可用，停止流程并提示安装或启用 Superpowers 技能。
 
 创建隔离后，确认计划文件可访问（分支方式天然可访问；worktree 方式需确认计划已提交）。
 
@@ -105,6 +107,8 @@ bash "$COMET_STATE" set <name> isolation <value>
 - 任务数 ≥ 3 → 推荐 A
 - 任务数 ≤ 2 且无跨模块依赖 → 推荐 B
 - 来自 hotfix 路径 → 推荐 B
+
+这是用户决策点。必须暂停并等待用户明确选择，**不得根据推荐规则自行选择执行方式**。推荐规则只能用于说明建议，不能替代用户确认。
 
 用户选择后，更新 `build_mode` 字段。`build_mode` 只允许以下值之一：
 
@@ -141,10 +145,12 @@ bash "$COMET_STATE" set <name> build_mode direct
 | 规模 | 触发条件 | 做法 |
 |------|---------|------|
 | 小 | 遗漏验收场景、边界条件 | 直接编辑 delta spec + design.md，追加 tasks.md 任务 |
-| 中 | 接口变更、新增组件、数据流变化 | 重新 `superpowers:brainstorming` 更新 Design Doc + delta spec |
-| 大 | 全新 capability 需求 | `/opsx:new` 创建独立 change |
+| 中 | 接口变更、新增组件、数据流变化 | 暂停并等待用户确认后，必须使用 Skill 工具加载 `superpowers:brainstorming` 更新 Design Doc + delta spec |
+| 大 | 全新 capability 需求 | 必须暂停并等待用户确认拆分；用户确认后，通过 `/comet-open` 创建独立 change |
 
-**50% 阈值判定**：以 tasks.md 初始任务总数为基准，若新增任务数超过该总数的一半，视为超出原计划范围，应考虑拆分为新 change。
+**50% 阈值判定**：以 tasks.md 初始任务总数为基准，若新增任务数超过该总数的一半，视为超出原计划范围，必须暂停并等待用户决定是否拆分为新 change。
+
+创建独立 change 时必须调用 `/comet-open`，不得直接调用 `/opsx:new`。`/comet-open` 会同时创建 OpenSpec 产物和 `.comet.yaml`，避免新 change 脱离 Comet 状态机。
 
 **原则**：
 - delta spec 是活文档，本阶段期间随时可修改
