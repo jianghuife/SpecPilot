@@ -36,6 +36,7 @@ const SKILLS_AGENT_MAP: Record<string, string> = {
 
 const VALID_PLATFORM_IDS = new Set(Object.keys(SKILLS_AGENT_MAP));
 const ANSI_ESCAPE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*[a-zA-Z]`, 'g');
+const SUPERPOWERS_INSTALL_TIMEOUT_MS = 300_000;
 
 function buildSuperpowersInstallCommand(
   _projectPath: string,
@@ -70,13 +71,13 @@ async function installSuperpowersForPlatforms(
     execSync(command, {
       cwd: projectPath,
       stdio: 'pipe',
-      timeout: 120_000,
+      timeout: SUPERPOWERS_INSTALL_TIMEOUT_MS,
     });
     return 'installed';
   } catch (error) {
     const execError = error as Error & { stderr?: Buffer };
     console.error(`    Superpowers install failed: ${execError.message}`);
-    const stderr = execError.stderr?.toString().trim();
+    const stderr = execError.stderr?.toString()?.trim();
     if (stderr) {
       const cleaned = stderr
         .replace(ANSI_ESCAPE_PATTERN, '')

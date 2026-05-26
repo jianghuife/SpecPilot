@@ -118,6 +118,7 @@ describe('superpowers', () => {
       );
       expect(cmd).not.toContain('--agent claude-code,cursor');
       expect(cmd).toContain('-y');
+      expect(mockedExecSync.mock.calls[0][1]).toMatchObject({ timeout: 300_000 });
     });
 
     it('quotes agent names when building install flags', async () => {
