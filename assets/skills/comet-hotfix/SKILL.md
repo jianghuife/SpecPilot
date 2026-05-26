@@ -16,9 +16,9 @@ Quick bug fix workflow: open → build → verify → archive. Skip brainstormin
 
 ---
 
-## Process (preset workflow, 4 phases)
+## Process (preset workflow, 5 steps)
 
-Execution chain: open → build → verify → archive. Hotfix provides default decisions for each phase: streamlined open, direct build, scale-based verification, archive after verification passes.
+Execution chain: open → build → root cause check → verify → archive. Hotfix provides default decisions for each phase: streamlined open, direct build, root cause confirmation, scale-based verification, archive after verification passes.
 
 Locate Comet scripts before starting:
 
@@ -75,7 +75,24 @@ Before continuing or starting changes, handle uncommitted changes through `comet
    - Check corresponding `- [ ]` to `- [x]` in tasks.md
    - Commit code, commit message format: `fix: <brief fix description>`
 3. After all tasks complete, explicitly run relevant project tests and build commands
-4. Run phase guard to transition build → verify:
+
+**If fix affects existing spec acceptance scenarios**:
+- Create delta spec in `openspec/changes/<name>/specs/<capability>/spec.md`
+- Only include `## MODIFIED Requirements` section
+
+### 3. Root Cause Elimination Check
+
+**Execute before running build guard**, ensuring the fix actually eliminates the root cause:
+
+1. Read bug description and root cause in proposal.md
+2. Search and verify problem code no longer exists
+3. If root cause not eliminated, return to Step 2 to continue fix (still in build phase, no state transition needed)
+
+**Upgrade conditions**:
+- Root cause check reveals deep architecture issues → Stop hotfix, handle per "Upgrade Conditions" section
+- Fix requires additional interface changes → Stop hotfix, handle per "Upgrade Conditions" section
+
+After root cause is confirmed eliminated, run phase guard to transition build → verify:
 
 ```bash
 bash "$COMET_GUARD" <change-name> build --apply
@@ -83,25 +100,9 @@ bash "$COMET_GUARD" <change-name> build --apply
 
 State automatically updates to `phase: verify`, `verify_result: pending`, then enter verification.
 
-**If fix affects existing spec acceptance scenarios**:
-- Create delta spec in `openspec/changes/<name>/specs/<capability>/spec.md`
-- Only include `## MODIFIED Requirements` section
+### 4. Verification (preset verify)
 
-### 3a. Hotfix-Exclusive Check: Root Cause Elimination
-
-**Execute before loading comet-verify**, ensuring the fix actually eliminates the root cause:
-
-1. Read bug description and root cause in proposal.md
-2. Search and verify problem code no longer exists
-3. If root cause not eliminated, return to Step 2 to continue fix
-
-**Upgrade conditions**:
-- Root cause check reveals deep architecture issues → Stop hotfix, upgrade to `/comet`
-- Fix requires additional interface changes → Stop hotfix, upgrade to `/comet`
-
-### 3b. Verification (preset verify)
-
-After root cause elimination check passes, reuse `/comet-verify`, with comet-verify's scale assessment deciding lightweight or full verification.
+Reuse `/comet-verify`, with comet-verify's scale assessment deciding lightweight or full verification.
 
 **Immediately execute:** Use the Skill tool to load the `comet-verify` skill. Skipping this step is prohibited.
 
@@ -109,7 +110,7 @@ Small-scale hotfixes without delta spec usually meet lightweight verification co
 
 After verification passes, record `.comet.yaml` `verify_result` as `pass` according to `/comet-verify` rules, must not skip this status before archiving.
 
-### 4. Archive (preset archive)
+### 5. Archive (preset archive)
 
 Reuse `/comet-archive`. Must satisfy `verify_result: pass` in `.comet.yaml` before archiving.
 
@@ -121,11 +122,15 @@ If there is delta spec, sync to main spec according to comet-archive rules, and 
 ## Continuous Execution Mode
 
 <IMPORTANT>
-Hotfix workflow is **one-time continuous execution**. After invoking `/comet-hotfix`, agent must automatically complete all 4 phases, without pausing to wait for user input mid-way (unless encountering upgrade conditions requiring user confirmation).
+Hotfix workflow is **one-time continuous execution**. After invoking `/comet-hotfix`, agent must automatically advance through hotfix steps, without pausing to wait for user input mid-way. But the following situations must pause and wait for user confirmation:
 
-Execution order: quick open → direct build → verification → archive → complete
+1. Encountering upgrade conditions (see "Upgrade Conditions" section)
+2. When tasks exceed 3 and transfer to `/comet-build` for workspace isolation and execution method selection
+3. Verification phase (comet-verify) verification failure decision and branch handling decision
 
-After each phase completes, immediately enter next phase, no need for user input again. Within each phase, must still call corresponding Comet/OpenSpec/Superpowers skill according to above requirements.
+Execution order: quick open → direct build → root cause check → verification → archive → complete
+
+After each step completes, immediately enter next step. Within each phase, must still call corresponding Comet/OpenSpec/Superpowers skill according to above requirements; if the called skill has its own user decision points, follow that skill's rules.
 </IMPORTANT>
 
 ---
@@ -142,7 +147,15 @@ Upgrade to full `/comet` when **any** of the following conditions are met:
 | Introduces new public API | Fix creates new external interface |
 | Fix scope exceeds single function/module | Requires coordinated changes |
 
-Upgrade method: On current change basis, supplement Design Doc (execute `/comet-design`), then proceed normally with full workflow.
+When upgrade conditions are met, must pause and wait for user to explicitly confirm upgrade to full `/comet` workflow. Must not directly enter `/comet-design`, must not automatically supplement Design Doc.
+
+After user confirms upgrade, **must first update the workflow field** before entering full flow:
+
+```bash
+bash "$COMET_STATE" set <name> workflow full
+```
+
+Then on current change basis, supplement Design Doc: **immediately use Skill tool to load `comet-design` skill**, proceed normally with full workflow. If user does not confirm upgrade, stop hotfix and report that current change has exceeded hotfix scope.
 
 ---
 

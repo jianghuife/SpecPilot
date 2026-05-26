@@ -75,7 +75,24 @@ bash "$COMET_GUARD" <change-name> open --apply
    - 将 tasks.md 中对应 `- [ ]` 勾选为 `- [x]`
    - 提交代码，commit message 格式：`fix: <简述修复>`
 3. 全部任务完成后，显式运行项目相关测试和构建命令
-4. 运行阶段守卫完成 build → verify 过渡：
+
+**如修复影响已有 spec 验收场景**：
+- 在 `openspec/changes/<name>/specs/<capability>/spec.md` 创建 delta spec
+- 仅包含 `## MODIFIED Requirements` 部分
+
+### 3. 根因消除检查
+
+**在运行 build guard 之前执行**，确保修复确实消除了问题根因：
+
+1. 读取 proposal.md 中的 bug 描述和根因
+2. 搜索验证问题代码不再存在
+3. 如根因未消除，回到 Step 2 继续修复（此时仍在 build 阶段，无需状态回退）
+
+**升级条件**：
+- 根因消除检查发现深层架构问题 → 停止 hotfix，按升级条件阻塞确认处理
+- 修复需要额外接口变更 → 停止 hotfix，按升级条件阻塞确认处理
+
+根因确认消除后，运行阶段守卫完成 build → verify 过渡：
 
 ```bash
 bash "$COMET_GUARD" <change-name> build --apply
@@ -83,25 +100,9 @@ bash "$COMET_GUARD" <change-name> build --apply
 
 状态文件自动更新为 `phase: verify`、`verify_result: pending`，然后进入验证。
 
-**如修复影响已有 spec 验收场景**：
-- 在 `openspec/changes/<name>/specs/<capability>/spec.md` 创建 delta spec
-- 仅包含 `## MODIFIED Requirements` 部分
+### 4. 验证（preset verify）
 
-### 3a. Hotfix 专属检查：根因消除
-
-**在加载 comet-verify 之前执行**，确保修复确实消除了问题根因：
-
-1. 读取 proposal.md 中的 bug 描述和根因
-2. 搜索验证问题代码不再存在
-3. 如根因未消除，返回 Step 2 继续修复
-
-**升级条件**：
-- 根因消除检查发现深层架构问题 → 停止 hotfix，按升级条件阻塞确认处理
-- 修复需要额外接口变更 → 停止 hotfix，按升级条件阻塞确认处理
-
-### 3b. 验证（preset verify）
-
-根因消除检查通过后，复用 `/comet-verify`，由 comet-verify 的规模评估决定轻量或完整验证。
+复用 `/comet-verify`，由 comet-verify 的规模评估决定轻量或完整验证。
 
 **立即执行：** 使用 Skill 工具加载 `comet-verify` 技能。禁止跳过此步骤。
 
@@ -148,7 +149,13 @@ Hotfix 流程为 **一次性连续执行**。调用 `/comet-hotfix` 后，agent 
 
 满足升级条件时必须暂停并等待用户明确确认升级为完整 `/comet` 流程。不得直接进入 `/comet-design`，不得自动补充 Design Doc。
 
-用户确认升级后，在当前 change 基础上补充 Design Doc：**立即使用 Skill 工具加载 `comet-design` skill**，后续正常走完整流程。若用户不确认升级，停止 hotfix 并报告当前变更已超出 hotfix 适用范围。
+用户确认升级后，**必须先更新 workflow 字段**再进入完整流程：
+
+```bash
+bash "$COMET_STATE" set <name> workflow full
+```
+
+然后在当前 change 基础上补充 Design Doc：**立即使用 Skill 工具加载 `comet-design` skill**，后续正常走完整流程。若用户不确认升级，停止 hotfix 并报告当前变更已超出 hotfix 适用范围。
 
 ---
 

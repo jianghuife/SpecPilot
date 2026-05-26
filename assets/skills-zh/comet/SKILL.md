@@ -64,7 +64,7 @@ agent 做决策只需读本节，参考附录按需查阅。
 2. `verify_result: pass` 且 `archived` 不是 `true` → `/comet-archive`
 3. `verify_result: fail` → 进入验证失败决策阻塞点（暂停询问修复或接受偏差；用户选择修复后才 `verify-fail` 并 `/comet-build`）
 4. `phase: verify` 或 tasks.md 全部勾选 → `/comet-verify`
-5. `phase: build` 或已有 Design Doc 但计划/执行未完成 → `/comet-build`
+5. `phase: build` 或已有 Design Doc 但计划/执行未完成 → 优先按 workflow 路由：`hotfix` → `/comet-hotfix`，`tweak` → `/comet-tweak`，`full` → `/comet-build`
 6. `phase: design` 或有 change 但无 Design Doc → `/comet-design`
 7. `phase: open` 或有活跃 change 但 `.comet.yaml` 缺失 → `/comet-open`
 8. 无活跃 change → `/comet-open`
@@ -109,12 +109,11 @@ agent 做决策只需读本节，参考附录按需查阅。
 
 需要用户参与的节点（仅在这些节点暂停）：
 1. brainstorming 确认设计方案
-2. build 阶段选择工作区隔离方式（branch 或 worktree）
-3. build 阶段选择执行方式
+2. build 阶段选择工作方式（隔离方式 + 执行方式，一次交互完成）
 4. verify 不通过时决定修复或接受偏差（含 Spec 漂移处理方式选择）
-5. finishing-branch 选择分支处理方式
-6. 遇到升级条件（hotfix/tweak → 完整流程）
-7. build 阶段范围扩张需重新设计或拆分新 change
+4. finishing-branch 选择分支处理方式
+5. 遇到升级条件（hotfix/tweak → 完整流程）
+6. build 阶段范围扩张需重新设计或拆分新 change
 
 agent 不应跳过这些决策点；其他明确无歧义的阶段衔接必须自动继续推进，不得中途退出。
 </IMPORTANT>
@@ -159,12 +158,14 @@ workflow: full
 phase: build
 design_doc: docs/superpowers/specs/YYYY-MM-DD-topic-design.md
 plan: docs/superpowers/plans/YYYY-MM-DD-feature.md
+base_ref: a1b2c3d4e5f6...
 build_mode: subagent-driven-development
 isolation: branch
 verify_mode: light
 verify_result: pending
 verification_report: null
 branch_status: pending
+created_at: 2026-05-26
 verified_at: null
 archived: false
 ```
@@ -175,12 +176,14 @@ archived: false
 | `phase` | 当前阶段：`open`、`design`、`build`、`verify`、`archive`（init 统一设为 `open`，guard 负责过渡） |
 | `design_doc` | 关联的 Superpowers Design Doc 路径，可为空 |
 | `plan` | 关联的 Superpowers Plan 路径，可为空 |
+| `base_ref` | init 时记录的 git commit SHA，用于 scale 评估。无 plan 时作为改动文件数统计基准 |
 | `build_mode` | 已选择的执行方式，可为空 |
 | `isolation` | `branch` 或 `worktree`，工作区隔离方式。full 初始化可为 `null`，但只允许持续到 `/comet-build` Step 3 前；hotfix/tweak 默认 `branch` |
 | `verify_mode` | `light` 或 `full`，可为空 |
 | `verify_result` | `pending`、`pass` 或 `fail` |
 | `verification_report` | 验证报告文件路径，verify 通过前必须指向已存在文件 |
 | `branch_status` | `pending` 或 `handled`，分支处理完成后设为 `handled` |
+| `created_at` | change 创建日期（init 时自动写入），格式 `YYYY-MM-DD` |
 | `verified_at` | 验证通过时间，可为空 |
 | `archived` | change 是否已归档 |
 

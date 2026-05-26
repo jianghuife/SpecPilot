@@ -194,17 +194,25 @@ cmd_init() {
   esac
 
   # Write .comet.yaml
+  # Record current HEAD as base_ref for scale assessment fallback
+  local base_ref="null"
+  if git rev-parse --verify HEAD >/dev/null 2>&1; then
+    base_ref=$(git rev-parse HEAD 2>/dev/null || echo "null")
+  fi
+
   cat > "$yaml_file" <<EOF
 workflow: $workflow
 phase: $phase
 build_mode: $build_mode
 isolation: $isolation
 verify_mode: $verify_mode
+base_ref: $base_ref
 design_doc: null
 plan: null
 verify_result: pending
 verification_report: null
 branch_status: pending
+created_at: $(date +%Y-%m-%d)
 verified_at: null
 archived: false
 EOF
@@ -251,7 +259,11 @@ cmd_set() {
 
   # Validate field name
   case "$field" in
-    workflow|phase|build_mode|isolation|verify_mode|verify_result|verification_report|branch_status|archived|design_doc|plan|verified_at|direct_override|build_command|verify_command|handoff_context|handoff_hash)
+    phase)
+      yellow "WARNING: Setting 'phase' directly bypasses state machine constraints." >&2
+      yellow "  Consider using: comet-state.sh transition <change-name> <event>" >&2
+      ;;
+    workflow|build_mode|isolation|verify_mode|verify_result|verification_report|branch_status|archived|design_doc|plan|verified_at|created_at|direct_override|build_command|verify_command|handoff_context|handoff_hash|base_ref)
       # Valid field
       ;;
     *)
@@ -294,7 +306,7 @@ cmd_set() {
     direct_override)
       validate_enum "$value" "true" "false"
       ;;
-    design_doc|plan|verification_report|verified_at|build_command|verify_command|handoff_context|handoff_hash)
+    design_doc|plan|verification_report|verified_at|created_at|build_command|verify_command|handoff_context|handoff_hash)
       # No validation for path fields, date fields, or project command strings
       ;;
   esac
@@ -605,16 +617,20 @@ cmd_scale() {
     delta_spec_count=$(find "$change_dir/specs" -name "spec.md" -type f 2>/dev/null | wc -l | tr -d ' ')
   fi
 
-  # 3. Changed files: prefer plan base-ref, fall back to worktree diff
+  # 3. Changed files: prefer plan base-ref, then .comet.yaml base_ref, fall back to worktree diff
   local changed_files=0
   if git rev-parse --git-dir > /dev/null 2>&1; then
-    local plan_file base_ref
+    local plan_file base_ref=""
     plan_file=$(cmd_get "$change_name" "plan" 2>/dev/null || true)
     if [ -n "$plan_file" ] && [ "$plan_file" != "null" ] && [ -f "$plan_file" ]; then
       base_ref=$(grep '^base-ref:' "$plan_file" 2>/dev/null | head -1 | sed 's/^base-ref: *//')
     fi
+    # Fallback to base_ref stored in .comet.yaml (set during init)
+    if [ -z "$base_ref" ] || [ "$base_ref" = "null" ]; then
+      base_ref=$(cmd_get "$change_name" "base_ref" 2>/dev/null || true)
+    fi
 
-    if [ -n "${base_ref:-}" ] && git rev-parse --verify "$base_ref" >/dev/null 2>&1; then
+    if [ -n "${base_ref:-}" ] && [ "$base_ref" != "null" ] && git rev-parse --verify "$base_ref" >/dev/null 2>&1; then
       changed_files=$(git diff --name-only "$base_ref"...HEAD 2>/dev/null | wc -l | tr -d ' ')
     else
       changed_files=$(git diff --name-only HEAD 2>/dev/null | wc -l | tr -d ' ')
@@ -623,7 +639,7 @@ cmd_scale() {
 
   # Decision rules
   local result="light"
-  if [ "$task_count" -gt 3 ] || [ "$delta_spec_count" -gt 1 ] || [ "$changed_files" -gt 5 ]; then
+  if [ "$task_count" -gt 3 ] || [ "$delta_spec_count" -gt 1 ] || [ "$changed_files" -gt 4 ]; then
     result="full"
   fi
 
@@ -631,7 +647,7 @@ cmd_scale() {
   echo "=== Scale Assessment: $change_name ===" >&2
   echo "  Tasks: $task_count (threshold: 3)" >&2
   echo "  Delta specs: $delta_spec_count capabilities (threshold: 1)" >&2
-  echo "  Changed files: $changed_files (threshold: 5)" >&2
+  echo "  Changed files: $changed_files (threshold: 4)" >&2
   echo "  → Result: $result" >&2
 
   # Update verify_mode in .comet.yaml

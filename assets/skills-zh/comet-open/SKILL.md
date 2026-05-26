@@ -81,4 +81,6 @@ bash "$COMET_GUARD" <change-name> open --apply
 
 退出条件满足后，**无需等待用户再次输入**，直接执行下一阶段：
 
-> **REQUIRED NEXT SKILL:** 调用 `comet-design` skill 进入深度设计阶段。
+> **REQUIRED NEXT SKILL（完整流程）:** 调用 `comet-design` skill 进入深度设计阶段。
+>
+> hotfix/tweak preset 由对应 preset skill 控制后续流转（phase 直接进入 build），不经过本节。

@@ -56,7 +56,7 @@ BASE_REF=$(grep '^base-ref:' "$PLAN" 2>/dev/null | head -1 | sed 's/^base-ref: *
 git diff --stat "$BASE_REF"...HEAD
 ```
 
-若提交区间显示改动超过轻量阈值（> 5 个文件、跨模块协调、或 delta spec 超过 1 个 capability），手动设置为完整验证：
+若提交区间显示改动超过轻量阈值（> 4 个文件、跨模块协调、或 delta spec 超过 1 个 capability），手动设置为完整验证：
 
 ```bash
 bash "$COMET_STATE" set <change-name> verify_mode full
