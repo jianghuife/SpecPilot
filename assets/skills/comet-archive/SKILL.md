@@ -45,7 +45,7 @@ If script returns non-zero exit code, report error and stop.
 If script returns zero exit code, archive is complete.
 The summary `X/Y steps succeeded` counts real executed steps and does not double-count delta spec sync or document annotation.
 
-When a delta spec differs from an existing main spec, the script prints a unified diff before overwrite so the archive sync content is visible.
+When a delta spec differs from an existing main spec, the script prints a unified diff preview before overwrite to help confirm archive sync content.
 
 Use `--dry-run` flag to preview without executing.
 
@@ -62,7 +62,7 @@ brainstorming → delta spec → implementation → verification → main spec o
 - Archive directory `openspec/changes/archive/YYYY-MM-DD-<change-name>/` exists
 - Archived `.comet.yaml` contains `archived: true`
 
-The archive script moves `openspec/changes/<name>/` to `openspec/changes/archive/YYYY-MM-DD-<name>/`. After successful archive, do not run `bash "$COMET_GUARD" <change-name> archive` against the old active change name; the active directory no longer exists. Archive completeness is determined by the script exit code and archived directory state.
+The archive script moves `openspec/changes/<name>/` to `openspec/changes/archive/YYYY-MM-DD-<name>/`. After successful archive, **do not run** `bash "$COMET_GUARD" <change-name> archive` against the old active change name; the active directory no longer exists. Archive completeness is determined by script exit code and archived directory state.
 
 ## Complete
 

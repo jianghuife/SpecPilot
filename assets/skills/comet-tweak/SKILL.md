@@ -5,17 +5,17 @@ description: "Comet preset path: Non-bug small changes (tweak). Skip brainstormi
 
 # Comet Preset Path: Tweak
 
-Tweak is a preset workflow of Comet's five-phase capabilities, not a separate parallel process. It reuses open, build, verify, archive capabilities, only skipping brainstorming and full plan.
+Tweak is a preset workflow of Comet's five-phase capabilities, not an independent parallel process. It reuses open, build, verify, archive capabilities, only skipping brainstorming and full plan.
 
-Applicable for small-scale non-bug changes, such as copy adjustments, configuration adjustments, documentation or prompt local optimization.
+Applicable for non-bug small scope changes, such as copy adjustment, configuration adjustment, documentation or prompt local optimization.
 
 **Applicable conditions** (all must be met):
 1. No new capability
 2. No architecture changes
-3. No interface changes involved
-4. Usually not exceeding 3 tasks, 4 files
+3. No interface changes
+4. Typically no more than 3 tasks, 4 files
 
-**Not applicable**: If change process discovers need for capability, architecture, or interface adjustments, should upgrade to full `/comet` workflow.
+**Not applicable**: If change process discovers need for capability, architecture or interface adjustments, should upgrade to full `/comet` workflow.
 
 ---
 
@@ -41,8 +41,8 @@ Reuse Comet open capability to create change, but use tweak defaults: do not exe
 After the skill loads, follow its guidance to create streamlined artifacts:
   - `proposal.md` — change motivation + goals + scope
   - `design.md` — brief implementation description (no solution comparison needed)
-  - `tasks.md` — not exceeding 3 tasks
-- **No delta spec needed** (unless change changes existing spec acceptance scenarios; once delta spec needed, upgrade to full `/comet`)
+  - `tasks.md` — no more than 3 tasks
+- **No delta spec needed** (unless change modifies existing spec acceptance scenarios; once delta spec is needed, upgrade to full `/comet`)
 
 Initialize Comet state file:
 
@@ -66,13 +66,13 @@ bash "$COMET_GUARD" <change-name> open --apply
 
 Use tweak defaults: `build_mode: direct`. Skip `superpowers:brainstorming` and `superpowers:writing-plans`.
 
-Before continuing or starting changes, handle uncommitted changes through `comet/reference/dirty-worktree.md`. If attribution shows the scope exceeds tweak, handle it through this file's "Upgrade Conditions".
+Before continuing or starting changes, handle uncommitted changes through `comet/reference/dirty-worktree.md`. If attribution shows scope exceeds tweak, handle it through this file's "Upgrade Conditions".
 
 **Immediately execute:** Execute tasks one by one according to tasks.md:
 
 1. Read `openspec/changes/<name>/tasks.md`, get incomplete task list
 2. For each incomplete task:
-   - Modify target file according to task description
+   - Modify target files according to task description
    - Run project formatter (e.g., `mvn spotless:apply`, `npm run format`)
    - Run related tests to confirm pass
    - Check corresponding `- [ ]` to `- [x]` in tasks.md
@@ -92,7 +92,7 @@ Reuse `/comet-verify`. Tweak must maintain lightweight verification conditions: 
 
 **Immediately execute:** Use the Skill tool to load the `comet-verify` skill. Skipping this step is prohibited.
 
-If scale assessment enters full verification path, stop tweak, upgrade to full `/comet`.
+If scale assessment enters full verification path, stop tweak, handle per upgrade conditions blocking confirmation.
 
 After verification passes, record `.comet.yaml` `verify_result` as `pass` according to `/comet-verify` rules, must not skip this status before archiving.
 
@@ -107,11 +107,14 @@ Reuse `/comet-archive`. Must satisfy `verify_result: pass` in `.comet.yaml` befo
 ## Continuous Execution Mode
 
 <IMPORTANT>
-Tweak workflow is **one-time continuous execution**. After invoking `/comet-tweak`, agent must automatically complete all 4 phases, without pausing to wait for user input mid-way (unless encountering upgrade conditions requiring user confirmation).
+Tweak workflow is **one-time continuous execution**. After invoking `/comet-tweak`, agent must automatically advance through tweak steps, without pausing to wait for user input mid-way. But the following situations must pause and wait for user confirmation:
+
+1. Encountering upgrade conditions (see "Upgrade Conditions" section)
+2. Verification phase (comet-verify) verification failure decision and branch handling decision
 
 Execution order: quick open → lightweight build → lightweight verification → archive → complete
 
-After each phase completes, immediately enter next phase, no need for user input again. Within each phase, must still call corresponding Comet/OpenSpec/Superpowers skill according to above requirements.
+After each phase completes, immediately enter next phase. Within each phase, must still call corresponding Comet/OpenSpec/Superpowers skill according to above requirements; if the called skill has its own user decision points, follow that skill's rules.
 </IMPORTANT>
 
 ---
@@ -123,13 +126,21 @@ Upgrade to full `/comet` when **any** of the following conditions are met:
 | Condition | Explanation |
 |-----------|-------------|
 | Change involves **5+ files** | Exceeds small change scope |
-| Cross-module coordination required | Needs coordination across components |
-| **5+** new test cases needed | Change complexity increasing |
-| Config item additions or deletions | Non-value config changes |
+| Cross-module coordination required | Requires cross-component coordination |
+| **5+** new test cases needed | Change complexity rising |
+| Config item additions or deletions | Config changes beyond value modifications |
 | New capability needed | Exceeds local optimization |
-| Delta spec needed | Affects existing specifications |
+| Delta spec needed | Affects existing specs |
 
-Upgrade method: On current change basis, supplement Design Doc (execute `/comet-design`), then proceed normally with full workflow.
+When upgrade conditions are met, must pause and wait for user to explicitly confirm upgrade to full `/comet` workflow. Must not directly enter `/comet-design`, must not automatically supplement Design Doc.
+
+After user confirms upgrade, **must first update the workflow field** before entering full flow:
+
+```bash
+bash "$COMET_STATE" set <name> workflow full
+```
+
+Then on current change basis, supplement Design Doc: **immediately use Skill tool to load `comet-design` skill**, proceed normally with full workflow. If user does not confirm upgrade, stop tweak and report that current change has exceeded tweak scope.
 
 ---
 
@@ -137,5 +148,5 @@ Upgrade method: On current change basis, supplement Design Doc (execute `/comet-
 
 - Small change completed, tests pass
 - Change archived
-- No new capability, architecture adjustments, or interface changes
+- No new capability, architecture adjustments or interface changes
 - **Phase guard**: Before build → verify run `bash "$COMET_GUARD" <change-name> build --apply`; before verify → archive follow `/comet-verify` and run `bash "$COMET_GUARD" <change-name> verify --apply`

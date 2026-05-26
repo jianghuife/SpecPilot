@@ -1,6 +1,6 @@
 name: 💬 Question
 description: Ask about installing, configuring, or using Comet.
-title: 'question: '
+title: 'Question: '
 labels: ['question']
 body:
   - type: textarea

@@ -37,13 +37,14 @@ bash "$COMET_STATE" scale <change-name>
 
 验证开始前，按 `comet/reference/dirty-worktree.md` 协议检查并处理未提交改动。verify 阶段的特殊处理：
 
-1. 若 dirty diff 属于当前 change 且涉及实现、测试、tasks、delta spec 或 design doc 变更，不在 verify 阶段直接修复或提交；先记录失败并回退到 build 阶段
+1. 若 dirty diff 属于当前 change 且涉及实现、测试、tasks、delta spec 或 design doc 变更，不在 verify 阶段直接修复或提交；报告失败项并进入 Step 1b 的验证失败决策阻塞点
 2. 若 dirty diff 只是 verify 本阶段产物（例如验证报告草稿、分支处理记录），可继续在 verify 阶段完成并记录状态
-3. 若 dirty diff 已实现但 tasks.md 未勾选，视为 build 状态滞后；先记录失败并回退到 build 阶段，由 `/comet-build` 验证实现、补勾任务并提交
+3. 若 dirty diff 已实现但 tasks.md 未勾选，视为 build 状态滞后；报告失败项并进入 Step 1b，由用户决定回退修复或接受偏差
 
-回退到 build 阶段：
+用户选择修复后，才允许回退到 build 阶段：
 
 ```bash
+# 仅在用户确认修复后执行
 bash "$COMET_STATE" transition <change-name> verify-fail
 ```
 
@@ -55,11 +56,24 @@ BASE_REF=$(grep '^base-ref:' "$PLAN" 2>/dev/null | head -1 | sed 's/^base-ref: *
 git diff --stat "$BASE_REF"...HEAD
 ```
 
-若提交区间显示改动超过轻量阈值（> 5 个文件、跨模块协调、或 delta spec 超过 1 个 capability），手动设置为完整验证：
+若提交区间显示改动超过轻量阈值（> 4 个文件、跨模块协调、或 delta spec 超过 1 个 capability），手动设置为完整验证：
 
 ```bash
 bash "$COMET_STATE" set <change-name> verify_mode full
 ```
+
+### 1b. 验证失败决策（阻塞点）
+
+验证不通过时必须暂停并等待用户决定修复或接受偏差。不得自动运行 `bash "$COMET_STATE" transition <change-name> verify-fail`，也不得自动调用 `/comet-build`。
+
+暂停时必须列出：
+- 失败项
+- 是否属于 CRITICAL（构建失败、测试失败、安全问题、核心验收场景失败）
+- 推荐处理方式
+
+用户选择后按以下方式继续：
+- **全部修复**：运行 `bash "$COMET_STATE" transition <change-name> verify-fail`，然后调用 `/comet-build` 修复
+- **逐项处理**：CRITICAL 失败项必须修复；非 CRITICAL 失败项可选择接受偏差，但必须在验证报告中记录接受原因和影响范围。若存在任何 CRITICAL 失败项，不允许跳过修复直接全部接受
 
 ### 2a. 轻量验证（小改动）
 
@@ -73,9 +87,10 @@ bash "$COMET_STATE" set <change-name> verify_mode full
 
 **通过标准**：5 项全部 OK，无 CRITICAL 问题。
 
-**不通过时**：报告失败项，记录失败并回退到 build 阶段，然后调用 `/comet-build` 修复。
+**不通过时**：报告失败项，进入 Step 1b 的验证失败决策阻塞点。用户选择修复后，才执行以下命令记录失败并回退到 build 阶段，然后调用 `/comet-build` 修复：
 
 ```bash
+# 仅在用户确认修复后执行
 bash "$COMET_STATE" transition <change-name> verify-fail
 ```
 
@@ -95,23 +110,24 @@ bash "$COMET_STATE" transition <change-name> verify-fail
 
 技能加载后，按其指引验证。检查项：
 1. tasks.md 全部任务已完成（`[x]`）
-2. 实现符合 design.md 设计决策
-3. 实现符合 brainstorming 设计文档
+2. 实现符合 `openspec/changes/<name>/design.md` 高层设计决策
+3. 实现符合 Design Doc（`docs/superpowers/specs/` 下的技术设计文档）
 4. 能力规格场景全部通过
 5. proposal.md 目标已满足
 6. delta spec 与 design doc 无矛盾（若 Build 阶段有增量修改 spec，检查 design doc 是否有对应记录）
 7. `docs/superpowers/specs/` 关联的设计文档可定位（文件存在且与当前 change 相关）
 
-验证不通过时：报告缺失项，记录失败并回退到 build 阶段，然后调用 `/comet-build` 补充。
+验证不通过时：报告缺失项，进入 Step 1b 的验证失败决策阻塞点。用户选择修复后，才执行以下命令记录失败并回退到 build 阶段，然后调用 `/comet-build` 补充：
 
 ```bash
+# 仅在用户确认修复后执行
 bash "$COMET_STATE" transition <change-name> verify-fail
 ```
 
-**Spec 漂移处理**：
-- 若检查项 6 发现矛盾（delta spec 有内容但 design doc 未体现），提示用户：
-  - 选项 A：在 design doc 追加 "Implementation Divergence" 节记录偏差原因
-  - 选项 B：回退到 Build 阶段，补充 brainstorming 更新 design doc
+**Spec 漂移处理**（用户决策点）：
+- 若检查项 6 发现矛盾（delta spec 有内容但 design doc 未体现），**必须暂停并等待用户选择处理方式**，不得自动选择。选项：
+  - 选项 A：在 design doc 追加 "Implementation Divergence" 节记录偏差原因。选项 A 属于 verify 阶段允许产物；写入后不得因该 design doc 变更再次触发 Step 1b dirty-worktree 决策
+  - 选项 B：用户选择 B 后，运行 `bash "$COMET_STATE" transition <change-name> verify-fail`，然后调用 `/comet-build`；由 `/comet-build` 的 Spec 增量更新规则加载 `superpowers:brainstorming` 更新 Design Doc + delta spec
   - 选项 C：确认偏差可接受，继续验证（归档时 design doc 将标记为 `superseded-by-main-spec`）
 
 ### 3. 收尾（Superpowers）
@@ -125,6 +141,8 @@ bash "$COMET_STATE" transition <change-name> verify-fail
 2. 推送并创建 PR
 3. 保持分支（稍后处理）
 4. 丢弃工作
+
+这是用户决策点。**必须暂停并等待用户选择分支处理方式**，不得根据推荐、默认值或当前分支状态自行选择。只有在用户完成选择且对应操作完成后，才允许写入 `branch_status: handled`。
 
 **确认项**：
 - 全部测试通过

@@ -1,14 +1,14 @@
 ---
 name: comet-verify
-description: "Comet Phase 4: Verify and Complete. Invoke with /comet-verify. Verify implementation matches design, handle development branch."
+description: "Comet Phase 4: Verify and Close. Invoke with /comet-verify. Verify implementation matches design, handle development branch."
 ---
 
-# Comet Phase 4: Verify and Complete (Verify)
+# Comet Phase 4: Verify and Close (Verify)
 
 ## Prerequisites
 
-- Code has been committed (Phase 3 complete)
-- All tasks in tasks.md are complete
+- Code committed (Phase 3 complete)
+- All tasks.md tasks completed
 
 ## Steps
 
@@ -25,7 +25,7 @@ bash "$COMET_STATE" check <change-name> verify
 
 Proceed to Step 1 after verification passes. The script outputs specific failure reasons when verification fails.
 
-### 1. Change Scale Assessment
+### 1. Scale Assessment
 
 Execute scale assessment:
 
@@ -33,21 +33,22 @@ Execute scale assessment:
 bash "$COMET_STATE" scale <change-name>
 ```
 
-Script automatically counts tasks, delta specs, and changed files to determine whether to use light or full verification mode, and sets the verify_mode field.
+The script automatically counts tasks, delta spec count, changed file count, determines light or full verification mode, and sets the verify_mode field.
 
-Before verification starts, inspect and handle uncommitted changes through `comet/reference/dirty-worktree.md`. Verify-specific handling:
+Before verification begins, handle uncommitted changes through `comet/reference/dirty-worktree.md` protocol. Verify phase special handling:
 
-1. If dirty diff belongs to the current change and involves implementation, tests, tasks, delta spec, or design doc changes, do not fix or commit directly in verify; record failure and return to build
-2. If dirty diff is only a verify-phase artifact, such as a verification report draft or branch-handling record, continue in verify and record state
-3. If dirty diff has implemented work but tasks.md is unchecked, treat it as stale build state; record failure and return to build so `/comet-build` verifies the implementation, checks off tasks, and commits
+1. If dirty diff belongs to current change and involves implementation, tests, tasks, delta spec, or design doc changes, do not fix or commit directly in verify phase; report failures and enter Step 1b verification failure decision blocking point
+2. If dirty diff is only verify phase artifacts (e.g., verification report draft, branch handling records), may continue and record state in verify phase
+3. If dirty diff shows implementation but tasks.md not checked, treat as build state lag; report failures and enter Step 1b, let user decide to roll back for fix or accept deviation
 
-Return to build:
+Only after user chooses fix, allow rollback to build phase:
 
 ```bash
+# Execute only after user confirms fix
 bash "$COMET_STATE" transition <change-name> verify-fail
 ```
 
-Note: if the build phase committed after each task, worktree diff can underestimate change size. In that case, read the plan header `base-ref` and re-check the full commit range:
+Note: If every task in build phase was committed, the script's file count based on working tree diff may underestimate change scale. In this case, must read plan file header `base-ref` and verify with commit range:
 
 ```bash
 PLAN=$(bash "$COMET_STATE" get <change-name> plan)
@@ -55,27 +56,41 @@ BASE_REF=$(grep '^base-ref:' "$PLAN" 2>/dev/null | head -1 | sed 's/^base-ref: *
 git diff --stat "$BASE_REF"...HEAD
 ```
 
-If the commit range exceeds lightweight thresholds (> 5 files, cross-module coordination, or more than 1 delta spec capability), manually switch to full verification:
+If commit range shows changes exceed lightweight threshold (> 4 files, cross-module coordination, or delta spec spans more than 1 capability), manually set to full verification:
 
 ```bash
 bash "$COMET_STATE" set <change-name> verify_mode full
 ```
 
+### 1b. Verification Failure Decision (Blocking Point)
+
+When verification does not pass, must pause and wait for the user to decide fix or accept deviation. Must not automatically run `bash "$COMET_STATE" transition <change-name> verify-fail`, nor automatically invoke `/comet-build`.
+
+When pausing, must list:
+- Failed items
+- Whether CRITICAL (build failure, test failure, security issues, core acceptance scenario failure)
+- Recommended handling approach
+
+After user selection, continue as follows:
+- **Fix all**: Run `bash "$COMET_STATE" transition <change-name> verify-fail`, then invoke `/comet-build` to fix
+- **Handle item by item**: CRITICAL failures must be fixed; non-CRITICAL failures may choose to accept deviation, but must record acceptance reason and impact scope in verification report. If any CRITICAL failure exists, skipping fix to accept all is not allowed
+
 ### 2a. Lightweight Verification (Small Changes)
 
-When scale assessment result is "small", skip `openspec-verify-change`, directly execute the following checks:
+When scale assessment result is "small", skip `openspec-verify-change` and directly execute these checks:
 
-1. All tasks in tasks.md completed `[x]`
-2. Changed files consistent with tasks.md description (compare `git diff --stat` / `git diff --cached --stat` / `git diff --stat <base-ref>...HEAD` against task content)
-3. Build passes (run project-appropriate build command, e.g., `npm run build`, `mvn compile`, `cargo build`)
+1. All tasks.md tasks completed `[x]`
+2. Changed files match tasks.md descriptions (`git diff --stat` / `git diff --cached --stat` / `git diff --stat <base-ref>...HEAD` compared against tasks content)
+3. Build passes (run project-specific build command, e.g., `npm run build`, `mvn compile`, `cargo build`, etc.)
 4. Related tests pass
-5. No obvious security issues (no hardcoded secrets, no new unsafe operations)
+5. No obvious security issues (no hardcoded keys, no new unsafe operations)
 
-**Pass standard**: All 5 items OK, no CRITICAL issues.
+**Pass criteria**: All 5 items OK, no CRITICAL issues.
 
-**When failing**: report failed items, record failure, move back to build, then invoke `/comet-build`.
+**When not passing**: Report failures, enter Step 1b verification failure decision blocking point. Only after user confirms fix, execute the following command to record failure and roll back to build phase, then invoke `/comet-build` to fix:
 
 ```bash
+# Execute only after user confirms fix
 bash "$COMET_STATE" transition <change-name> verify-fail
 ```
 
@@ -84,7 +99,7 @@ bash "$COMET_STATE" transition <change-name> verify-fail
 **Skipped items** (not checked in lightweight verification):
 - spec scenario coverage
 - design doc consistency deep comparison
-- code pattern consistency recommendations
+- code pattern consistency suggestions
 - delta spec and design doc drift detection
 
 ### 2b. Full Verification (Large Changes)
@@ -94,49 +109,52 @@ When scale assessment result is "large":
 **Immediately execute:** Use the Skill tool to load the `openspec-verify-change` skill. Skipping this step is prohibited.
 
 After the skill loads, follow its guidance to verify. Check items:
-1. All tasks in tasks.md completed (`[x]`)
-2. Implementation matches design.md design decisions
-3. Implementation matches brainstorming design document
-4. All capability specification scenarios pass
-5. proposal.md goals satisfied
-6. No contradiction between delta spec and design doc (if Build phase had incremental spec modifications, check if design doc has corresponding records)
-7. `docs/superpowers/specs/` associated design document can be located (file exists and relates to current change)
+1. All tasks.md tasks completed (`[x]`)
+2. Implementation matches `openspec/changes/<name>/design.md` high-level design decisions
+3. Implementation matches Design Doc (technical design documents under `docs/superpowers/specs/`)
+4. All capability spec scenarios pass
+5. proposal.md goals are satisfied
+6. No contradictions between delta spec and design doc (if Build phase had incremental spec modifications, check if design doc has corresponding records)
+7. Associated design documents under `docs/superpowers/specs/` are locatable (file exists and is related to current change)
 
-When verification fails: report missing items, record failure, move back to build, then invoke `/comet-build`.
+When verification does not pass: report missing items, enter Step 1b verification failure decision blocking point. Only after user confirms fix, execute the following command to record failure and roll back to build phase, then invoke `/comet-build` to supplement:
 
 ```bash
+# Execute only after user confirms fix
 bash "$COMET_STATE" transition <change-name> verify-fail
 ```
 
-**Spec drift handling**:
-- If check item 6 finds contradiction (delta spec has content but design doc doesn't reflect it), prompt user:
-  - Option A: Append "Implementation Divergence" section to design doc recording deviation reason
-  - Option B: Roll back to Build phase, supplement brainstorming to update design doc
-  - Option C: Confirm deviation acceptable, continue verification (design doc will be marked as `superseded-by-main-spec` during archiving)
+**Spec Drift Handling** (user decision point):
+- If check item 6 finds contradictions (delta spec has content but design doc does not reflect it), **must pause and wait for user to choose handling method**; must not select automatically. Options:
+  - Option A: Append "Implementation Divergence" section to design doc recording deviation reason. Option A is a verify phase allowed artifact; after writing, must not re-trigger Step 1b dirty-worktree decision due to that design doc change
+  - Option B: After user selects B, run `bash "$COMET_STATE" transition <change-name> verify-fail`, then invoke `/comet-build`; `/comet-build`'s Spec Incremental Update rules will load `superpowers:brainstorming` to update Design Doc + delta spec
+  - Option C: Confirm deviation is acceptable, continue verification (design doc will be marked as `superseded-by-main-spec` during archiving)
 
-### 3. Completion (Superpowers)
+### 3. Finishing (Superpowers)
 
 **Immediately execute:** Use the Skill tool to load the `superpowers:finishing-a-development-branch` skill. Skipping this step is prohibited.
 
 If `superpowers:finishing-a-development-branch` is unavailable, stop the process and prompt to install or enable Superpowers skills. Do not substitute this step with normal conversation.
 
-After the skill loads, follow its guidance to complete. Branch handling options:
-1. Local merge to main branch
+After the skill loads, follow its guidance to finish. Branch handling options:
+1. Merge to main branch locally
 2. Push and create PR
 3. Keep branch (handle later)
 4. Discard work
 
+This is a user decision point. **Must pause and wait for user to choose branch handling method**. Must not select based on recommendations, defaults, or current branch status. Only after the user completes selection and the corresponding operation finishes, may `branch_status: handled` be written.
+
 **Confirmation items**:
 - All tests pass
-- No hardcoded secrets or security issues
+- No hardcoded keys or security issues
 
 ### 4. Record Verification Evidence
 
-The verification report must be written to disk and recorded in `.comet.yaml`; branch handling must also be written to state after it completes. Do not manually set `verify_result: pass`; guard performs the transition.
+Verification report must be saved to disk and recorded in `.comet.yaml`; after branch handling completes, state fields must also be written. Do not manually set `verify_result: pass`; use guard for auto-transition.
 
 ```bash
 mkdir -p docs/superpowers/reports
-# Write this verification result to a report file, for example:
+# Write verification conclusions to report file, e.g.:
 # docs/superpowers/reports/YYYY-MM-DD-<change-name>-verify.md
 
 bash "$COMET_STATE" set <change-name> verification_report docs/superpowers/reports/YYYY-MM-DD-<change-name>-verify.md
@@ -147,20 +165,20 @@ bash "$COMET_STATE" set <change-name> branch_status handled
 
 - Verification report passed
 - Branch handled
-- `.comet.yaml` `verification_report` points to an existing verification report file
-- `.comet.yaml` has `branch_status: handled`
-- **Phase guard**: Run `bash "$COMET_GUARD" <change-name> verify --apply`; after all PASS, it uses `comet-state transition verify-pass` to advance to `phase: archive`
+- `verification_report` in `.comet.yaml` points to an existing verification report file
+- `branch_status: handled` in `.comet.yaml`
+- **Phase guard**: Run `bash "$COMET_GUARD" <change-name> verify --apply`; after all PASS, auto-transitions to `phase: archive` through `comet-state transition verify-pass`
 
-After verification and branch handling are complete, run guard to auto-transition:
+After both verification and branch handling are complete, run guard for auto-transition:
 
 ```bash
 bash "$COMET_GUARD" <change-name> verify --apply
 ```
 
-State file is automatically updated to `phase: archive`, `verify_result: pass`, `verified_at: YYYY-MM-DD`.
+State file auto-updates to `phase: archive`, `verify_result: pass`, `verified_at: YYYY-MM-DD`.
 
 ## Automatic Transition
 
 After exit conditions are met, **proceed immediately to the next phase without waiting for user input**:
 
-> **REQUIRED NEXT SKILL:** Invoke `comet-archive` skill to enter the archiving phase.
+> **REQUIRED NEXT SKILL:** Invoke `comet-archive` skill to enter the archive phase.

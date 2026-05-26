@@ -35,6 +35,7 @@ const SKILLS_AGENT_MAP: Record<string, string> = {
 };
 
 const VALID_PLATFORM_IDS = new Set(Object.keys(SKILLS_AGENT_MAP));
+const ANSI_ESCAPE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*[a-zA-Z]`, 'g');
 const SUPERPOWERS_INSTALL_TIMEOUT_MS = 300_000;
 
 function buildSuperpowersInstallCommand(
@@ -74,7 +75,22 @@ async function installSuperpowersForPlatforms(
     });
     return 'installed';
   } catch (error) {
-    console.error(`    Superpowers install failed: ${(error as Error).message}`);
+    const execError = error as Error & { stderr?: Buffer };
+    console.error(`    Superpowers install failed: ${execError.message}`);
+    const stderr = execError.stderr?.toString()?.trim();
+    if (stderr) {
+      const cleaned = stderr
+        .replace(ANSI_ESCAPE_PATTERN, '')
+        .replace(/\[999D\[J/g, '')
+        .replace(/\[\?25[hl]/g, '')
+        .split('\n')
+        .filter((line) => line.trim() && !/^(│|├|╮|╯|●|◇|◒|◐|◓|◑|■)/.test(line.trim()))
+        .join('\n')
+        .trim();
+      if (cleaned) {
+        console.error(`    ${cleaned.split('\n').join('\n    ')}`);
+      }
+    }
     return 'failed';
   }
 }

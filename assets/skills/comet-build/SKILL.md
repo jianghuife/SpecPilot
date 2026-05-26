@@ -1,6 +1,6 @@
 ---
 name: comet-build
-description: "Comet Phase 3: Plan and Build. Invoke with /comet-build. Create plans and choose execution method (subagent or direct) for implementation."
+description: "Comet Phase 3: Plan and Build. Invoke with /comet-build. Create plans and select execution method (subagent or direct) for implementation."
 ---
 
 # Comet Phase 3: Plan and Build (Build)
@@ -58,9 +58,11 @@ bash "$COMET_STATE" set <name> plan docs/superpowers/plans/YYYY-MM-DD-feature.md
 
 No manual phase update needed — guard auto-transitions when exit conditions are met.
 
-### 3. Workspace Isolation
+### 3. Select Workflow Configuration
 
-Plan has been written to the current branch. Before starting execution, choose workspace isolation method:
+Plan has been written to the current branch. Before starting execution, **ask the user to choose both workspace isolation and execution method in a single interaction**:
+
+**Workspace Isolation**:
 
 | Option | Method | Description |
 |--------|--------|-------------|
@@ -71,52 +73,30 @@ Plan has been written to the current branch. Before starting execution, choose w
 - Change involves ≤ 3 files → Recommend A
 - Need parallel development, current branch has uncommitted work → Recommend B
 
-After user selection, update `isolation` field. `isolation` only allows one of the following values:
-
-```bash
-bash "$COMET_STATE" set <name> isolation <value>
-```
-
-- `branch`
-- `worktree`
-
-<IMPORTANT>
-This is a script-enforced hard constraint, not a suggestion. Full workflow init may temporarily leave `isolation` as `null`, but only before this step.
-Before implementation starts, stop and ask the user, then write either `branch` or `worktree`. If it remains `null`, both the `build → verify` guard and `comet-state transition build-complete` will fail.
-</IMPORTANT>
-
-**Execute isolation**:
-
-- **branch**: Run `git checkout -b <change-name>`, subsequent work on the new branch
-- **worktree**: Invoke `superpowers:using-git-worktrees` skill or use native `EnterWorktree` tool to create isolated workspace
-
-After creating isolation, confirm plan file is accessible (naturally accessible with branch method; for worktree method, confirm plan has been committed).
-
-### 4. Select Execution Method
-
-Present plan summary to user (task count, involved modules), then ask for execution method:
+**Execution Method**:
 
 | Option | Skill | Applicable Scenario |
 |------|------|-------------------|
 | A | `superpowers:subagent-driven-development` | Independent tasks, high complexity, requires two-phase review |
 | B | `superpowers:executing-plans` | Simple tasks, no subagent environment, lightweight and fast |
 
-**Recommendation rules**:
+**Execution method recommendation rules**:
 - Task count ≥ 3 → Recommend A
 - Task count ≤ 2 and no cross-module dependencies → Recommend B
 - From hotfix path → Recommend B
 
-After user selection, update `build_mode` field. `build_mode` only allows one of the following values:
+This is a user decision point. Must pause and wait for the user to explicitly choose both isolation method and execution method. **Must not select based on recommendation rules**. Recommendation rules are for suggestion only, not a substitute for user confirmation.
+
+After user selection, update `isolation` and `build_mode` fields:
 
 ```bash
-bash "$COMET_STATE" set <name> build_mode <value>
+bash "$COMET_STATE" set <name> isolation <branch|worktree>
+bash "$COMET_STATE" set <name> build_mode <subagent-driven-development|executing-plans|direct>
 ```
 
-- `subagent-driven-development`
-- `executing-plans`
-- `direct` (default only for hotfix/tweak preset use)
+`isolation` is a script-enforced hard constraint. Full workflow init may temporarily leave it as `null`, but only before this step. If it remains `null`, both the `build → verify` guard and `comet-state transition build-complete` will fail.
 
-Full workflow must not default to `direct`. Use it only when the user explicitly asks to bypass the plan execution skills and you record an explicit override:
+`build_mode` defaults to `direct` only for hotfix/tweak presets. Full workflow must not default to `direct`. Use it only when the user explicitly asks to bypass the plan execution skills and you record an explicit override:
 
 ```bash
 bash "$COMET_STATE" set <name> direct_override true
@@ -125,7 +105,14 @@ bash "$COMET_STATE" set <name> build_mode direct
 
 Without `direct_override: true`, `build_mode=direct` in full workflow is blocked by both guard and state transition.
 
-Then, **immediately execute:** Use the Skill tool to load the corresponding skill. Skipping this step is prohibited.
+**Execute isolation**:
+
+- **branch**: Run `git checkout -b <change-name>`, subsequent work on the new branch
+- **worktree**: Must use the Skill tool to load `superpowers:using-git-worktrees` skill to create isolated workspace. Do not bypass this skill with plain shell commands or native tools; if the skill is unavailable, stop the process and prompt to install or enable Superpowers skills.
+
+After creating isolation, confirm plan file is accessible (naturally accessible with branch method; for worktree method, confirm plan has been committed).
+
+**Load execution skill**: Use the Skill tool to load the corresponding skill. Skipping this step is prohibited.
 
 If the selected Superpowers skill is unavailable, stop the process and prompt to install or enable the corresponding skill. Do not substitute this step with normal conversation.
 
@@ -134,17 +121,19 @@ After the skill loads, follow its guidance to execute:
 - Complete tasks.md check (`- [ ]` → `- [x]`)
 - Commit code after each task completion
 
-### 5. Spec Incremental Updates
+### 4. Spec Incremental Updates
 
 When the initial spec is found incomplete during implementation, handle by scale:
 
 | Scale | Trigger Conditions | Approach |
 |------|-------------------|----------|
 | Small | Missing acceptance scenarios, edge cases | Directly edit delta spec + design.md, append tasks.md tasks |
-| Medium | Interface changes, new components, data flow changes | Re-run `superpowers:brainstorming` to update Design Doc + delta spec |
-| Large | Brand-new capability requirements | `/opsx:new` to create independent change |
+| Medium | Interface changes, new components, data flow changes | Pause and wait for user confirmation, then must use Skill tool to load `superpowers:brainstorming` to update Design Doc + delta spec |
+| Large | Brand-new capability requirements | Must pause and wait for user confirmation to split; after user confirms, create independent change through `/comet-open` |
 
-**50% Threshold Determination**: Using initial task count in tasks.md as baseline, if new tasks exceed half of that total, it's considered outside original plan scope, should consider splitting into new change.
+**50% Threshold Determination**: Using initial task count in tasks.md as baseline, if new tasks exceed half of that total, it's considered outside original plan scope, must pause and wait for the user to decide whether to split into new change.
+
+When creating an independent change, must invoke `/comet-open`, not `/opsx:new` directly. `/comet-open` creates both OpenSpec artifacts and `.comet.yaml`, preventing the new change from leaving the Comet state machine.
 
 **Principles**:
 - Delta spec is a living document, can be modified at any time during this phase
@@ -152,14 +141,14 @@ When the initial spec is found incomplete during implementation, handle by scale
 - Do not sync to main spec in advance, sync uniformly during archiving
 - For small-scale incremental direct delta spec edits, note in commit message to facilitate design doc drift assessment during archiving
 
-### 6. Context Management
+### 5. Context Management
 
 Build is the longest phase and may span many tasks. To support resume after context compaction:
 
 - **After each task**: immediately check off tasks.md and commit code so `.comet.yaml` and file state are durable
 - **After context compaction**: read `.comet.yaml` to confirm the phase is still build, read the plan header `base-ref`, then read tasks.md to find the next unchecked task
 - **User manual-change resume**: handle uncommitted changes through `comet/reference/dirty-worktree.md`. That protocol defines checks, attribution, and prohibitions. Build-specific handling:
-  1. After attribution, if the diff implies plan or spec changes, handle it through Step 5 "Spec Incremental Updates"
+  1. After attribution, if the diff implies plan or spec changes, handle it through Step 4 "Spec Incremental Updates"
 - **Long task split**: if a single task exceeds 200 lines of code changes, consider splitting it into multiple subtasks and commits
 
 ## Exit Conditions

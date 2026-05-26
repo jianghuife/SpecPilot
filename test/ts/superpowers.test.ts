@@ -158,6 +158,24 @@ describe('superpowers', () => {
       expect(result).toBe('failed');
     });
 
+    it('shows stderr details when execSync fails', async () => {
+      const error = new Error('Command failed: npx skills add ...') as Error & { stderr?: Buffer };
+      error.stderr = Buffer.from('fatal: unable to access: Failed to connect to github.com');
+      mockedExecSync.mockImplementationOnce(() => {
+        throw error;
+      });
+
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const { installSuperpowersForPlatforms } = await import('../../src/core/superpowers.js');
+      const result = await installSuperpowersForPlatforms('/tmp/test', 'project', ['claude']);
+
+      expect(result).toBe('failed');
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('fatal: unable to access: Failed to connect to github.com'),
+      );
+      errorSpy.mockRestore();
+    });
+
     it('throws when mixed with unknown platform ids', async () => {
       const { installSuperpowersForPlatforms } = await import('../../src/core/superpowers.js');
       await expect(

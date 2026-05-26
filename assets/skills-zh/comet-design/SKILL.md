@@ -92,23 +92,41 @@ canonical_spec: openspec
 
 如 `superpowers:brainstorming` 不可用，停止流程并提示安装或启用 Superpowers 技能，不要用普通对话替代该步骤。
 
-技能加载后，按其指引产出：
-- `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` — 设计文档（技术 RFC）
-- 如需补充验收场景，回写 `openspec/changes/<name>/specs/<capability>/spec.md` — OpenSpec delta 能力规格
+技能加载后，按其指引产出设计方案（以对话形式呈现）：
+- 技术方案：架构、数据流、关键技术选型与风险
+- 测试策略
+- 如需补充验收场景，标明将回写的 delta spec 变更
+
+brainstorming 阶段不写入 Design Doc 文件，仅产出设计方案供 Step 1c 用户确认。确认后才创建 `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` 并回写 delta spec。
+
+### 1c. 用户确认设计方案（阻塞点）
+
+brainstorming 产出设计方案后，**必须暂停并等待用户明确确认设计方案**。不得在用户确认前创建最终 Design Doc、写入 `design_doc`、运行 design guard，或进入 `/comet-build`。
+
+暂停时只展示必要摘要：
+- 采用的技术方案
+- 关键取舍与风险
+- 测试策略
+- 如有 Spec Patch，列出将回写的 delta spec 变更
+
+用户明确确认后，才继续 Step 2。若用户要求调整，继续 brainstorming 迭代，直到用户确认。
 
 ### 2. 更新 Comet 状态
 
-先记录 design_doc 路径，再运行 guard 自动流转：
+先记录 design_doc 路径。如果 Step 1c 回写了 delta spec（新增或修改了 `specs/*/spec.md`），必须重新生成 handoff 以更新 hash：
 
 ```bash
 # 记录 design_doc 路径
 bash "$COMET_STATE" set <name> design_doc docs/superpowers/specs/YYYY-MM-DD-topic-design.md
 
+# 如有 delta spec 变更，重新生成 handoff（更新 hash）
+bash "$COMET_HANDOFF" <change-name> design --write
+
 # 自动流转到下一阶段
 bash "$COMET_GUARD" <change-name> design --apply
 ```
 
-状态文件自动更新，无需手动编辑其他字段。
+如果没有 delta spec 变更，跳过 handoff 重新生成步骤。状态文件自动更新，无需手动编辑其他字段。
 
 ## 退出条件
 

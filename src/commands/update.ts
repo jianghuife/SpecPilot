@@ -167,7 +167,7 @@ async function updateCometNpmPackage(scope: InstallScope, projectPath: string): 
   const cwd = scope === 'global' ? process.cwd() : projectPath;
 
   return new Promise((resolve) => {
-    const child = spawn(getNpmExecutable(), args, { cwd, stdio: 'inherit' });
+    const child = spawn(getNpmExecutable(), args, { cwd, stdio: 'inherit', shell: true });
     child.on('error', () => resolve(false));
     child.on('exit', (code) => resolve(code === 0));
   });
