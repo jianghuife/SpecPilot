@@ -17,7 +17,7 @@ description: "Comet Phase 2: Deep Design. Invoke with /comet-design. Produce Des
 Execute entry verification:
 
 ```bash
-COMET_ENV="${COMET_ENV:-$(find . "$HOME/.*/skills" "$HOME/.config" "$HOME/.gemini" -path '*/comet/scripts/comet-env.sh' -type f -print -quit 2>/dev/null)}"
+COMET_ENV="${COMET_ENV:-$(find . "$HOME"/.*/skills "$HOME/.config" "$HOME/.gemini" -path '*/comet/scripts/comet-env.sh' -type f -print -quit 2>/dev/null)}"
 if [ -z "$COMET_ENV" ]; then
   echo "ERROR: comet-env.sh not found. Ensure the comet skill is installed." >&2
   return 1

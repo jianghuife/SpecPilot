@@ -42,30 +42,35 @@ function buildOpenSpecInitCommand(
 
 function createOpenSpecAllWorkflowsEnv(): { env: NodeJS.ProcessEnv; configHome: string } {
   const configHome = fs.mkdtempSync(path.join(os.tmpdir(), 'comet-openspec-profile-'));
-  const openspecConfigDir = path.join(configHome, 'openspec');
-  fs.mkdirSync(openspecConfigDir, { recursive: true });
-  fs.writeFileSync(
-    path.join(openspecConfigDir, 'config.json'),
-    JSON.stringify(
-      {
-        featureFlags: {},
-        profile: 'custom',
-        delivery: 'both',
-        workflows: [...ALL_OPENSPEC_WORKFLOWS],
-      },
-      null,
-      2,
-    ) + '\n',
-    'utf-8',
-  );
+  try {
+    const openspecConfigDir = path.join(configHome, 'openspec');
+    fs.mkdirSync(openspecConfigDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(openspecConfigDir, 'config.json'),
+      JSON.stringify(
+        {
+          featureFlags: {},
+          profile: 'custom',
+          delivery: 'both',
+          workflows: [...ALL_OPENSPEC_WORKFLOWS],
+        },
+        null,
+        2,
+      ) + '\n',
+      'utf-8',
+    );
 
-  return {
-    configHome,
-    env: {
-      ...process.env,
-      XDG_CONFIG_HOME: configHome,
-    },
-  };
+    return {
+      configHome,
+      env: {
+        ...process.env,
+        XDG_CONFIG_HOME: configHome,
+      },
+    };
+  } catch (error) {
+    fs.rmSync(configHome, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 function isCommandAvailable(command: string): boolean {

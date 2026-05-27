@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { execSync } from 'child_process';
 import fs from 'fs';
+import os from 'os';
+import path from 'path';
 
 // Mock child_process
 vi.mock('child_process', () => ({
@@ -151,6 +153,21 @@ describe('openspec', () => {
         'verify',
         'onboard',
       ]);
+    });
+
+    it('cleans up the temporary OpenSpec profile directory if config creation fails', async () => {
+      mockedExecSync.mockReturnValueOnce(Buffer.from('/usr/bin/openspec'));
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'comet-openspec-test-'));
+      vi.spyOn(fs, 'mkdtempSync').mockReturnValueOnce(tempDir);
+      vi.spyOn(fs, 'writeFileSync').mockImplementationOnce(() => {
+        throw new Error('config write failed');
+      });
+
+      const { installOpenSpec } = await import('../../src/core/openspec.js');
+      const result = await installOpenSpec('/tmp/test', ['claude'], 'project');
+
+      expect(result).toBe('failed');
+      expect(fs.existsSync(tempDir)).toBe(false);
     });
 
     it('uses the home directory as the OpenSpec init target for global scope', async () => {

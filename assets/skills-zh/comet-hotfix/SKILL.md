@@ -23,7 +23,7 @@ description: "Comet 预设路径：Bug fix / 热修复。跳过 brainstorming，
 开始前先定位 Comet 脚本：
 
 ```bash
-COMET_ENV="${COMET_ENV:-$(find . "$HOME/.*/skills" "$HOME/.config" "$HOME/.gemini" -path '*/comet/scripts/comet-env.sh' -type f -print -quit 2>/dev/null)}"
+COMET_ENV="${COMET_ENV:-$(find . "$HOME"/.*/skills "$HOME/.config" "$HOME/.gemini" -path '*/comet/scripts/comet-env.sh' -type f -print -quit 2>/dev/null)}"
 if [ -z "$COMET_ENV" ]; then
   echo "ERROR: comet-env.sh not found. Ensure the comet skill is installed." >&2
   return 1

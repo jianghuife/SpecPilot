@@ -232,6 +232,13 @@ describe('superpowers', () => {
       errorSpy.mockRestore();
     });
 
+    it('formats non-object command errors defensively', async () => {
+      const { formatCommandErrorDetails } = await import('../../src/core/command-error.js');
+
+      expect(formatCommandErrorDetails(null)).toEqual(['Unknown error occurred']);
+      expect(formatCommandErrorDetails(undefined)).toEqual(['Unknown error occurred']);
+    });
+
     it('throws when mixed with unknown platform ids', async () => {
       const { installSuperpowersForPlatforms } = await import('../../src/core/superpowers.js');
       await expect(

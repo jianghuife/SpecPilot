@@ -110,6 +110,36 @@ describe('comet shell scripts', () => {
     expect(result.stdout).toContain('comet-archive.sh');
   }, 20_000);
 
+  it('comet-env.sh does not change caller shell options when sourced', async () => {
+    const envScript = path.join(tmpDir, 'scripts', 'comet-env.sh');
+    const checkScript = path.join(tmpDir, 'check-env-options.sh');
+    await writeFile(
+      checkScript,
+      [
+        '#!/bin/bash',
+        'set +e',
+        'set +u',
+        'set +o pipefail',
+        `. "${toBashPath(envScript)}"`,
+        'case "$-" in *e*) echo errexit-on ;; *) echo errexit-off ;; esac',
+        'case "$-" in *u*) echo nounset-on ;; *) echo nounset-off ;; esac',
+        "if set -o | grep -E '^pipefail[[:space:]]+on' >/dev/null; then",
+        '  echo pipefail-on',
+        'else',
+        '  echo pipefail-off',
+        'fi',
+        '',
+      ].join('\n'),
+    );
+
+    const result = runBash(tmpDir, checkScript);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('errexit-off');
+    expect(result.stdout).toContain('nounset-off');
+    expect(result.stdout).toContain('pipefail-off');
+  }, 20_000);
+
   it('blocks build phase when the project build command fails', async () => {
     await createChange(
       tmpDir,

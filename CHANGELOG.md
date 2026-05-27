@@ -22,11 +22,13 @@ All notable changes to @rpamis/comet will be documented in this file.
 - **OpenCode slash commands**: `comet init` now generates OpenCode command files (`commands/*.md`) that keep the `/comet*` command names while embedding the corresponding Comet workflow content, so OpenCode users can invoke `/comet`, `/comet-open`, etc. directly.
 - **Lingma Superpowers path**: Lingma's Superpowers agent mapping now targets `lingma` instead of `universal`, so Superpowers skills install under `.lingma` instead of `.agent`.
 - **Lingma global directory**: Lingma's global skills directory is explicitly `.lingma`, matching `~/.lingma/skills/{skill-name}/SKILL.md` for user-level installs and `.lingma/skills/{skill-name}/SKILL.md` for project installs.
+- **Script discovery safety**: `comet-env.sh` no longer changes caller shell options when sourced, and skill snippets now allow `$HOME` skill-directory globs to expand during `comet-env.sh` discovery.
 - **comet-state.sh field whitelist**: Added `created_at` and `base_ref` to the `cmd_set` allowed fields list, aligning validation with fields already written during `.comet.yaml` initialization.
 
 ### Tests
 
 - **Script discovery coverage**: Added tests verifying `comet-env.sh` exports all bundled script paths and that no skill file inlines `COMET_SEARCH_ROOTS`.
+- **Script discovery safety**: Added regression coverage for sourced shell option preservation and expandable `$HOME` skill-directory globs.
 - **OpenCode Comet detection**: Added tests for OpenCode requiring both skill directories and matching command files before reporting Comet as installed.
 - **OpenCode E2E init**: Added end-to-end tests for OpenCode project and global scope installs, including command file generation.
 - **OpenCode command content**: Added tests that OpenCode command files preserve Comet command names and include full selected-language workflow content instead of a thin skill-delegation stub.

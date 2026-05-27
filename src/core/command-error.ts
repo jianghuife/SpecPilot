@@ -26,8 +26,13 @@ function cleanCommandOutput(output: string): string {
 }
 
 function formatCommandErrorDetails(error: unknown): string[] {
-  const commandError = error as CommandError;
   const details: string[] = [];
+  if (!error || typeof error !== 'object') {
+    details.push('Unknown error occurred');
+    return details;
+  }
+
+  const commandError = error as CommandError;
 
   for (const [label, stream] of [
     ['stderr', commandError.stderr],

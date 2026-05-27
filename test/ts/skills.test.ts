@@ -378,6 +378,12 @@ describe('skills', () => {
           expect(content, `${languageDir}/${skillPath} should source COMET_ENV`).toContain(
             '. "$COMET_ENV"',
           );
+          expect(content, `${languageDir}/${skillPath} should allow HOME skill glob expansion`).toContain(
+            '"$HOME"/.*/skills',
+          );
+          expect(content, `${languageDir}/${skillPath} should not quote the HOME skill glob`).not.toContain(
+            '"$HOME/.*/skills"',
+          );
           expect(content, `${languageDir}/${skillPath} should not inline roots`).not.toContain(
             'COMET_SEARCH_ROOTS=',
           );

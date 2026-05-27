@@ -3,8 +3,8 @@
 #
 # Usage:
 #   . /path/to/comet/scripts/comet-env.sh
-
-set -euo pipefail
+#
+# This file is sourced by workflow snippets. Do not set global shell options here.
 
 _comet_env_source="${BASH_SOURCE[0]:-$0}"
 _comet_script_dir="$(cd "$(dirname "$_comet_env_source")" && pwd -P)"
