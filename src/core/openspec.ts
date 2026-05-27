@@ -61,6 +61,10 @@ function getOpenSpecDefaultConfigDir(): string {
     }
     return path.join(os.homedir(), 'AppData', 'Roaming', 'openspec');
   }
+  const xdgConfig = process.env.XDG_CONFIG_HOME;
+  if (xdgConfig) {
+    return path.join(xdgConfig, 'openspec');
+  }
   return path.join(os.homedir(), '.config', 'openspec');
 }
 
@@ -97,9 +101,10 @@ interface ConfigBackup {
 function writeAllWorkflowsToDefaultConfig(): ConfigBackup | null {
   const configPath = getOpenSpecDefaultConfigPath();
   const backupPath = configPath + '.comet-backup';
+  let hadExisting = false;
 
   try {
-    const hadExisting = fs.existsSync(configPath);
+    hadExisting = fs.existsSync(configPath);
     if (hadExisting) {
       fs.copyFileSync(configPath, backupPath);
     }
@@ -112,6 +117,13 @@ function writeAllWorkflowsToDefaultConfig(): ConfigBackup | null {
 
     return { configPath, backupPath, hadExisting };
   } catch {
+    if (hadExisting) {
+      try {
+        fs.unlinkSync(backupPath);
+      } catch {
+        // Best-effort cleanup
+      }
+    }
     return null;
   }
 }
