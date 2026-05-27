@@ -19,6 +19,7 @@ describe('openspec', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
   });
 
   describe('isCommandAvailable', () => {
@@ -153,6 +154,52 @@ describe('openspec', () => {
         'verify',
         'onboard',
       ]);
+    });
+
+    it('writes the default OpenSpec config under XDG_CONFIG_HOME on non-Windows platforms', async () => {
+      mockedExecSync.mockReturnValueOnce(Buffer.from('/usr/bin/openspec'));
+      mockedExecSync.mockReturnValueOnce(Buffer.from('ok'));
+      vi.spyOn(os, 'platform').mockReturnValue('linux');
+      const xdgConfigHome = fs.mkdtempSync(path.join(os.tmpdir(), 'comet-openspec-xdg-'));
+      vi.stubEnv('XDG_CONFIG_HOME', xdgConfigHome);
+      const writeSpy = vi.spyOn(fs, 'writeFileSync');
+
+      const { installOpenSpec } = await import('../../src/core/openspec.js');
+      const result = await installOpenSpec('/tmp/test', ['claude'], 'project');
+
+      expect(result).toBe('installed');
+      expect(
+        writeSpy.mock.calls.some(
+          ([file]) => file === path.join(xdgConfigHome, 'openspec', 'config.json'),
+        ),
+      ).toBe(true);
+    });
+
+    it('removes a default OpenSpec config backup when writing the replacement config fails', async () => {
+      mockedExecSync.mockReturnValueOnce(Buffer.from('/usr/bin/openspec'));
+      mockedExecSync.mockReturnValueOnce(Buffer.from('ok'));
+      vi.spyOn(os, 'platform').mockReturnValue('linux');
+      const xdgConfigHome = fs.mkdtempSync(path.join(os.tmpdir(), 'comet-openspec-backup-'));
+      vi.stubEnv('XDG_CONFIG_HOME', xdgConfigHome);
+      const configDir = path.join(xdgConfigHome, 'openspec');
+      const configPath = path.join(configDir, 'config.json');
+      const backupPath = configPath + '.comet-backup';
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(configPath, '{"existing":true}\n', 'utf-8');
+      const originalWriteFileSync = fs.writeFileSync;
+      vi.spyOn(fs, 'writeFileSync').mockImplementation((file, data, options) => {
+        if (file === configPath) {
+          throw new Error('default config write failed');
+        }
+        return originalWriteFileSync(file, data, options);
+      });
+
+      const { installOpenSpec } = await import('../../src/core/openspec.js');
+      const result = await installOpenSpec('/tmp/test', ['claude'], 'project');
+
+      expect(result).toBe('installed');
+      expect(fs.existsSync(backupPath)).toBe(false);
+      expect(fs.readFileSync(configPath, 'utf-8')).toBe('{"existing":true}\n');
     });
 
     it('cleans up the temporary OpenSpec profile directory if config creation fails', async () => {
