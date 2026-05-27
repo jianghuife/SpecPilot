@@ -20,9 +20,9 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 - **OpenSpec workflow installation**: `comet init` now runs OpenSpec with `--profile custom` and a temporary config that enables all workflows (`propose`, `explore`, `new`, `continue`, `apply`, `ff`, `sync`, `archive`, `bulk-archive`, `verify`, `onboard`), ensuring Comet installs more than the default core workflow set.
 - **OpenCode slash commands**: `comet init` now generates OpenCode command files (`commands/*.md`) that keep the `/comet*` command names while embedding the corresponding Comet workflow content, so OpenCode users can invoke `/comet`, `/comet-open`, etc. directly.
-- **Lingma Superpowers path**: Lingma's Superpowers agent mapping now targets `lingma` instead of `universal`, so Superpowers skills install under `.lingma` instead of `.agent`.
+- **Lingma Superpowers path**: `comet init` now keeps Lingma out of the unsupported `skills --agent lingma` path and copies staged Superpowers skills into `.lingma/skills`, preventing the whole external installer batch from failing while preserving Lingma's expected directory layout.
 - **Lingma global directory**: Lingma's global skills directory is explicitly `.lingma`, matching `~/.lingma/skills/{skill-name}/SKILL.md` for user-level installs and `.lingma/skills/{skill-name}/SKILL.md` for project installs.
-- **Script discovery safety**: `comet-env.sh` no longer changes caller shell options when sourced, and skill snippets now allow `$HOME` skill-directory globs to expand during `comet-env.sh` discovery.
+- **Script discovery safety**: `comet-env.sh` no longer changes caller shell options when sourced, returns failure when bundled scripts are missing, and avoids ShellCheck unreachable-command diagnostics.
 - **comet-state.sh field whitelist**: Added `created_at` and `base_ref` to the `cmd_set` allowed fields list, aligning validation with fields already written during `.comet.yaml` initialization.
 
 ### Tests
@@ -34,7 +34,7 @@ All notable changes to @rpamis/comet will be documented in this file.
 - **OpenCode command content**: Added tests that OpenCode command files preserve Comet command names and include full selected-language workflow content instead of a thin skill-delegation stub.
 - **English workflow safeguards**: Added parity tests matching the existing Chinese workflow decision-point requirements.
 - **OpenSpec profile and diagnostics**: Added tests for custom profile creation, `--profile custom` flag, and stderr/stdout detail printing on install failures.
-- **Lingma agent mapping**: Updated test expectation from `universal` to `lingma`.
+- **Lingma Superpowers fallback**: Added regression coverage that Lingma is excluded from the unsupported skills CLI agent list and uses a staging install before copying skills to `.lingma`.
 - **Lingma global install path**: Added regression coverage for `comet init --scope global` installing Lingma Comet skills under the user `.lingma/skills` directory.
 
 ## What's Changed [0.3.1] - 2026-05-26

@@ -57,7 +57,7 @@ describe('superpowers', () => {
       expect(SKILLS_AGENT_MAP['factory']).toBe('droid');
       expect(SKILLS_AGENT_MAP['amazon-q']).toBe('universal');
       expect(SKILLS_AGENT_MAP['costrict']).toBe('universal');
-      expect(SKILLS_AGENT_MAP['lingma']).toBe('lingma');
+      expect(SKILLS_AGENT_MAP['lingma']).toBeNull();
     });
 
     it('has entries for all 28 platforms', async () => {
@@ -129,11 +129,19 @@ describe('superpowers', () => {
       ).toBe("npx skills add obra/superpowers -y --agent 'claude-code' --agent 'cursor'");
     });
 
-    it('targets Lingma directly so skills install under .lingma', async () => {
+    it('excludes Lingma from the skills CLI command because skills@1.5.7 does not support it', async () => {
       const { buildSuperpowersInstallCommand } = await import('../../src/core/superpowers.js');
 
-      expect(buildSuperpowersInstallCommand('/tmp/test', 'project', ['lingma'], 'linux')).toBe(
-        "npx skills add obra/superpowers -y --agent 'lingma'",
+      expect(
+        buildSuperpowersInstallCommand('/tmp/test', 'project', ['claude', 'lingma'], 'linux'),
+      ).toBe("npx skills add obra/superpowers -y --agent 'claude-code'");
+    });
+
+    it('builds a staging command for Lingma so skills can be copied into .lingma', async () => {
+      const { buildLingmaSuperpowersStageCommand } = await import('../../src/core/superpowers.js');
+
+      expect(buildLingmaSuperpowersStageCommand('linux')).toBe(
+        "npx skills add obra/superpowers -y --agent 'claude-code'",
       );
     });
 

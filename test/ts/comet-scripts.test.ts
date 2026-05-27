@@ -110,6 +110,29 @@ describe('comet shell scripts', () => {
     expect(result.stdout).toContain('comet-archive.sh');
   }, 20_000);
 
+  it('comet-env.sh returns failure when a bundled script is missing', async () => {
+    const envScript = path.join(tmpDir, 'scripts', 'comet-env.sh');
+    await fs.rm(path.join(tmpDir, 'scripts', 'comet-guard.sh'));
+    const checkScript = path.join(tmpDir, 'check-env-missing.sh');
+    await writeFile(
+      checkScript,
+      [
+        '#!/bin/bash',
+        `. "${toBashPath(envScript)}"`,
+        'status=$?',
+        'echo "source-status=$status"',
+        'exit "$status"',
+        '',
+      ].join('\n'),
+    );
+
+    const result = runBash(tmpDir, checkScript);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('ERROR: Comet scripts not found');
+    expect(result.stdout).toContain('source-status=1');
+  }, 20_000);
+
   it('comet-env.sh does not change caller shell options when sourced', async () => {
     const envScript = path.join(tmpDir, 'scripts', 'comet-env.sh');
     const checkScript = path.join(tmpDir, 'check-env-options.sh');
