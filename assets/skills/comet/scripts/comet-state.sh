@@ -271,8 +271,8 @@ cmd_set() {
       red "Valid fields:" >&2
       red "  workflow, phase, design_doc, plan, build_mode, isolation," >&2
       red "  verify_mode, verify_result, verification_report, branch_status," >&2
-      red "  verified_at, archived, direct_override, build_command," >&2
-      red "  verify_command, handoff_context, handoff_hash" >&2
+      red "  verified_at, created_at, archived, base_ref, direct_override," >&2
+      red "  build_command, verify_command, handoff_context, handoff_hash" >&2
       exit 1
       ;;
   esac

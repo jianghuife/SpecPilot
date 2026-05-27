@@ -203,6 +203,10 @@ describe('comet init E2E', () => {
         await expect(fs.access(dest)).resolves.toBeUndefined();
       }
     }
+
+    await expect(
+      fs.access(path.join(tmpDir, '.opencode', 'commands', 'comet-open.md')),
+    ).resolves.toBeUndefined();
   }, 20_000);
 
   it('installs Antigravity Comet skills to the Gemini global skills directory', async () => {
@@ -226,5 +230,65 @@ describe('comet init E2E', () => {
       const dest = path.join(fakeHome, '.gemini', 'antigravity', 'skills', skillPath);
       await expect(fs.access(dest)).resolves.toBeUndefined();
     }
+  }, 20_000);
+
+  it('installs OpenCode global Comet skills and commands to the OpenCode config directory', async () => {
+    mockExternalSuccess();
+
+    await fs.mkdir(path.join(tmpDir, '.opencode'), { recursive: true });
+    const fakeHome = path.join(tmpDir, 'fake-home');
+    await fs.mkdir(fakeHome, { recursive: true });
+
+    vi.spyOn(os, 'homedir').mockReturnValue(fakeHome);
+
+    const { initCommand } = await import('../../src/commands/init.js');
+    const result = await captureJsonOutput(() =>
+      initCommand(tmpDir, { yes: true, scope: 'global', json: true }),
+    );
+
+    expect(result.selectedPlatforms).toEqual(['opencode']);
+
+    const manifest = await readManifest();
+    for (const skillPath of manifest.skills) {
+      const dest = path.join(fakeHome, '.config', 'opencode', 'skills', skillPath);
+      await expect(fs.access(dest)).resolves.toBeUndefined();
+    }
+
+    await expect(
+      fs.access(path.join(fakeHome, '.config', 'opencode', 'commands', 'comet.md')),
+    ).resolves.toBeUndefined();
+    await expect(
+      fs.access(path.join(fakeHome, '.config', 'opencode', 'commands', 'comet-open.md')),
+    ).resolves.toBeUndefined();
+    await expect(
+      fs.access(path.join(fakeHome, '.opencode', 'skills', 'comet', 'SKILL.md')),
+    ).rejects.toThrow();
+  }, 20_000);
+
+  it('installs Lingma global Comet skills to the user Lingma skills directory', async () => {
+    mockExternalSuccess();
+
+    await fs.mkdir(path.join(tmpDir, '.lingma'), { recursive: true });
+    const fakeHome = path.join(tmpDir, 'fake-home');
+    await fs.mkdir(fakeHome, { recursive: true });
+
+    vi.spyOn(os, 'homedir').mockReturnValue(fakeHome);
+
+    const { initCommand } = await import('../../src/commands/init.js');
+    const result = await captureJsonOutput(() =>
+      initCommand(tmpDir, { yes: true, scope: 'global', json: true }),
+    );
+
+    expect(result.selectedPlatforms).toEqual(['lingma']);
+
+    const manifest = await readManifest();
+    for (const skillPath of manifest.skills) {
+      const dest = path.join(fakeHome, '.lingma', 'skills', skillPath);
+      await expect(fs.access(dest)).resolves.toBeUndefined();
+    }
+
+    await expect(
+      fs.access(path.join(tmpDir, '.lingma', 'skills', 'comet', 'SKILL.md')),
+    ).rejects.toThrow();
   }, 20_000);
 });

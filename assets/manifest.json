@@ -1,8 +1,9 @@
 {
-  "version": "0.3.1",
+  "version": "0.3.2",
   "skills": [
     "comet/SKILL.md",
     "comet/reference/dirty-worktree.md",
+    "comet/scripts/comet-env.sh",
     "comet/scripts/comet-guard.sh",
     "comet/scripts/comet-state.sh",
     "comet/scripts/comet-handoff.sh",

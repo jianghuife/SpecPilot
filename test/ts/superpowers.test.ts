@@ -57,7 +57,7 @@ describe('superpowers', () => {
       expect(SKILLS_AGENT_MAP['factory']).toBe('droid');
       expect(SKILLS_AGENT_MAP['amazon-q']).toBe('universal');
       expect(SKILLS_AGENT_MAP['costrict']).toBe('universal');
-      expect(SKILLS_AGENT_MAP['lingma']).toBe('universal');
+      expect(SKILLS_AGENT_MAP['lingma']).toBeNull();
     });
 
     it('has entries for all 28 platforms', async () => {
@@ -129,6 +129,22 @@ describe('superpowers', () => {
       ).toBe("npx skills add obra/superpowers -y --agent 'claude-code' --agent 'cursor'");
     });
 
+    it('excludes Lingma from the skills CLI command because skills@1.5.7 does not support it', async () => {
+      const { buildSuperpowersInstallCommand } = await import('../../src/core/superpowers.js');
+
+      expect(
+        buildSuperpowersInstallCommand('/tmp/test', 'project', ['claude', 'lingma'], 'linux'),
+      ).toBe("npx skills add obra/superpowers -y --agent 'claude-code'");
+    });
+
+    it('builds a staging command for Lingma so skills can be copied into .lingma', async () => {
+      const { buildLingmaSuperpowersStageCommand } = await import('../../src/core/superpowers.js');
+
+      expect(buildLingmaSuperpowersStageCommand('linux')).toBe(
+        "npx skills add obra/superpowers -y --agent 'claude-code'",
+      );
+    });
+
     it('passes -g flag for global scope', async () => {
       mockedExecSync.mockReturnValueOnce(Buffer.from('installed'));
 
@@ -174,6 +190,61 @@ describe('superpowers', () => {
         expect.stringContaining('fatal: unable to access: Failed to connect to github.com'),
       );
       errorSpy.mockRestore();
+    });
+
+    it('shows stdout details when execSync fails', async () => {
+      const error = new Error('Command failed: npx skills add ...') as Error & { stdout?: Buffer };
+      error.stdout = Buffer.from('request to github.com timed out');
+      mockedExecSync.mockImplementationOnce(() => {
+        throw error;
+      });
+
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const { installSuperpowersForPlatforms } = await import('../../src/core/superpowers.js');
+      const result = await installSuperpowersForPlatforms('/tmp/test', 'project', ['claude']);
+
+      expect(result).toBe('failed');
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('request to github.com timed out'),
+      );
+      errorSpy.mockRestore();
+    });
+
+    it('shows ENOENT fallback when command is not found', async () => {
+      const error = new Error('spawnSync ENOENT') as Error & { code?: string };
+      error.code = 'ENOENT';
+      mockedExecSync.mockImplementationOnce(() => {
+        throw error;
+      });
+
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const { installSuperpowersForPlatforms } = await import('../../src/core/superpowers.js');
+      const result = await installSuperpowersForPlatforms('/tmp/test', 'project', ['claude']);
+
+      expect(result).toBe('failed');
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Command not found'));
+      errorSpy.mockRestore();
+    });
+
+    it('shows generic fallback when output is empty without error code', async () => {
+      mockedExecSync.mockImplementationOnce(() => {
+        throw new Error('Command failed: npx skills add ...');
+      });
+
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const { installSuperpowersForPlatforms } = await import('../../src/core/superpowers.js');
+      const result = await installSuperpowersForPlatforms('/tmp/test', 'project', ['claude']);
+
+      expect(result).toBe('failed');
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('No error output captured'));
+      errorSpy.mockRestore();
+    });
+
+    it('formats non-object command errors defensively', async () => {
+      const { formatCommandErrorDetails } = await import('../../src/core/command-error.js');
+
+      expect(formatCommandErrorDetails(null)).toEqual(['Unknown error occurred']);
+      expect(formatCommandErrorDetails(undefined)).toEqual(['Unknown error occurred']);
     });
 
     it('throws when mixed with unknown platform ids', async () => {

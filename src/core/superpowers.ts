@@ -1,9 +1,14 @@
 import { execSync } from 'child_process';
+import os from 'os';
+import path from 'path';
+import { cp, mkdir, mkdtemp, readdir, rm } from 'fs/promises';
 
+import { printCommandErrorDetails } from './command-error.js';
 import { quoteShellArg } from './openspec.js';
+import { getPlatformSkillsDir, PLATFORMS } from './platforms.js';
 import type { InstallScope } from './types.js';
 
-const SKILLS_AGENT_MAP: Record<string, string> = {
+const SKILLS_AGENT_MAP: Record<string, string | null> = {
   claude: 'claude-code',
   cursor: 'cursor',
   codex: 'codex',
@@ -19,7 +24,7 @@ const SKILLS_AGENT_MAP: Record<string, string> = {
   kilocode: 'kilo',
   auggie: 'augment',
   kiro: 'kiro-cli',
-  lingma: 'universal',
+  lingma: null,
   junie: 'junie',
   codebuddy: 'codebuddy',
   costrict: 'universal',
@@ -35,8 +40,9 @@ const SKILLS_AGENT_MAP: Record<string, string> = {
 };
 
 const VALID_PLATFORM_IDS = new Set(Object.keys(SKILLS_AGENT_MAP));
-const ANSI_ESCAPE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*[a-zA-Z]`, 'g');
 const SUPERPOWERS_INSTALL_TIMEOUT_MS = 300_000;
+const LINGMA_PLATFORM_ID = 'lingma';
+const LINGMA_STAGE_AGENT = 'claude-code';
 
 function buildSuperpowersInstallCommand(
   _projectPath: string,
@@ -49,10 +55,14 @@ function buildSuperpowersInstallCommand(
     throw new Error(`Unknown platform IDs: ${unknownIds.join(', ')}`);
   }
 
-  const agentNames = [...new Set(platformIds.map((id) => SKILLS_AGENT_MAP[id]).filter(Boolean))];
+  const agentNames = [
+    ...new Set(
+      platformIds.map((id) => SKILLS_AGENT_MAP[id]).filter((name): name is string => Boolean(name)),
+    ),
+  ];
 
   if (agentNames.length === 0) {
-    throw new Error(`No valid agent names resolved for platforms: ${platformIds.join(', ')}`);
+    throw new Error(`No skills CLI agent names resolved for platforms: ${platformIds.join(', ')}`);
   }
 
   const agentFlags = agentNames.map((name) => `--agent ${quoteShellArg(name, platform)}`).join(' ');
@@ -60,39 +70,99 @@ function buildSuperpowersInstallCommand(
   return `npx skills add obra/superpowers ${flags}`;
 }
 
+function buildLingmaSuperpowersStageCommand(platform: NodeJS.Platform = process.platform): string {
+  return `npx skills add obra/superpowers -y --agent ${quoteShellArg(LINGMA_STAGE_AGENT, platform)}`;
+}
+
+async function copyDirectoryContents(srcDir: string, destDir: string): Promise<void> {
+  await mkdir(destDir, { recursive: true });
+  const entries = await readdir(srcDir, { withFileTypes: true });
+  for (const entry of entries) {
+    await cp(path.join(srcDir, entry.name), path.join(destDir, entry.name), {
+      recursive: true,
+      force: true,
+      dereference: true,
+    });
+  }
+}
+
+async function installSuperpowersForLingma(
+  projectPath: string,
+  scope: InstallScope,
+): Promise<'installed' | 'failed'> {
+  const lingmaPlatform = PLATFORMS.find((platform) => platform.id === LINGMA_PLATFORM_ID);
+  if (!lingmaPlatform) {
+    console.error('    Superpowers install failed: Lingma platform is not registered');
+    return 'failed';
+  }
+
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'comet-lingma-superpowers-'));
+  try {
+    execSync(buildLingmaSuperpowersStageCommand(), {
+      cwd: tempDir,
+      stdio: 'pipe',
+      timeout: SUPERPOWERS_INSTALL_TIMEOUT_MS,
+    });
+
+    const stagedSkillsDir = path.join(tempDir, '.claude', 'skills');
+    const baseDir = scope === 'global' ? os.homedir() : projectPath;
+    const lingmaSkillsDir = path.join(
+      baseDir,
+      getPlatformSkillsDir(lingmaPlatform, scope),
+      'skills',
+    );
+    await copyDirectoryContents(stagedSkillsDir, lingmaSkillsDir);
+    return 'installed';
+  } catch (error) {
+    console.error(`    Lingma Superpowers install failed: ${(error as Error).message}`);
+    printCommandErrorDetails(error);
+    return 'failed';
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function installSuperpowersForPlatforms(
   projectPath: string,
   scope: InstallScope,
   platformIds: string[],
 ): Promise<'installed' | 'failed' | 'skipped'> {
-  const command = buildSuperpowersInstallCommand(projectPath, scope, platformIds);
-
-  try {
-    execSync(command, {
-      cwd: projectPath,
-      stdio: 'pipe',
-      timeout: SUPERPOWERS_INSTALL_TIMEOUT_MS,
-    });
-    return 'installed';
-  } catch (error) {
-    const execError = error as Error & { stderr?: Buffer };
-    console.error(`    Superpowers install failed: ${execError.message}`);
-    const stderr = execError.stderr?.toString()?.trim();
-    if (stderr) {
-      const cleaned = stderr
-        .replace(ANSI_ESCAPE_PATTERN, '')
-        .replace(/\[999D\[J/g, '')
-        .replace(/\[\?25[hl]/g, '')
-        .split('\n')
-        .filter((line) => line.trim() && !/^(│|├|╮|╯|●|◇|◒|◐|◓|◑|■)/.test(line.trim()))
-        .join('\n')
-        .trim();
-      if (cleaned) {
-        console.error(`    ${cleaned.split('\n').join('\n    ')}`);
-      }
-    }
-    return 'failed';
+  const unknownIds = platformIds.filter((id) => !VALID_PLATFORM_IDS.has(id));
+  if (unknownIds.length > 0) {
+    throw new Error(`Unknown platform IDs: ${unknownIds.join(', ')}`);
   }
+
+  const skillsCliPlatformIds = platformIds.filter((id) => SKILLS_AGENT_MAP[id]);
+  const shouldInstallLingma = platformIds.includes(LINGMA_PLATFORM_ID);
+  let failed = false;
+
+  if (skillsCliPlatformIds.length > 0) {
+    const command = buildSuperpowersInstallCommand(projectPath, scope, skillsCliPlatformIds);
+
+    try {
+      execSync(command, {
+        cwd: projectPath,
+        stdio: 'pipe',
+        timeout: SUPERPOWERS_INSTALL_TIMEOUT_MS,
+      });
+    } catch (error) {
+      console.error(`    Superpowers install failed: ${(error as Error).message}`);
+      printCommandErrorDetails(error);
+      failed = true;
+    }
+  }
+
+  if (shouldInstallLingma) {
+    const lingmaStatus = await installSuperpowersForLingma(projectPath, scope);
+    if (lingmaStatus === 'failed') failed = true;
+  }
+
+  return failed ? 'failed' : 'installed';
 }
 
-export { installSuperpowersForPlatforms, buildSuperpowersInstallCommand, SKILLS_AGENT_MAP };
+export {
+  installSuperpowersForPlatforms,
+  buildSuperpowersInstallCommand,
+  buildLingmaSuperpowersStageCommand,
+  SKILLS_AGENT_MAP,
+};
