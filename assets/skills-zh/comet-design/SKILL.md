@@ -17,10 +17,12 @@ description: "Comet 阶段 2：深度设计。用 /comet-design 调用。通过 
 执行入口验证：
 
 ```bash
-COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
-COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
-COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
-COMET_HANDOFF="${COMET_HANDOFF:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-handoff.sh' -type f -print -quit 2>/dev/null)}"
+COMET_ENV="${COMET_ENV:-$(find . "$HOME/.*/skills" "$HOME/.config" "$HOME/.gemini" -path '*/comet/scripts/comet-env.sh' -type f -print -quit 2>/dev/null)}"
+if [ -z "$COMET_ENV" ]; then
+  echo "ERROR: comet-env.sh not found. Ensure the comet skill is installed." >&2
+  return 1
+fi
+. "$COMET_ENV"
 bash "$COMET_STATE" check <name> design
 ```
 

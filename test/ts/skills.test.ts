@@ -110,6 +110,73 @@ describe('skills', () => {
       const zhSkillPath = path.join(tmpDir, '.claude', 'skills', 'comet', 'SKILL.md');
       expect(await fileExists(zhSkillPath)).toBe(true);
     });
+
+    it('creates OpenCode slash commands for copied Comet skills', async () => {
+      const opencodePlatform: Platform = {
+        id: 'opencode',
+        name: 'OpenCode',
+        skillsDir: '.opencode',
+        globalSkillsDir: '.config/opencode',
+        openspecToolId: 'opencode',
+      };
+
+      const result = await copyCometSkillsForPlatform(tmpDir, opencodePlatform, false);
+
+      expect(result.copied).toBeGreaterThan(0);
+      const commandPath = path.join(tmpDir, '.opencode', 'commands', 'comet-open.md');
+      const command = await fs.readFile(commandPath, 'utf-8');
+
+      expect(command).toContain('description: Run the comet-open Comet workflow');
+      expect(command).toContain('Equivalent Comet skill: `comet-open`');
+      expect(command).toContain('Use the invocation arguments below as the user input for this workflow:');
+      expect(command).toContain('$ARGUMENTS');
+      expect(command).toContain('# Comet Phase 1: Open');
+      expect(command).toContain('## Steps');
+      expect(command).toContain('bash "$COMET_STATE" init <name> full');
+      expect(command).not.toContain('Immediately load the `comet-open` skill with the skill tool');
+      expect(path.basename(commandPath)).toBe('comet-open.md');
+    });
+
+    it('creates OpenCode slash commands from the selected language skill content', async () => {
+      const opencodePlatform: Platform = {
+        id: 'opencode',
+        name: 'OpenCode',
+        skillsDir: '.opencode',
+        globalSkillsDir: '.config/opencode',
+        openspecToolId: 'opencode',
+      };
+
+      await copyCometSkillsForPlatform(tmpDir, opencodePlatform, false, 'skills-zh');
+
+      const commandPath = path.join(tmpDir, '.opencode', 'commands', 'comet-open.md');
+      const command = await fs.readFile(commandPath, 'utf-8');
+
+      expect(command).toContain('description: Run the comet-open Comet workflow');
+      expect(command).toContain('Equivalent Comet skill: `comet-open`');
+      expect(command).toContain('# Comet 阶段 1：开启（Open）');
+      expect(command).toContain('## 步骤');
+      expect(command).not.toContain('# Comet Phase 1: Open');
+      expect(path.basename(commandPath)).toBe('comet-open.md');
+    });
+
+    it('creates OpenCode slash commands in the global OpenCode config directory', async () => {
+      const opencodePlatform: Platform = {
+        id: 'opencode',
+        name: 'OpenCode',
+        skillsDir: '.opencode',
+        globalSkillsDir: '.config/opencode',
+        openspecToolId: 'opencode',
+      };
+
+      await copyCometSkillsForPlatform(tmpDir, opencodePlatform, false, 'skills', 'global');
+
+      await expect(
+        fs.access(path.join(tmpDir, '.config', 'opencode', 'commands', 'comet.md')),
+      ).resolves.toBeUndefined();
+      await expect(
+        fs.access(path.join(tmpDir, '.opencode', 'commands', 'comet.md')),
+      ).rejects.toThrow();
+    });
   });
 
   describe('Chinese Comet workflow safeguards', () => {
@@ -211,6 +278,111 @@ describe('skills', () => {
       expect(zhHotfix).toContain('立即使用 Skill 工具加载 `comet-design` skill');
       expect(zhTweak).toContain('立即使用 Skill 工具加载 `comet-design` skill');
       expect(zhVerify).toContain('用户选择 B 后，运行 `bash "$COMET_STATE" transition <change-name> verify-fail`，然后调用 `/comet-build`');
+    });
+  });
+
+  describe('English Comet workflow safeguards', () => {
+    it('matches the Chinese workflow decision-point requirements', async () => {
+      const enComet = await fs.readFile(
+        path.resolve('assets', 'skills', 'comet', 'SKILL.md'),
+        'utf-8',
+      );
+      const enDesign = await fs.readFile(
+        path.resolve('assets', 'skills', 'comet-design', 'SKILL.md'),
+        'utf-8',
+      );
+      const enBuild = await fs.readFile(
+        path.resolve('assets', 'skills', 'comet-build', 'SKILL.md'),
+        'utf-8',
+      );
+      const enVerify = await fs.readFile(
+        path.resolve('assets', 'skills', 'comet-verify', 'SKILL.md'),
+        'utf-8',
+      );
+      const enHotfix = await fs.readFile(
+        path.resolve('assets', 'skills', 'comet-hotfix', 'SKILL.md'),
+        'utf-8',
+      );
+      const enTweak = await fs.readFile(
+        path.resolve('assets', 'skills', 'comet-tweak', 'SKILL.md'),
+        'utf-8',
+      );
+
+      expect(enComet).toContain('Decision points are blocking points');
+      expect(enDesign).toContain('must pause and wait for the user to explicitly confirm');
+      expect(enBuild).toContain('must not choose `branch` or `worktree` based on recommendation rules');
+      expect(enBuild).toContain('must not choose the execution method based on recommendation rules');
+      expect(enVerify).toContain('When verification does not pass, must pause and wait for the user to decide fix or accept deviation');
+      expect(enVerify).toContain('Must pause and wait for user to choose branch handling method');
+      expect(enVerify).toContain('Only after the user completes selection and the corresponding operation finishes, may `branch_status: handled` be written');
+      expect(enHotfix).toContain('must pause and wait for the user to explicitly confirm upgrading to the full `/comet` workflow');
+      expect(enHotfix).toContain('Do not directly enter `/comet-design`');
+      expect(enTweak).toContain('must pause and wait for the user to explicitly confirm upgrading to the full `/comet` workflow');
+      expect(enTweak).toContain('Do not directly enter `/comet-design`');
+      expect(enComet).toContain('`verify_result: fail` → Enter verification failure decision blocking point');
+      expect(enComet).not.toContain(
+        '`verify_result: fail` → `bash "$COMET_STATE" transition <name> verify-fail` then `/comet-build`',
+      );
+
+      expect(enHotfix).toContain('Handle through the upgrade-condition blocking confirmation');
+      expect(enTweak).toContain('Handle through the upgrade-condition blocking confirmation');
+      expect(enHotfix).toContain('verify phase (comet-verify) verification-failure and branch-handling decisions');
+      expect(enTweak).toContain('verify phase (comet-verify) verification-failure and branch-handling decisions');
+      expect(enDesign).toContain('The brainstorming phase does not write to the Design Doc file');
+      expect(enVerify).toContain('must pause and wait for user to choose handling method');
+      expect(enComet).toContain('first check whether `build_mode` and `isolation` are set');
+      expect(enVerify).toContain('CRITICAL failures must be fixed');
+      expect(enVerify).toContain('skipping fix to accept all is not allowed');
+      expect(enHotfix).toContain('workspace isolation and execution-method selection when tasks exceed 3 and transfer to `/comet-build`');
+      expect(enBuild).toContain('Pause and wait for user confirmation, then must use Skill tool to load `superpowers:brainstorming`');
+      expect(enBuild).toContain('must pause and wait for the user to decide whether to split into new change');
+      expect(enVerify).toContain('Implementation matches `openspec/changes/<name>/design.md` high-level design decisions');
+      expect(enBuild).toContain('create independent change through `/comet-open`');
+      expect(enBuild).not.toContain('create independent change through `/opsx:new`');
+      expect(enComet).toContain('Build phase scope expansion requiring redesign or new change split');
+      expect(enVerify).toContain('Option A is a verify phase allowed artifact');
+      expect(enBuild).toContain('Must use the Skill tool to load `superpowers:using-git-worktrees`');
+      expect(enBuild).not.toContain('native `EnterWorktree` tool');
+      expect(enBuild).toContain('must use Skill tool to load `superpowers:brainstorming`');
+      expect(enHotfix).toContain('Immediately use the Skill tool to load the `comet-design` skill');
+      expect(enTweak).toContain('Immediately use the Skill tool to load the `comet-design` skill');
+      expect(enVerify).toContain('After user selects B, run `bash "$COMET_STATE" transition <change-name> verify-fail`, then invoke `/comet-build`');
+    });
+  });
+
+  describe('Comet script discovery helper', () => {
+    it('ships a shared script locator helper', async () => {
+      const manifest = await readManifest();
+      expect(manifest.skills).toContain('comet/scripts/comet-env.sh');
+    });
+
+    it('keeps platform search roots out of English and Chinese skill prose', async () => {
+      const manifest = await readManifest();
+      const skillPaths = manifest.skills.filter(
+        (skillPath) =>
+          skillPath.endsWith('SKILL.md') &&
+          (skillPath === 'comet/SKILL.md' || skillPath.startsWith('comet-')),
+      );
+
+      for (const languageDir of ['skills', 'skills-zh']) {
+        for (const skillPath of skillPaths) {
+          const content = await fs.readFile(
+            path.resolve('assets', languageDir, skillPath),
+            'utf-8',
+          );
+          if (!content.includes('COMET_STATE') && !content.includes('COMET_GUARD')) continue;
+
+          expect(content, `${languageDir}/${skillPath} should use comet-env.sh`).toContain(
+            'comet-env.sh',
+          );
+          expect(content, `${languageDir}/${skillPath} should source COMET_ENV`).toContain(
+            '. "$COMET_ENV"',
+          );
+          expect(content, `${languageDir}/${skillPath} should not inline roots`).not.toContain(
+            'COMET_SEARCH_ROOTS=',
+          );
+        }
+      }
     });
   });
 });

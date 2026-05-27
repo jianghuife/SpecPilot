@@ -110,7 +110,7 @@ agent 做决策只需读本节，参考附录按需查阅。
 需要用户参与的节点（仅在这些节点暂停）：
 1. brainstorming 确认设计方案
 2. build 阶段选择工作方式（隔离方式 + 执行方式，一次交互完成）
-4. verify 不通过时决定修复或接受偏差（含 Spec 漂移处理方式选择）
+3. verify 不通过时决定修复或接受偏差（含 Spec 漂移处理方式选择）
 4. finishing-branch 选择分支处理方式
 5. 遇到升级条件（hotfix/tweak → 完整流程）
 6. build 阶段范围扩张需重新设计或拆分新 change
@@ -206,11 +206,12 @@ archived: false
 Comet 脚本随 skill 包分发在 `comet/scripts/` 下。**不硬编码路径** — 定位一次，缓存到环境变量：
 
 ```bash
-COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
-COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
-COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
-COMET_HANDOFF="${COMET_HANDOFF:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-handoff.sh' -type f -print -quit 2>/dev/null)}"
-COMET_ARCHIVE="${COMET_ARCHIVE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-archive.sh' -type f -print -quit 2>/dev/null)}"
+COMET_ENV="${COMET_ENV:-$(find . "$HOME/.*/skills" "$HOME/.config" "$HOME/.gemini" -path '*/comet/scripts/comet-env.sh' -type f -print -quit 2>/dev/null)}"
+if [ -z "$COMET_ENV" ]; then
+  echo "ERROR: comet-env.sh not found. Ensure the comet skill is installed." >&2
+  return 1
+fi
+. "$COMET_ENV"
 
 # 脚本定位失败时停止流程
 if [ -z "$COMET_GUARD" ] || [ -z "$COMET_STATE" ] || [ -z "$COMET_HANDOFF" ] || [ -z "$COMET_ARCHIVE" ]; then

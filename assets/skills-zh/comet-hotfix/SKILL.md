@@ -16,17 +16,19 @@ description: "Comet 预设路径：Bug fix / 热修复。跳过 brainstorming，
 
 ---
 
-## 流程（preset workflow，4 阶段）
+## 流程（preset workflow，5 阶段）
 
 执行链路：open → build → verify → archive。Hotfix 为每个阶段提供默认决策：精简开启、直接构建、按规模验证、验证通过后归档。
 
 开始前先定位 Comet 脚本：
 
 ```bash
-COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
-COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
-COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
-COMET_ARCHIVE="${COMET_ARCHIVE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-archive.sh' -type f -print -quit 2>/dev/null)}"
+COMET_ENV="${COMET_ENV:-$(find . "$HOME/.*/skills" "$HOME/.config" "$HOME/.gemini" -path '*/comet/scripts/comet-env.sh' -type f -print -quit 2>/dev/null)}"
+if [ -z "$COMET_ENV" ]; then
+  echo "ERROR: comet-env.sh not found. Ensure the comet skill is installed." >&2
+  return 1
+fi
+. "$COMET_ENV"
 ```
 
 ### 1. 快速开启（preset open）
@@ -110,7 +112,7 @@ bash "$COMET_GUARD" <change-name> build --apply
 
 验证通过后，按 `/comet-verify` 的规则将 `.comet.yaml` 的 `verify_result` 记录为 `pass`，归档前不得跳过该状态。
 
-### 4. 归档（preset archive）
+### 5. 归档（preset archive）
 
 复用 `/comet-archive`。归档前必须满足 `.comet.yaml` 中 `verify_result: pass`。
 
@@ -128,7 +130,7 @@ Hotfix 流程为 **一次性连续执行**。调用 `/comet-hotfix` 后，agent 
 2. 任务超过 3 个转入 `/comet-build` 时的工作区隔离和执行方式选择
 3. 验证阶段（comet-verify）的验证失败决策和分支处理决策
 
-执行顺序：快速开启 → 直接构建 → 验证 → 归档 → 完成
+执行顺序：快速开启 → 直接构建 → 根因消除检查 → 验证 → 归档 → 完成
 
 每个阶段完成后立即进入下一阶段。阶段内部仍必须按上文要求调用对应 Comet/OpenSpec/Superpowers skill，被调用的 skill 如有自己的用户决策点，按该 skill 规则执行。
 </IMPORTANT>

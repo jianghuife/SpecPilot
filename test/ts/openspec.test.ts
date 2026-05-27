@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { execSync } from 'child_process';
+import fs from 'fs';
 
 // Mock child_process
 vi.mock('child_process', () => ({
@@ -69,6 +70,34 @@ describe('openspec', () => {
       expect(result).toBe('failed');
     });
 
+    it('shows npm stderr and stdout details when CLI install fails', async () => {
+      mockedExecSync.mockImplementationOnce(() => {
+        throw new Error('not found');
+      });
+      const error = new Error(
+        'Command failed: npm install @fission-ai/openspec@latest',
+      ) as Error & {
+        stderr?: Buffer;
+        stdout?: Buffer;
+      };
+      error.stderr = Buffer.from('npm ERR! request to registry.npmjs.org failed');
+      error.stdout = Buffer.from('npm notice retrying request');
+      mockedExecSync.mockImplementationOnce(() => {
+        throw error;
+      });
+
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const { installOpenSpec } = await import('../../src/core/openspec.js');
+      const result = await installOpenSpec('/tmp/test', ['claude'], 'project');
+
+      expect(result).toBe('failed');
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('npm ERR! request to registry.npmjs.org failed'),
+      );
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('npm notice retrying request'));
+      errorSpy.mockRestore();
+    });
+
     it('does not pass unsupported --global flag for global scope', async () => {
       mockedExecSync.mockReturnValueOnce(Buffer.from('/usr/bin/openspec'));
       mockedExecSync.mockReturnValueOnce(Buffer.from('ok'));
@@ -81,15 +110,58 @@ describe('openspec', () => {
       expect(initCall).toContain(`--tools ${quoteShellArg('claude')}`);
     });
 
+    it('installs OpenSpec with all workflows through an isolated custom profile', async () => {
+      mockedExecSync.mockReturnValueOnce(Buffer.from('/usr/bin/openspec'));
+      mockedExecSync.mockReturnValueOnce(Buffer.from('ok'));
+      const writeSpy = vi.spyOn(fs, 'writeFileSync');
+
+      const { installOpenSpec } = await import('../../src/core/openspec.js');
+      const result = await installOpenSpec('/tmp/test', ['claude'], 'project');
+
+      expect(result).toBe('installed');
+      const initCall = mockedExecSync.mock.calls[1][0] as string;
+      const initOptions = mockedExecSync.mock.calls[1][1] as { env?: NodeJS.ProcessEnv };
+      expect(initCall).toContain('--profile custom');
+
+      const configHome = initOptions.env?.XDG_CONFIG_HOME;
+      expect(configHome).toBeTruthy();
+      const configWrite = writeSpy.mock.calls.find(
+        ([file]) =>
+          typeof file === 'string' && file.replace(/\\/g, '/').endsWith('openspec/config.json'),
+      );
+      expect(configWrite).toBeTruthy();
+      const config = JSON.parse(configWrite?.[1] as string) as {
+        profile?: string;
+        delivery?: string;
+        workflows?: string[];
+      };
+
+      expect(config.profile).toBe('custom');
+      expect(config.delivery).toBe('both');
+      expect(config.workflows).toEqual([
+        'propose',
+        'explore',
+        'new',
+        'continue',
+        'apply',
+        'ff',
+        'sync',
+        'archive',
+        'bulk-archive',
+        'verify',
+        'onboard',
+      ]);
+    });
+
     it('uses the home directory as the OpenSpec init target for global scope', async () => {
       const { buildOpenSpecInitCommand } = await import('../../src/core/openspec.js');
 
       expect(
         buildOpenSpecInitCommand('/tmp/project', ['codex'], 'global', '/Users/Test User', 'darwin'),
-      ).toBe("openspec init '/Users/Test User' --tools 'codex'");
+      ).toBe("openspec init '/Users/Test User' --tools 'codex' --profile custom");
       expect(
         buildOpenSpecInitCommand('/tmp/project', ['codex'], 'global', '/home/test user', 'linux'),
-      ).toBe("openspec init '/home/test user' --tools 'codex'");
+      ).toBe("openspec init '/home/test user' --tools 'codex' --profile custom");
       expect(
         buildOpenSpecInitCommand(
           'D:\\Project\\Comet',
@@ -98,7 +170,7 @@ describe('openspec', () => {
           'C:\\Users\\Test User',
           'win32',
         ),
-      ).toBe('openspec init "C:\\Users\\Test User" --tools "codex"');
+      ).toBe('openspec init "C:\\Users\\Test User" --tools "codex" --profile custom');
     });
 
     it('quotes the joined OpenSpec tools argument', async () => {
@@ -112,7 +184,7 @@ describe('openspec', () => {
           '/home/user',
           'linux',
         ),
-      ).toBe("openspec init '/tmp/project' --tools 'future tool,codex'");
+      ).toBe("openspec init '/tmp/project' --tools 'future tool,codex' --profile custom");
     });
 
     it('installs openspec CLI when not on PATH', async () => {
@@ -143,6 +215,45 @@ describe('openspec', () => {
       const result = await installOpenSpec('/tmp/test', ['claude'], 'project');
 
       expect(result).toBe('failed');
+    });
+
+    it('shows openspec init stderr details when init throws', async () => {
+      mockedExecSync.mockReturnValueOnce(Buffer.from('/usr/bin/openspec'));
+      const error = new Error('Command failed: openspec init ...') as Error & { stderr?: Buffer };
+      error.stderr = Buffer.from('network timeout while fetching OpenSpec skills');
+      mockedExecSync.mockImplementationOnce(() => {
+        throw error;
+      });
+
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const { installOpenSpec } = await import('../../src/core/openspec.js');
+      const result = await installOpenSpec('/tmp/test', ['claude'], 'project');
+
+      expect(result).toBe('failed');
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('network timeout while fetching OpenSpec skills'),
+      );
+      errorSpy.mockRestore();
+    });
+
+    it('shows timeout fallback when stderr and stdout are both empty', async () => {
+      mockedExecSync.mockReturnValueOnce(Buffer.from('/usr/bin/openspec'));
+      const error = new Error('Command failed: openspec init ...') as Error & {
+        stderr?: Buffer;
+        code?: string;
+      };
+      error.code = 'ETIMEDOUT';
+      mockedExecSync.mockImplementationOnce(() => {
+        throw error;
+      });
+
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const { installOpenSpec } = await import('../../src/core/openspec.js');
+      const result = await installOpenSpec('/tmp/test', ['claude'], 'project');
+
+      expect(result).toBe('failed');
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Process timed out'));
+      errorSpy.mockRestore();
     });
   });
 });

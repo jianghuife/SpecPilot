@@ -42,6 +42,16 @@ describe('detect', () => {
     });
   });
 
+  describe('platform global skills directories', () => {
+    it('declares Lingma global skills under the user .lingma directory', () => {
+      const lingma = PLATFORMS.find((platform) => platform.id === 'lingma');
+
+      expect(lingma).toBeDefined();
+      expect(lingma?.skillsDir).toBe('.lingma');
+      expect(lingma?.globalSkillsDir).toBe('.lingma');
+    });
+  });
+
   describe('detectPlatforms', () => {
     it('detects claude platform when .claude directory exists', async () => {
       await fs.mkdir(path.join(tmpDir, '.claude'));
@@ -107,6 +117,31 @@ describe('detect', () => {
     it('detects comet skills', async () => {
       await fs.mkdir(path.join(tmpDir, '.claude', 'skills', 'comet'), { recursive: true });
       expect(await hasSkills(tmpDir, mockPlatform, 'comet')).toBe(true);
+    });
+
+    it('treats OpenCode Comet skills without slash commands as incomplete', async () => {
+      const opencode = PLATFORMS.find((platform) => platform.id === 'opencode');
+      expect(opencode).toBeDefined();
+      if (!opencode) return;
+
+      await fs.mkdir(path.join(tmpDir, '.opencode', 'skills', 'comet'), { recursive: true });
+      await fs.mkdir(path.join(tmpDir, '.opencode', 'skills', 'comet-open'), { recursive: true });
+
+      expect(await hasSkills(tmpDir, opencode, 'comet')).toBe(false);
+    });
+
+    it('detects OpenCode Comet skills when matching slash commands exist', async () => {
+      const opencode = PLATFORMS.find((platform) => platform.id === 'opencode');
+      expect(opencode).toBeDefined();
+      if (!opencode) return;
+
+      await fs.mkdir(path.join(tmpDir, '.opencode', 'skills', 'comet'), { recursive: true });
+      await fs.mkdir(path.join(tmpDir, '.opencode', 'skills', 'comet-open'), { recursive: true });
+      await fs.mkdir(path.join(tmpDir, '.opencode', 'commands'), { recursive: true });
+      await fs.writeFile(path.join(tmpDir, '.opencode', 'commands', 'comet.md'), '');
+      await fs.writeFile(path.join(tmpDir, '.opencode', 'commands', 'comet-open.md'), '');
+
+      expect(await hasSkills(tmpDir, opencode, 'comet')).toBe(true);
     });
 
     it('detects Antigravity global skills in the Gemini Antigravity directory', async () => {

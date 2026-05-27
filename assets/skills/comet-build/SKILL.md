@@ -17,9 +17,12 @@ description: "Comet Phase 3: Plan and Build. Invoke with /comet-build. Create pl
 Execute entry verification:
 
 ```bash
-COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
-COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
-COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
+COMET_ENV="${COMET_ENV:-$(find . "$HOME/.*/skills" "$HOME/.config" "$HOME/.gemini" -path '*/comet/scripts/comet-env.sh' -type f -print -quit 2>/dev/null)}"
+if [ -z "$COMET_ENV" ]; then
+  echo "ERROR: comet-env.sh not found. Ensure the comet skill is installed." >&2
+  return 1
+fi
+. "$COMET_ENV"
 bash "$COMET_STATE" check <name> build
 ```
 
@@ -85,7 +88,7 @@ Plan has been written to the current branch. Before starting execution, **ask th
 - Task count ≤ 2 and no cross-module dependencies → Recommend B
 - From hotfix path → Recommend B
 
-This is a user decision point. Must pause and wait for the user to explicitly choose both isolation method and execution method. **Must not select based on recommendation rules**. Recommendation rules are for suggestion only, not a substitute for user confirmation.
+This is a user decision point. Must pause and wait for the user to explicitly choose both isolation method and execution method. You **must not choose `branch` or `worktree` based on recommendation rules**, and **must not choose the execution method based on recommendation rules**. Recommendation rules are for suggestion only, not a substitute for user confirmation.
 
 After user selection, update `isolation` and `build_mode` fields:
 

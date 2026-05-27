@@ -23,10 +23,12 @@ Execution chain: open → build → root cause check → verify → archive. Hot
 Locate Comet scripts before starting:
 
 ```bash
-COMET_SEARCH_ROOTS=("." "$HOME/.claude/skills" "$HOME/.codex/skills" "$HOME/.cursor/skills")
-COMET_STATE="${COMET_STATE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-state.sh' -type f -print -quit 2>/dev/null)}"
-COMET_GUARD="${COMET_GUARD:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-guard.sh' -type f -print -quit 2>/dev/null)}"
-COMET_ARCHIVE="${COMET_ARCHIVE:-$(find "${COMET_SEARCH_ROOTS[@]}" -path '*/comet/scripts/comet-archive.sh' -type f -print -quit 2>/dev/null)}"
+COMET_ENV="${COMET_ENV:-$(find . "$HOME/.*/skills" "$HOME/.config" "$HOME/.gemini" -path '*/comet/scripts/comet-env.sh' -type f -print -quit 2>/dev/null)}"
+if [ -z "$COMET_ENV" ]; then
+  echo "ERROR: comet-env.sh not found. Ensure the comet skill is installed." >&2
+  return 1
+fi
+. "$COMET_ENV"
 ```
 
 ### 1. Quick Open (preset open)
@@ -124,9 +126,9 @@ If there is delta spec, sync to main spec according to comet-archive rules, and 
 <IMPORTANT>
 Hotfix workflow is **one-time continuous execution**. After invoking `/comet-hotfix`, agent must automatically advance through hotfix steps, without pausing to wait for user input mid-way. But the following situations must pause and wait for user confirmation:
 
-1. Encountering upgrade conditions (see "Upgrade Conditions" section)
-2. When tasks exceed 3 and transfer to `/comet-build` for workspace isolation and execution method selection
-3. Verification phase (comet-verify) verification failure decision and branch handling decision
+1. Encountering upgrade conditions (see "Upgrade Conditions" section). Handle through the upgrade-condition blocking confirmation
+2. workspace isolation and execution-method selection when tasks exceed 3 and transfer to `/comet-build`
+3. verify phase (comet-verify) verification-failure and branch-handling decisions
 
 Execution order: quick open → direct build → root cause check → verification → archive → complete
 
@@ -147,7 +149,7 @@ Upgrade to full `/comet` when **any** of the following conditions are met:
 | Introduces new public API | Fix creates new external interface |
 | Fix scope exceeds single function/module | Requires coordinated changes |
 
-When upgrade conditions are met, must pause and wait for user to explicitly confirm upgrade to full `/comet` workflow. Must not directly enter `/comet-design`, must not automatically supplement Design Doc.
+When upgrade conditions are met, must pause and wait for the user to explicitly confirm upgrading to the full `/comet` workflow. Do not directly enter `/comet-design`, and do not automatically supplement Design Doc.
 
 After user confirms upgrade, **must first update the workflow field** before entering full flow:
 
@@ -155,7 +157,7 @@ After user confirms upgrade, **must first update the workflow field** before ent
 bash "$COMET_STATE" set <name> workflow full
 ```
 
-Then on current change basis, supplement Design Doc: **immediately use Skill tool to load `comet-design` skill**, proceed normally with full workflow. If user does not confirm upgrade, stop hotfix and report that current change has exceeded hotfix scope.
+Then on current change basis, supplement Design Doc: **Immediately use the Skill tool to load the `comet-design` skill**, proceed normally with full workflow. If user does not confirm upgrade, stop hotfix and report that current change has exceeded hotfix scope.
 
 ---
 

@@ -1,10 +1,26 @@
 import { execSync } from 'child_process';
+import fs from 'fs';
 import os from 'os';
+import path from 'path';
 import { PLATFORMS } from './platforms.js';
+import { printCommandErrorDetails } from './command-error.js';
 
 import type { InstallScope } from './types.js';
 
 const VALID_TOOL_IDS = new Set(PLATFORMS.map((p) => p.openspecToolId));
+const ALL_OPENSPEC_WORKFLOWS = [
+  'propose',
+  'explore',
+  'new',
+  'continue',
+  'apply',
+  'ff',
+  'sync',
+  'archive',
+  'bulk-archive',
+  'verify',
+  'onboard',
+] as const;
 
 function quoteShellArg(value: string, platform: NodeJS.Platform = process.platform): string {
   if (platform === 'win32') {
@@ -21,7 +37,35 @@ function buildOpenSpecInitCommand(
   platform: NodeJS.Platform = process.platform,
 ): string {
   const targetPath = scope === 'global' ? homeDir : projectPath;
-  return `openspec init ${quoteShellArg(targetPath, platform)} --tools ${quoteShellArg(toolIds.join(','), platform)}`;
+  return `openspec init ${quoteShellArg(targetPath, platform)} --tools ${quoteShellArg(toolIds.join(','), platform)} --profile custom`;
+}
+
+function createOpenSpecAllWorkflowsEnv(): { env: NodeJS.ProcessEnv; configHome: string } {
+  const configHome = fs.mkdtempSync(path.join(os.tmpdir(), 'comet-openspec-profile-'));
+  const openspecConfigDir = path.join(configHome, 'openspec');
+  fs.mkdirSync(openspecConfigDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(openspecConfigDir, 'config.json'),
+    JSON.stringify(
+      {
+        featureFlags: {},
+        profile: 'custom',
+        delivery: 'both',
+        workflows: [...ALL_OPENSPEC_WORKFLOWS],
+      },
+      null,
+      2,
+    ) + '\n',
+    'utf-8',
+  );
+
+  return {
+    configHome,
+    env: {
+      ...process.env,
+      XDG_CONFIG_HOME: configHome,
+    },
+  };
 }
 
 function isCommandAvailable(command: string): boolean {
@@ -49,6 +93,7 @@ async function ensureOpenSpecCli(scope: InstallScope, projectPath: string): Prom
     return isCommandAvailable('openspec');
   } catch (error) {
     console.error(`    Failed to install OpenSpec CLI: ${(error as Error).message}`);
+    printCommandErrorDetails(error);
     return false;
   }
 }
@@ -71,16 +116,25 @@ async function installOpenSpec(
     throw new Error(`Unknown tool IDs: ${unknownIds.join(', ')}`);
   }
 
+  let configHome: string | undefined;
   try {
+    const openspecEnv = createOpenSpecAllWorkflowsEnv();
+    configHome = openspecEnv.configHome;
     execSync(buildOpenSpecInitCommand(projectPath, toolIds, scope), {
       cwd: projectPath,
+      env: openspecEnv.env,
       stdio: 'pipe',
       timeout: 120_000,
     });
     return 'installed';
   } catch (error) {
     console.error(`    OpenSpec init failed: ${(error as Error).message}`);
+    printCommandErrorDetails(error);
     return 'failed';
+  } finally {
+    if (configHome) {
+      fs.rmSync(configHome, { recursive: true, force: true });
+    }
   }
 }
 

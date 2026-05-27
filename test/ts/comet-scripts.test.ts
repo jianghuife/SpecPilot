@@ -56,6 +56,7 @@ describe('comet shell scripts', () => {
     const tmpScriptsDir = path.join(tmpDir, 'scripts');
     await fs.mkdir(tmpScriptsDir, { recursive: true });
     for (const name of [
+      'comet-env.sh',
       'comet-archive.sh',
       'comet-guard.sh',
       'comet-handoff.sh',
@@ -85,6 +86,28 @@ describe('comet shell scripts', () => {
     expect(yaml).toContain('phase: open');
     expect(yaml).toContain('verification_report: null');
     expect(yaml).toContain('branch_status: pending');
+  }, 20_000);
+
+  it('comet-env.sh exports bundled script paths from its own directory', async () => {
+    const envScript = path.join(tmpDir, 'scripts', 'comet-env.sh');
+    const checkScript = path.join(tmpDir, 'check-env.sh');
+    await writeFile(
+      checkScript,
+      [
+        '#!/bin/bash',
+        `. "${toBashPath(envScript)}"`,
+        'printf "%s\\n%s\\n%s\\n%s\\n" "$COMET_STATE" "$COMET_GUARD" "$COMET_HANDOFF" "$COMET_ARCHIVE"',
+        '',
+      ].join('\n'),
+    );
+    const result = runBash(tmpDir, checkScript);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout).toContain('comet-state.sh');
+    expect(result.stdout).toContain('comet-guard.sh');
+    expect(result.stdout).toContain('comet-handoff.sh');
+    expect(result.stdout).toContain('comet-archive.sh');
   }, 20_000);
 
   it('blocks build phase when the project build command fails', async () => {
@@ -660,6 +683,7 @@ describe('comet shell scripts', () => {
 
   it('keeps shell scripts portable across GNU and BSD sed', async () => {
     for (const name of [
+      'comet-env.sh',
       'comet-state.sh',
       'comet-archive.sh',
       'comet-guard.sh',
