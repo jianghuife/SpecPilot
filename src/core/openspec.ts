@@ -40,25 +40,40 @@ function buildOpenSpecInitCommand(
   return `openspec init ${quoteShellArg(targetPath, platform)} --tools ${quoteShellArg(toolIds.join(','), platform)} --profile custom`;
 }
 
+const ALL_WORKFLOWS_CONFIG =
+  JSON.stringify(
+    {
+      featureFlags: {},
+      profile: 'custom',
+      delivery: 'both',
+      workflows: [...ALL_OPENSPEC_WORKFLOWS],
+    },
+    null,
+    2,
+  ) + '\n';
+
+function getOpenSpecDefaultConfigDir(): string {
+  const platform = os.platform();
+  if (platform === 'win32') {
+    const appData = process.env.APPDATA;
+    if (appData) {
+      return path.join(appData, 'openspec');
+    }
+    return path.join(os.homedir(), 'AppData', 'Roaming', 'openspec');
+  }
+  return path.join(os.homedir(), '.config', 'openspec');
+}
+
+function getOpenSpecDefaultConfigPath(): string {
+  return path.join(getOpenSpecDefaultConfigDir(), 'config.json');
+}
+
 function createOpenSpecAllWorkflowsEnv(): { env: NodeJS.ProcessEnv; configHome: string } {
   const configHome = fs.mkdtempSync(path.join(os.tmpdir(), 'comet-openspec-profile-'));
   try {
     const openspecConfigDir = path.join(configHome, 'openspec');
     fs.mkdirSync(openspecConfigDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(openspecConfigDir, 'config.json'),
-      JSON.stringify(
-        {
-          featureFlags: {},
-          profile: 'custom',
-          delivery: 'both',
-          workflows: [...ALL_OPENSPEC_WORKFLOWS],
-        },
-        null,
-        2,
-      ) + '\n',
-      'utf-8',
-    );
+    fs.writeFileSync(path.join(openspecConfigDir, 'config.json'), ALL_WORKFLOWS_CONFIG, 'utf-8');
 
     return {
       configHome,
@@ -70,6 +85,50 @@ function createOpenSpecAllWorkflowsEnv(): { env: NodeJS.ProcessEnv; configHome: 
   } catch (error) {
     fs.rmSync(configHome, { recursive: true, force: true });
     throw error;
+  }
+}
+
+interface ConfigBackup {
+  configPath: string;
+  backupPath: string;
+  hadExisting: boolean;
+}
+
+function writeAllWorkflowsToDefaultConfig(): ConfigBackup | null {
+  const configPath = getOpenSpecDefaultConfigPath();
+  const backupPath = configPath + '.comet-backup';
+
+  try {
+    const hadExisting = fs.existsSync(configPath);
+    if (hadExisting) {
+      fs.copyFileSync(configPath, backupPath);
+    }
+
+    const configDir = path.dirname(configPath);
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+    fs.writeFileSync(configPath, ALL_WORKFLOWS_CONFIG, 'utf-8');
+
+    return { configPath, backupPath, hadExisting };
+  } catch {
+    return null;
+  }
+}
+
+function restoreDefaultConfig(backup: ConfigBackup | null): void {
+  if (!backup) return;
+  try {
+    if (backup.hadExisting) {
+      fs.copyFileSync(backup.backupPath, backup.configPath);
+      fs.unlinkSync(backup.backupPath);
+    } else {
+      if (fs.existsSync(backup.configPath)) {
+        fs.unlinkSync(backup.configPath);
+      }
+    }
+  } catch {
+    // Best-effort restore
   }
 }
 
@@ -122,9 +181,13 @@ async function installOpenSpec(
   }
 
   let configHome: string | undefined;
+  let configBackup: ConfigBackup | null = null;
   try {
     const openspecEnv = createOpenSpecAllWorkflowsEnv();
     configHome = openspecEnv.configHome;
+
+    configBackup = writeAllWorkflowsToDefaultConfig();
+
     execSync(buildOpenSpecInitCommand(projectPath, toolIds, scope), {
       cwd: projectPath,
       env: openspecEnv.env,
@@ -137,6 +200,7 @@ async function installOpenSpec(
     printCommandErrorDetails(error);
     return 'failed';
   } finally {
+    restoreDefaultConfig(configBackup);
     if (configHome) {
       fs.rmSync(configHome, { recursive: true, force: true });
     }

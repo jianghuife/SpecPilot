@@ -2,6 +2,12 @@
 
 All notable changes to @rpamis/comet will be documented in this file.
 
+## What's Changed [0.3.3] - 2026-05-27
+
+### Fixed
+
+- **OpenSpec all-workflows installation**: `comet init` now writes the all-workflows config directly to the platform-specific default config path (`%APPDATA%\openspec\` on Windows, `~/.config/openspec/` on macOS/Linux) in addition to the `XDG_CONFIG_HOME` env override, ensuring all 11 OpenSpec workflows are always installed regardless of the user's previous OpenSpec config state.
+
 ## What's Changed [0.3.2] - 2026-05-27
 
 ### Added
