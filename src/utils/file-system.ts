@@ -50,7 +50,12 @@ export async function writeFile(filePath: string, content: string): Promise<void
 export async function readDir(dirPath: string): Promise<string[]> {
   try {
     return await fs.readdir(dirPath);
-  } catch {
-    return [];
+  } catch (error) {
+    const fileSystemError = error as NodeJS.ErrnoException;
+    if (fileSystemError.code === 'ENOENT' || fileSystemError.code === 'ENOTDIR') {
+      return [];
+    }
+
+    throw error;
   }
 }
