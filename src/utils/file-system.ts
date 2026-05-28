@@ -51,8 +51,8 @@ export async function readDir(dirPath: string): Promise<string[]> {
   try {
     return await fs.readdir(dirPath);
   } catch (error) {
-    const fileSystemError = error as NodeJS.ErrnoException;
-    if (fileSystemError.code === 'ENOENT' || fileSystemError.code === 'ENOTDIR') {
+    const code = (error as NodeJS.ErrnoException)?.code;
+    if (code === 'ENOENT' || code === 'ENOTDIR') {
       return [];
     }
 
