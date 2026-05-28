@@ -403,6 +403,12 @@ Track our development progress and upcoming features on the [Comet Roadmap](http
 
 [![Star History Chart](https://api.star-history.com/svg?repos=rpamis/comet&type=Date)](https://star-history.com/#rpamis/comet&Date)
 
+## Contributors
+
+<a href="https://github.com/rpamis/comet/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=rpamis/comet&max=999&columns=12&anon=1" />
+</a>
+
 ## License
 
 [MIT](LICENSE.md)
