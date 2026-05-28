@@ -40,7 +40,7 @@ function collectTopLevelYamlKeys(yamlContent: string): string[] {
     if (/^\s/u.test(line)) continue;
     if (trimmedLine.startsWith('- ')) continue;
 
-    const keyMatch = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:/u);
+    const keyMatch = line.match(/^['"]?([A-Za-z0-9_-]+)['"]?\s*:/u);
     if (keyMatch) {
       topLevelKeys.push(keyMatch[1]);
     }
