@@ -100,25 +100,6 @@ comet init
 6. Deploy Comet skills (in your chosen language) to selected platforms
 7. Create `docs/superpowers/specs/` and `docs/superpowers/plans/` working directories for project-scope installs
 
-After initialization, run the slash command inside your selected AI coding tool:
-
-```text
-/comet "add user profile settings"
-```
-
-To resume an interrupted change, run:
-
-```text
-/comet
-```
-
-Useful CLI checks:
-
-```bash
-comet status
-comet doctor
-```
-
 > [!TIP]
 > update version
 >

@@ -100,25 +100,6 @@ comet init
 6. 将 Comet 技能（你选择的语言）部署到所选平台
 7. 在项目级安装时创建 `docs/superpowers/specs/` 和 `docs/superpowers/plans/` 工作目录
 
-初始化完成后，在你选择的 AI 编码工具中使用 slash command：
-
-```text
-/comet "添加用户资料设置"
-```
-
-中断后恢复当前变更：
-
-```text
-/comet
-```
-
-常用 CLI 检查：
-
-```bash
-comet status
-comet doctor
-```
-
 > [!TIP]
 > 更新版本号
 >
