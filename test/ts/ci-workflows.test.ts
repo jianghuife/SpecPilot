@@ -22,6 +22,9 @@ describe('CI workflows', () => {
     expect(projectVerify).not.toContain('.config/opencode/skills');
     expect(globalVerify).toContain('.config/opencode/skills');
     expect(globalVerify).not.toContain('.opencode/skills');
+    expect(workflow).toContain('function extractJsonPayload(raw) {');
+    expect(workflow).toContain("throw new Error('No JSON payload found in init output');");
+    expect(workflow).toContain('const data = JSON.parse(extractJsonPayload(raw));');
     expect(workflow).toContain("const allowed = new Set(['installed', 'skipped', 'failed']);");
     expect(workflow).toContain("const components = ['openspec', 'superpowers'];");
     expect(workflow).toContain("r[component] === 'failed'");
