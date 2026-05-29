@@ -113,6 +113,7 @@ async function installSuperpowersForLingma(
       cwd: tempDir,
       stdio: 'inherit',
       timeout: SUPERPOWERS_INSTALL_TIMEOUT_MS,
+      shell: process.platform === 'win32',
     });
 
     const stagedSkillsDir = path.join(tempDir, '.claude', 'skills');
@@ -155,6 +156,7 @@ async function installSuperpowersForPlatforms(
         cwd: projectPath,
         stdio: 'inherit',
         timeout: SUPERPOWERS_INSTALL_TIMEOUT_MS,
+        shell: process.platform === 'win32',
       });
     } catch (error) {
       console.error(`    Superpowers install failed: ${(error as Error).message}`);

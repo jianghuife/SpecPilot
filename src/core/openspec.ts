@@ -168,6 +168,7 @@ async function ensureOpenSpecCli(scope: InstallScope, projectPath: string): Prom
       cwd: projectPath,
       stdio: 'inherit',
       timeout: 120_000,
+      shell: process.platform === 'win32',
     });
     return isCommandAvailable('openspec');
   } catch (error) {
@@ -209,6 +210,7 @@ async function installOpenSpec(
       env: openspecEnv.env,
       stdio: 'inherit',
       timeout: 120_000,
+      shell: process.platform === 'win32',
     });
     return 'installed';
   } catch (error) {
