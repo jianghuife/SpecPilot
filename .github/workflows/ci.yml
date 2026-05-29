@@ -185,26 +185,7 @@ jobs:
 
       - name: Verify OpenSpec and working directories (project)
         run: |
-          CHECK_OPENSPEC_DIR=$(node - "$RUNNER_TEMP/comet-init-project.json" <<'NODE'
-          const fs = require('fs');
-          function extractJsonPayload(raw) {
-            const start = raw.indexOf('{');
-            if (start < 0) {
-              throw new Error('No JSON payload found in init output');
-            }
-            return raw.slice(start);
-          }
-          const raw = fs.readFileSync(process.argv[2], 'utf8');
-          const data = JSON.parse(extractJsonPayload(raw));
-          const openspecFailed = data.results.some((r) => r.openspec === 'failed');
-          console.log(openspecFailed ? 'no' : 'yes');
-          NODE
-          )
-          if [ "$CHECK_OPENSPEC_DIR" = "yes" ]; then
-            test -d "$RUNNER_TEMP/comet-e2e-project/openspec"
-          else
-            echo "OpenSpec reported failed; skip openspec directory assertion"
-          fi
+          test -d "$RUNNER_TEMP/comet-e2e-project/openspec"
           test -d "$RUNNER_TEMP/comet-e2e-project/docs/superpowers/specs"
           test -d "$RUNNER_TEMP/comet-e2e-project/docs/superpowers/plans"
           echo "OpenSpec + working dirs: OK"
