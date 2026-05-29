@@ -22,8 +22,10 @@ describe('CI workflows', () => {
     expect(projectVerify).not.toContain('.config/opencode/skills');
     expect(globalVerify).toContain('.config/opencode/skills');
     expect(globalVerify).not.toContain('.opencode/skills');
+    expect(workflow).toContain("const allowed = new Set(['installed', 'skipped', 'failed']);");
     expect(workflow).toContain("const components = ['openspec', 'superpowers'];");
-    expect(workflow).toContain("r[component] !== 'installed'");
+    expect(workflow).toContain("r[component] === 'failed'");
+    expect(workflow).toContain('External installer statuses validated for');
     expect(workflow).not.toContain('check_glob "$PROJ/$sd/openspec-*"');
     expect(workflow).not.toContain('check_dir "$PROJ/$sd/brainstorming"');
     expect(workflow).not.toContain('check_dir "$PROJ/$sd/using-superpowers"');

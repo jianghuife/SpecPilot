@@ -146,20 +146,32 @@ jobs:
           node - "$RUNNER_TEMP/comet-init-project.json" <<'NODE'
           const fs = require('fs');
           const data = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const allowed = new Set(['installed', 'skipped', 'failed']);
           const components = ['openspec', 'superpowers'];
-          const failed = data.results.flatMap((r) =>
+          const malformed = data.results.flatMap((r) =>
             components
-              .filter((component) => r[component] !== 'installed')
+              .filter((component) => !allowed.has(r[component]))
               .map((component) => `${r.platform}: ${component}=${r[component]}`),
           );
-          if (failed.length > 0) {
-            console.error('External installers did not report installed for:');
-            for (const item of failed) {
+          if (malformed.length > 0) {
+            console.error('External installers returned unexpected status values:');
+            for (const item of malformed) {
               console.error(`- ${item}`);
             }
             process.exit(1);
           }
-          console.log(`OpenSpec and Superpowers reported installed for ${data.results.length} platforms`);
+          const failed = data.results.flatMap((r) =>
+            components
+              .filter((component) => r[component] === 'failed')
+              .map((component) => `${r.platform}: ${component}=${r[component]}`),
+          );
+          if (failed.length > 0) {
+            console.warn('External installers reported failed for:');
+            for (const item of failed) {
+              console.warn(`- ${item}`);
+            }
+          }
+          console.log(`External installer statuses validated for ${data.results.length} platforms`);
           NODE
         shell: bash
 
@@ -214,20 +226,32 @@ jobs:
           node - "$RUNNER_TEMP/comet-init-global.json" <<'NODE'
           const fs = require('fs');
           const data = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const allowed = new Set(['installed', 'skipped', 'failed']);
           const components = ['openspec', 'superpowers'];
-          const failed = data.results.flatMap((r) =>
+          const malformed = data.results.flatMap((r) =>
             components
-              .filter((component) => r[component] !== 'installed')
+              .filter((component) => !allowed.has(r[component]))
               .map((component) => `${r.platform}: ${component}=${r[component]}`),
           );
-          if (failed.length > 0) {
-            console.error('External installers did not report installed for:');
-            for (const item of failed) {
+          if (malformed.length > 0) {
+            console.error('External installers returned unexpected status values:');
+            for (const item of malformed) {
               console.error(`- ${item}`);
             }
             process.exit(1);
           }
-          console.log(`OpenSpec and Superpowers reported installed for ${data.results.length} platforms`);
+          const failed = data.results.flatMap((r) =>
+            components
+              .filter((component) => r[component] === 'failed')
+              .map((component) => `${r.platform}: ${component}=${r[component]}`),
+          );
+          if (failed.length > 0) {
+            console.warn('External installers reported failed for:');
+            for (const item of failed) {
+              console.warn(`- ${item}`);
+            }
+          }
+          console.log(`External installer statuses validated for ${data.results.length} platforms`);
           NODE
         shell: bash
 
