@@ -130,6 +130,187 @@ describeShell('comet shell scripts', () => {
     expect(yaml).toContain('build_pause: null');
   }, 20_000);
 
+  it('initializes auto_transition as true when openspec comet config is absent', async () => {
+    const result = runBash(tmpDir, stateScript, ['init', 'auto-transition-defaults', 'full']);
+    const yaml = await fs.readFile(
+      path.join(tmpDir, 'openspec', 'changes', 'auto-transition-defaults', '.comet.yaml'),
+      'utf-8',
+    );
+    const get = runBash(tmpDir, stateScript, [
+      'get',
+      'auto-transition-defaults',
+      'auto_transition',
+    ]);
+
+    expect(result.status).toBe(0);
+    expect(yaml).toContain('auto_transition: true');
+    expect(get.status).toBe(0);
+    expect(get.stdout.trim()).toBe('true');
+  }, 20_000);
+
+  it('initializes auto_transition from openspec comet config when set to false', async () => {
+    await writeFile(path.join(tmpDir, 'openspec', 'comet.yaml'), 'auto_transition: false\n');
+
+    const result = runBash(tmpDir, stateScript, ['init', 'auto-transition-config-false', 'full']);
+    const yaml = await fs.readFile(
+      path.join(tmpDir, 'openspec', 'changes', 'auto-transition-config-false', '.comet.yaml'),
+      'utf-8',
+    );
+    const get = runBash(tmpDir, stateScript, [
+      'get',
+      'auto-transition-config-false',
+      'auto_transition',
+    ]);
+
+    expect(result.status).toBe(0);
+    expect(yaml).toContain('auto_transition: false');
+    expect(get.status).toBe(0);
+    expect(get.stdout.trim()).toBe('false');
+  }, 20_000);
+
+  it('initializes auto_transition as true when openspec comet config omits or invalidates it', async () => {
+    await writeFile(path.join(tmpDir, 'openspec', 'comet.yaml'), 'build_command: npm test\n');
+    const omitted = runBash(tmpDir, stateScript, [
+      'init',
+      'auto-transition-config-omitted',
+      'full',
+    ]);
+    const omittedValue = runBash(tmpDir, stateScript, [
+      'get',
+      'auto-transition-config-omitted',
+      'auto_transition',
+    ]);
+
+    await writeFile(path.join(tmpDir, 'openspec', 'comet.yaml'), 'auto_transition: maybe\n');
+    const invalid = runBash(tmpDir, stateScript, [
+      'init',
+      'auto-transition-config-invalid',
+      'full',
+    ]);
+    const invalidValue = runBash(tmpDir, stateScript, [
+      'get',
+      'auto-transition-config-invalid',
+      'auto_transition',
+    ]);
+
+    expect(omitted.status).toBe(0);
+    expect(omittedValue.status).toBe(0);
+    expect(omittedValue.stdout.trim()).toBe('true');
+    expect(invalid.status).toBe(0);
+    expect(invalidValue.status).toBe(0);
+    expect(invalidValue.stdout.trim()).toBe('true');
+  }, 20_000);
+
+  it('sets auto_transition to false and rejects invalid auto_transition values', async () => {
+    await createChange(
+      tmpDir,
+      'auto-transition-set',
+      [
+        'workflow: full',
+        'phase: open',
+        'build_mode: null',
+        'build_pause: null',
+        'isolation: null',
+        'verify_mode: null',
+        'auto_transition: true',
+        'design_doc: null',
+        'plan: null',
+        'verify_result: pending',
+        'verified_at: null',
+        'archived: false',
+        '',
+      ].join('\n'),
+    );
+
+    const setFalse = runBash(tmpDir, stateScript, [
+      'set',
+      'auto-transition-set',
+      'auto_transition',
+      'false',
+    ]);
+    const get = runBash(tmpDir, stateScript, ['get', 'auto-transition-set', 'auto_transition']);
+    const setInvalid = runBash(tmpDir, stateScript, [
+      'set',
+      'auto-transition-set',
+      'auto_transition',
+      'maybe',
+    ]);
+
+    expect(setFalse.status).toBe(0);
+    expect(get.status).toBe(0);
+    expect(get.stdout.trim()).toBe('false');
+    expect(setInvalid.status).not.toBe(0);
+  }, 20_000);
+
+  it('treats missing auto_transition as true for legacy comet yaml', async () => {
+    const validateScript = path.join(tmpDir, 'scripts', 'comet-yaml-validate.sh');
+    await createChange(
+      tmpDir,
+      'auto-transition-legacy',
+      [
+        'workflow: full',
+        'phase: open',
+        'build_mode: null',
+        'build_pause: null',
+        'isolation: null',
+        'verify_mode: null',
+        'design_doc: null',
+        'plan: null',
+        'verify_result: pending',
+        'verified_at: null',
+        'archived: false',
+        '',
+      ].join('\n'),
+    );
+
+    const validate = runBash(tmpDir, validateScript, ['auto-transition-legacy']);
+    const get = runBash(tmpDir, stateScript, [
+      'get',
+      'auto-transition-legacy',
+      'auto_transition',
+    ]);
+    const guard = runBash(tmpDir, guardScript, ['auto-transition-legacy', 'open']);
+
+    expect(validate.status).toBe(0);
+    expect(get.status).toBe(0);
+    expect(get.stdout.trim()).toBe('true');
+    expect(guard.status).toBe(0);
+  }, 20_000);
+
+  it('rejects null, empty, and invalid auto_transition values during comet yaml validation', async () => {
+    const validateScript = path.join(tmpDir, 'scripts', 'comet-yaml-validate.sh');
+    for (const [name, line] of [
+      ['auto-transition-null', 'auto_transition: null'],
+      ['auto-transition-empty', 'auto_transition:'],
+      ['auto-transition-invalid', 'auto_transition: maybe'],
+    ] as const) {
+      await createChange(
+        tmpDir,
+        name,
+        [
+          'workflow: full',
+          'phase: open',
+          'build_mode: null',
+          'build_pause: null',
+          'isolation: null',
+          'verify_mode: null',
+          line,
+          'design_doc: null',
+          'plan: null',
+          'verify_result: pending',
+          'verified_at: null',
+          'archived: false',
+          '',
+        ].join('\n'),
+      );
+
+      const result = runBash(tmpDir, validateScript, [name]);
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain('auto_transition');
+    }
+  }, 20_000);
+
   it('comet-env.sh exports bundled script paths from its own directory', async () => {
     const envScript = path.join(tmpDir, 'scripts', 'comet-env.sh');
     const checkScript = path.join(tmpDir, 'check-env.sh');
@@ -217,6 +398,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: branch',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -248,6 +430,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: null',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -334,6 +517,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: null',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending # not verified yet',
@@ -365,6 +549,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: null',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -413,6 +598,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: null',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -454,6 +640,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: null',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -483,6 +670,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: null',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -519,6 +707,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: null',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -566,6 +755,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: null',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -606,6 +796,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: null',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -642,6 +833,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: paused',
         'isolation: branch',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -669,6 +861,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: branch',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -701,6 +894,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: branch',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -735,6 +929,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: branch',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -766,6 +961,7 @@ describeShell('comet shell scripts', () => {
         'direct_override: true',
         'isolation: branch',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -796,6 +992,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: branch',
         'verify_mode: null',
+        'auto_transition: true',
         'build_command: node build-check.js',
         'design_doc: null',
         'plan: null',
@@ -832,6 +1029,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: branch',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -913,6 +1111,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: null',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -965,6 +1164,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: branch',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -1000,6 +1200,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: branch',
         'verify_mode: full',
+        'auto_transition: true',
         'verify_command: node verify-check.js',
         'design_doc: null',
         'plan: null',
@@ -1041,6 +1242,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: branch',
         'verify_mode: light',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pass',
@@ -1068,6 +1270,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: branch',
         'verify_mode: full',
+        'auto_transition: true',
         'design_doc: docs/superpowers/specs/ready-design.md',
         'plan: docs/superpowers/plans/ready-plan.md',
         'verify_result: pass',
@@ -1107,6 +1310,8 @@ describeShell('comet shell scripts', () => {
     execFileSync('git', ['init'], { cwd: tmpDir, stdio: 'ignore' });
     execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: tmpDir });
     execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: tmpDir });
+    execFileSync('git', ['config', 'commit.gpgsign', 'false'], { cwd: tmpDir });
+    execFileSync('git', ['config', 'tag.gpgsign', 'false'], { cwd: tmpDir });
     await writeFile(path.join(tmpDir, 'README.md'), 'base\n');
     execFileSync('git', ['add', '.'], { cwd: tmpDir });
     execFileSync('git', ['commit', '-m', 'base'], { cwd: tmpDir, stdio: 'ignore' });
@@ -1125,6 +1330,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: branch',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: docs/superpowers/plans/large-change.md',
         'verify_result: pending',
@@ -1151,6 +1357,58 @@ describeShell('comet shell scripts', () => {
     expect(mode.stdout.trim()).toBe('full');
   }, 25_000);
 
+  it('falls back to comet base_ref when scale plan omits base-ref', async () => {
+    execFileSync('git', ['init'], { cwd: tmpDir, stdio: 'ignore' });
+    execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: tmpDir });
+    execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: tmpDir });
+    execFileSync('git', ['config', 'commit.gpgsign', 'false'], { cwd: tmpDir });
+    execFileSync('git', ['config', 'tag.gpgsign', 'false'], { cwd: tmpDir });
+    await writeFile(path.join(tmpDir, 'README.md'), 'base\n');
+    execFileSync('git', ['add', '.'], { cwd: tmpDir });
+    execFileSync('git', ['commit', '-m', 'base'], { cwd: tmpDir, stdio: 'ignore' });
+    const baseRef = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: tmpDir,
+      encoding: 'utf-8',
+    }).trim();
+
+    await createChange(
+      tmpDir,
+      'fallback-base-ref',
+      [
+        'workflow: full',
+        'phase: verify',
+        'build_mode: executing-plans',
+        'build_pause: null',
+        'isolation: branch',
+        'verify_mode: null',
+        'auto_transition: true',
+        `base_ref: ${baseRef}`,
+        'design_doc: null',
+        'plan: docs/superpowers/plans/fallback-base-ref.md',
+        'verify_result: pending',
+        'verified_at: null',
+        'archived: false',
+        '',
+      ].join('\n'),
+      ['- [x] task 1', '- [x] task 2', '- [x] task 3'].join('\n'),
+    );
+    await writeFile(
+      path.join(tmpDir, 'docs', 'superpowers', 'plans', 'fallback-base-ref.md'),
+      'plan\n',
+    );
+    for (let i = 1; i <= 6; i += 1) {
+      await writeFile(path.join(tmpDir, 'src', `fallback-${i}.txt`), `change ${i}\n`);
+    }
+    execFileSync('git', ['add', '.'], { cwd: tmpDir });
+    execFileSync('git', ['commit', '-m', 'large fallback change'], { cwd: tmpDir, stdio: 'ignore' });
+
+    const result = runBash(tmpDir, stateScript, ['scale', 'fallback-base-ref']);
+    const mode = runBash(tmpDir, stateScript, ['get', 'fallback-base-ref', 'verify_mode']);
+
+    expect(result.status).toBe(0);
+    expect(mode.stdout.trim()).toBe('full');
+  }, 25_000);
+
   it('transitions full workflow from open to design', async () => {
     await createChange(
       tmpDir,
@@ -1162,6 +1420,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: null',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -1189,6 +1448,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: branch',
         'verify_mode: light',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -1216,6 +1476,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: branch',
         'verify_mode: full',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -1277,6 +1538,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: branch',
         'verify_mode: light',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -1312,6 +1574,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: branch',
         'verify_mode: light',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -1351,6 +1614,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: null',
         'verify_mode: null',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pending',
@@ -1377,6 +1641,7 @@ describeShell('comet shell scripts', () => {
         'build_pause: null',
         'isolation: branch',
         'verify_mode: full',
+        'auto_transition: true',
         'design_doc: null',
         'plan: null',
         'verify_result: pass',
@@ -1409,6 +1674,7 @@ describeShell('comet shell scripts', () => {
           'build_pause: null',
           'isolation: null',
           'verify_mode: null',
+          'auto_transition: true',
           'design_doc: null',
           'plan: null',
           'verify_result: pending',
@@ -1440,6 +1706,7 @@ describeShell('comet shell scripts', () => {
           'build_pause: null',
           'isolation: null',
           'verify_mode: null',
+          'auto_transition: true',
           'design_doc: null',
           'plan: null',
           'verify_result: pending',
@@ -1474,6 +1741,7 @@ describeShell('comet shell scripts', () => {
           'build_pause: plan-ready',
           'isolation: null',
           'verify_mode: null',
+          'auto_transition: true',
           'design_doc: null',
           'plan: docs/superpowers/plans/pause-plan.md',
           'verify_result: pending',
@@ -1510,6 +1778,7 @@ describeShell('comet shell scripts', () => {
           'build_pause: null',
           'isolation: branch',
           'verify_mode: full',
+          'auto_transition: true',
           'design_doc: null',
           'plan: null',
           'verify_result: pass',
@@ -1546,6 +1815,7 @@ describeShell('comet shell scripts', () => {
           'build_pause: null',
           'isolation: null',
           'verify_mode: null',
+          'auto_transition: true',
           'design_doc: null',
           'plan: null',
           'verify_result: pending',
@@ -1594,6 +1864,7 @@ describeShell('comet shell scripts', () => {
           'build_pause: null',
           'isolation: branch',
           'verify_mode: null',
+          'auto_transition: true',
           'design_doc: null',
           'plan: null',
           'verify_result: pending',
@@ -1627,6 +1898,7 @@ describeShell('comet shell scripts', () => {
           'build_pause: null',
           'isolation: branch',
           'verify_mode: null',
+          'auto_transition: true',
           'design_doc: null',
           'plan: null',
           'verify_result: pending',
@@ -1661,6 +1933,7 @@ describeShell('comet shell scripts', () => {
           'build_pause: null',
           'isolation: branch',
           'verify_mode: full',
+          'auto_transition: true',
           'design_doc: null',
           'plan: null',
           'verify_result: pass',
@@ -1697,6 +1970,7 @@ describeShell('comet shell scripts', () => {
           'build_pause: null',
           'isolation: null',
           'verify_mode: null',
+          'auto_transition: true',
           'design_doc: null',
           'plan: null',
           'verify_result: pending',
