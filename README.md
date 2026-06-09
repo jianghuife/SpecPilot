@@ -533,18 +533,22 @@ Track our development progress and upcoming features on the [Comet Roadmap](http
 
 ## Community
 
-<p align="center">
-  <img src="https://github.com/rpamis/comet/blob/master/img/douyin.png" width="120" height="120">
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="https://github.com/rpamis/comet/blob/master/img/wechat.jpg" width="120" height="120">
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="https://github.com/rpamis/comet/blob/master/img/qq.jpg" width="120" height="120">
-</p>
-<p align="center">
-  <b>DouYin (Recommended)</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <b>WeChat</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <b>QQ</b>
-</p>
+<table align="center">
+  <tr>
+    <td align="center" width="180">
+      <img src="https://github.com/rpamis/comet/blob/master/img/douyin.png" width="120" height="120"><br>
+      <b>DouYin (Recommended)</b>
+    </td>
+    <td align="center" width="180">
+      <img src="https://github.com/rpamis/comet/blob/master/img/wechat.jpg" width="120" height="120"><br>
+      <b>WeChat</b>
+    </td>
+    <td align="center" width="180">
+      <img src="https://github.com/rpamis/comet/blob/master/img/qq.jpg" width="120" height="120"><br>
+      <b>QQ</b>
+    </td>
+  </tr>
+</table>
 
 ## Reference
 

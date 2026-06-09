@@ -512,18 +512,22 @@ Benchmark 核心结论：
 
 ## 社区交流
 
-<p align="center">
-  <img src="https://github.com/rpamis/comet/blob/master/img/douyin.png" width="120" height="120">
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="https://github.com/rpamis/comet/blob/master/img/wechat.jpg" width="120" height="120">
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="https://github.com/rpamis/comet/blob/master/img/qq.jpg" width="120" height="120">
-</p>
-<p align="center">
-  <b>抖音群（推荐）</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <b>微信群</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <b>QQ群</b>
-</p>
+<table align="center">
+  <tr>
+    <td align="center" width="180">
+      <img src="https://github.com/rpamis/comet/blob/master/img/douyin.png" width="120" height="120"><br>
+      <b>抖音群（推荐）</b>
+    </td>
+    <td align="center" width="180">
+      <img src="https://github.com/rpamis/comet/blob/master/img/wechat.jpg" width="120" height="120"><br>
+      <b>微信群</b>
+    </td>
+    <td align="center" width="180">
+      <img src="https://github.com/rpamis/comet/blob/master/img/qq.jpg" width="120" height="120"><br>
+      <b>QQ群</b>
+    </td>
+  </tr>
+</table>
 
 ## 友情链接
 
