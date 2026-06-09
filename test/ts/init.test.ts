@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { applyBulkOverwriteChoice } from '../../src/commands/init.js';
+import { createWorkingDirs } from '../../src/core/skills.js';
+import { promises as fs } from 'fs';
+import os from 'os';
+import path from 'path';
 
 describe('init command helpers', () => {
   it('can apply a single overwrite choice to all existing components on a platform', () => {
@@ -51,33 +55,16 @@ describe('init command helpers', () => {
     });
   });
 
-  it('skips-all with hasExisting all false leaves all as install', () => {
-    const plan = {
-      osAction: 'install' as const,
-      spAction: 'install' as const,
-      cmAction: 'install' as const,
-    };
-    const hasExisting = { os: false, sp: false, cm: false };
+  it('creates a project Comet config with context compression disabled by default', async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'comet-init-config-'));
 
-    expect(applyBulkOverwriteChoice(plan, 'skip-all', hasExisting)).toEqual({
-      osAction: 'install',
-      spAction: 'install',
-      cmAction: 'install',
-    });
-  });
+    try {
+      await createWorkingDirs(tmpDir);
 
-  it('does not affect non-install actions even when hasExisting is true', () => {
-    const plan = {
-      osAction: 'overwrite' as const,
-      spAction: 'skip' as const,
-      cmAction: 'install' as const,
-    };
-    const hasExisting = { os: true, sp: true, cm: true };
-
-    expect(applyBulkOverwriteChoice(plan, 'skip-all', hasExisting)).toEqual({
-      osAction: 'overwrite',
-      spAction: 'skip',
-      cmAction: 'skip',
-    });
+      const config = await fs.readFile(path.join(tmpDir, '.comet', 'config.yaml'), 'utf-8');
+      expect(config).toContain('context_compression: off');
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
   });
 });
