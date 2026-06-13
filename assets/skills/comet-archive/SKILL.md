@@ -35,7 +35,7 @@ Proceed to Step 1 after verification passes. The script outputs specific failure
 
 ### 1. Final Archive Confirmation (Blocking Point)
 
-After entry verification passes, **must use the current platform's available user input/confirmation mechanism to pause and wait for the user to confirm whether to archive immediately**. Must not run `"$COMET_BASH" "$COMET_ARCHIVE" "<change-name>"` before user confirmation. If the current platform has no structured question tool, ask an equivalent single-select question in the conversation, stop the workflow, and wait for the user's reply before continuing.
+After entry verification passes, **must follow the `comet/reference/decision-point.md` protocol to pause and wait for the user to confirm whether to archive immediately**. Must not run `"$COMET_BASH" "$COMET_ARCHIVE" "<change-name>"` before user confirmation.
 
 Before confirmation, show the user a brief summary:
 - Change name
@@ -95,12 +95,6 @@ The archive script moves `openspec/changes/<name>/` to `openspec/changes/archive
 
 Comet workflow complete. To start new work, invoke `/comet` or `/comet-open`.
 
-## Context Compaction Recovery
+## Context Compression Recovery
 
-The archive phase may trigger context compaction during execution. On resume, first run:
-
-```bash
-"$COMET_BASH" "$COMET_STATE" check <change-name> archive --recover
-```
-
-The script outputs structured recovery context (archive status, completed steps). Follow the Recovery action to determine next steps. If `archived: true` and the archive directory exists, archiving is already complete — no need to run the archive operation again.
+Follow `comet/reference/context-recovery.md` with phase set to `archive`. If `archived: true` and archive directory exists, archival is complete — do not re-execute archive operations.

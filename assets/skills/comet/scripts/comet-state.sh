@@ -10,6 +10,7 @@
 #   check <change-name> <phase>    — Verify entry requirements for a phase
 #   check <change-name> <phase> --recover — Output structured recovery context for compaction resume
 #   scale <change-name>             — Assess and set verification mode based on metrics
+#   task-checkoff <file> <task-text> — Verify one unique task is checked
 #
 # Workflows: full, hotfix, tweak
 # Phases for check: open, design, build, verify, archive
@@ -1024,6 +1025,59 @@ cmd_scale() {
   green "[SCALE] verify_mode=$result"
 }
 
+cmd_task_checkoff() {
+  local task_file="$1"
+  local task_text="$2"
+
+  validate_path_field "$task_file" "task file"
+
+  if [ -z "$task_text" ]; then
+    red "ERROR: Task text cannot be empty" >&2
+    exit 1
+  fi
+
+  if [ ! -f "$task_file" ]; then
+    red "ERROR: Task file not found: $task_file" >&2
+    exit 1
+  fi
+
+  local counts
+  counts=$(TASK_TEXT="$task_text" awk '
+    BEGIN {
+      task = ENVIRON["TASK_TEXT"]
+    }
+    {
+      sub(/\r$/, "")
+      if ($0 == "- [ ] " task || $0 == "- [x] " task || $0 == "- [X] " task) {
+        total++
+      }
+      if ($0 == "- [x] " task || $0 == "- [X] " task) {
+        checked++
+      }
+    }
+    END {
+      printf "%d %d\n", total + 0, checked + 0
+    }
+  ' "$task_file")
+
+  local total="${counts%% *}"
+  local checked="${counts##* }"
+
+  if [ "$total" -ne 1 ]; then
+    red "ERROR: task text must appear exactly once in $task_file (found $total): $task_text" >&2
+    exit 1
+  fi
+
+  if [ "$checked" -ne 1 ]; then
+    red "ERROR: task is not checked in $task_file: $task_text" >&2
+    exit 1
+  fi
+
+  echo "TASK_CHECKOFF: PASS"
+  echo "FILE: $task_file"
+  echo "TASK: $task_text"
+}
+
 # Resolve the next workflow step after a guard --apply phase advance.
 # Reads the (already advanced) phase, workflow, and auto_transition, then emits
 # a deterministic next-step contract so skills don't hardcode the next skill name.
@@ -1155,6 +1209,13 @@ case "$SUBCOMMAND" in
     fi
     cmd_scale "$@"
     ;;
+  task-checkoff)
+    if [ $# -lt 2 ]; then
+      red "Usage: comet-state.sh task-checkoff <file> <task-text>" >&2
+      exit 1
+    fi
+    cmd_task_checkoff "$@"
+    ;;
   next)
     if [ $# -lt 1 ]; then
       red "Usage: comet-state.sh next <change-name>" >&2
@@ -1174,6 +1235,7 @@ case "$SUBCOMMAND" in
     echo "  transition <change-name> <event> — Apply a validated state transition" >&2
     echo "  check <change-name> <phase>    — Verify entry requirements for a phase" >&2
     echo "  scale <change-name>             — Assess and set verification mode based on metrics" >&2
+    echo "  task-checkoff <file> <task-text> — Verify one unique task is checked" >&2
     echo "  next <change-name>              — Resolve the next workflow step (auto/manual/done)" >&2
     echo "" >&2
     echo "Workflows: full, hotfix, tweak" >&2

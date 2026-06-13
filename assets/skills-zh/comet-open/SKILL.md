@@ -46,7 +46,7 @@ description: "Comet 阶段 1：开启。用 /comet-open 调用。通过 OpenSpec
 - 预计会产生多个 delta spec 或超过 3 个大任务
 - 任一部分失败或延期不应阻塞其他部分进入后续阶段
 
-如推荐拆分，必须使用当前平台可用的用户输入/确认机制暂停并等待用户选择。若当前平台没有结构化提问工具，则在对话中提出同等单选问题并停止流程，等待用户回复后才能继续。
+如推荐拆分，必须按 `comet/reference/decision-point.md` 的协议暂停并等待用户选择。
 
 用户选择必须包含：
 - 「创建多个 OpenSpec changes」— 按候选拆分逐个创建独立 change
@@ -65,7 +65,7 @@ description: "Comet 阶段 1：开启。用 /comet-open 调用。通过 OpenSpec
 
 ### 1b. 需求澄清完成确认（阻塞点）
 
-创建 OpenSpec artifacts 前，必须使用当前平台可用的用户输入/确认机制暂停并等待用户确认需求澄清完成。若当前平台没有结构化提问工具，则在对话中展示澄清摘要并提出确认问题，停止流程，等待用户回复后才能继续。
+创建 OpenSpec artifacts 前，必须按 `comet/reference/decision-point.md` 的协议暂停并等待用户确认需求澄清完成。
 
 暂停时必须展示澄清摘要：目标、非目标、范围边界、关键未知项、验收场景草案。
 
@@ -77,13 +77,33 @@ description: "Comet 阶段 1：开启。用 /comet-open 调用。通过 OpenSpec
 
 完整 `/comet` 流程默认不得使用 Skill 工具加载 `openspec-propose` 技能；只有用户明确要求一次性生成提案和 artifacts 时才允许加载。
 
-技能加载后，按其指引创建 change 骨架，但当 Step 1b 的已确认澄清摘要已存在于对话上下文时，覆盖其"STOP and wait for user direction"行为。具体如下：
+技能加载后，按其指引创建 change 骨架，但当 Step 1b 的已确认澄清摘要已存在于对话上下文时，覆盖其"STOP and wait for user direction"行为。
 
-1. 按技能指引执行 `openspec new change`、`openspec status`、`openspec instructions`
-2. 如果用户已确认澄清摘要（Step 1b），直接使用该摘要起草 proposal.md —— 不得再要求用户重新描述变更内容
-3. 如果不存在澄清摘要（边缘情况），回退到技能的默认行为，询问用户
+如果用户已确认澄清摘要（Step 1b），直接使用该摘要填充产物内容。如果不存在澄清摘要（边缘情况），回退到技能的默认行为，询问用户。
 
-然后逐个补齐 design.md、tasks.md；每个文档都必须基于已确认的澄清摘要。
+change 骨架创建后，按以下标准产物循环逐个生成 `proposal`、`design`、`tasks`：
+
+**标准产物循环**（对每个 `artifact-id`：`proposal` → `design` → `tasks`）：
+
+1. 刷新状态：`openspec status --change "<name>" --json`
+2. 获取产物指令：
+
+   ```bash
+   openspec instructions proposal --change "<name>" --json
+   openspec instructions design --change "<name>" --json
+   openspec instructions tasks --change "<name>" --json
+   ```
+
+3. 对返回的 JSON 指令载荷，必须：
+   - 读取 `dependencies` 中列出的每个已完成依赖产物
+   - 以 `template` 作为产物结构
+   - 遵循 `instruction` 的指引
+   - 将 `context` 和 `rules` 作为约束条件应用，**不得复制到 artifact 内容中**
+   - 写入 `resolvedOutputPath`
+   - 验证输出文件存在且非空
+4. 每创建一个 artifact 后，重新运行 `openspec status --change "<name>" --json` 确认状态，然后继续下一个 artifact
+
+**失败处理**：如果 `openspec instructions` 失败、返回无效 JSON、报告未满足的 `dependencies`、或未提供可用的 `resolvedOutputPath`，必须立即停止 artifact 创建并报告 OpenSpec 错误。不得回退为硬编码文档结构，因为那样会绕过项目规则。
 
 **命名与范围守卫**：change name 必须使用用户指定或通过当前平台可用的用户输入/确认机制确认的名称，不得自动生成或推断。变更范围必须与用户描述一致，不得自行扩大或缩小。
 
@@ -139,7 +159,7 @@ fi
 
 ### 5. 用户审视确认（阻塞点）
 
-三个文档创建完成且内容完整性检查通过后，**必须使用当前平台可用的用户输入/确认机制暂停并等待用户确认**。不得在用户确认前执行阶段守卫或自动流转。若当前平台没有结构化提问工具，则在对话中提出同等单选问题并停止流程，等待用户回复后才能继续。
+三个文档创建完成且内容完整性检查通过后，**必须按 `comet/reference/decision-point.md` 的协议暂停并等待用户确认**。不得在用户确认前执行阶段守卫或自动流转。
 
 用户确认问题必须以单选题形式呈现，包含以下摘要和选项：
 
@@ -170,15 +190,12 @@ fi
 
 ## 自动衔接下一阶段
 
-> **术语区分**：上面的「阶段守卫推进」由 guard `--apply` 完成，更新 `.comet.yaml` 的 `phase` 字段——这一步**始终发生**，与 `auto_transition` 无关。本节的「自动衔接」只决定**是否自动调用下一个 skill**，由 `auto_transition` 控制。
-
-用户确认且阶段守卫推进 phase 后，运行：
+按 `comet/reference/auto-transition.md` 执行。关键命令：
 
 ```bash
 "$COMET_BASH" "$COMET_STATE" next <change-name>
 ```
 
-脚本根据 `phase`、`workflow`、`auto_transition` 输出确定性的下一步：
 - `NEXT: auto` → 调用 `SKILL` 指向的 skill 进入下一阶段
 - `NEXT: manual` → 不要调用下一 skill，按 `HINT` 提示用户手动运行 `/<SKILL>`
 - `NEXT: done` → 流程已完成，无需继续

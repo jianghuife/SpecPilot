@@ -1,8 +1,15 @@
 {
-  "version": "0.3.3",
+  "version": "0.3.8",
   "skills": [
     "comet/SKILL.md",
+    "comet/reference/auto-transition.md",
+    "comet/reference/comet-yaml-fields.md",
+    "comet/reference/context-recovery.md",
+    "comet/reference/debug-gate.md",
+    "comet/reference/decision-point.md",
     "comet/reference/dirty-worktree.md",
+    "comet/reference/file-structure.md",
+    "comet/reference/subagent-dispatch.md",
     "comet/scripts/comet-env.sh",
     "comet/scripts/comet-guard.sh",
     "comet/scripts/comet-state.sh",

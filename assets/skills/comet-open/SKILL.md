@@ -46,7 +46,7 @@ Recommend splitting when any condition applies:
 - The work is expected to produce multiple delta specs or more than 3 large tasks
 - Failure or delay in one part should not block other parts from entering later phases
 
-When splitting is recommended, must use the current platform's available user input/confirmation mechanism to pause and wait for the user's choice. If the current platform has no structured question tool, ask an equivalent single-select question in the conversation, stop the workflow, and wait for the user's reply before continuing.
+When splitting is recommended, must follow the `comet/reference/decision-point.md` protocol to pause and wait for the user's choice.
 
 The user choices must include:
 - "Create multiple OpenSpec changes" — create independent changes from the proposed split
@@ -65,7 +65,7 @@ Minimal resume rule: do not add a dedicated batch state file. On resume, first c
 
 ### 1b. Requirements Clarification Completion Confirmation (Blocking Point)
 
-Before creating OpenSpec artifacts, must use the current platform's available user input/confirmation mechanism to pause and wait for the user to confirm requirements clarification is complete. If the current platform has no structured question tool, present the clarification summary in the conversation, ask a confirmation question, stop the workflow, and wait for the user's reply before continuing.
+Before creating OpenSpec artifacts, must follow the `comet/reference/decision-point.md` protocol to pause and wait for the user to confirm requirements clarification is complete.
 
 When pausing, present the clarification summary: goals, non-goals, scope boundaries, key unknowns, and draft acceptance scenarios.
 
@@ -77,13 +77,33 @@ Must not create proposal.md, design.md, or tasks.md before the user confirms req
 
 Full `/comet` workflow must not use the Skill tool to load the `openspec-propose` skill by default; only load it when the user explicitly requests generating the proposal and artifacts in one pass.
 
-After the skill loads, follow its guidance to create the change skeleton, but override its "STOP and wait for user direction" behavior when a confirmed clarification summary from Step 1b is already available in the conversation context. Specifically:
+After the skill loads, follow its guidance to create the change skeleton, but override its "STOP and wait for user direction" behavior when a confirmed clarification summary from Step 1b is already available in the conversation context.
 
-1. Run `openspec new change`, `openspec status`, and `openspec instructions` as the skill directs
-2. If the user has already confirmed a clarification summary (Step 1b), use that summary directly to draft proposal.md — do NOT ask the user to describe the change again
-3. If no clarification summary exists (edge case), fall back to the skill's default behavior of asking the user
+If the user has already confirmed a clarification summary (Step 1b), use that summary directly to populate artifact content. If no clarification summary exists (edge case), fall back to the skill's default behavior of asking the user.
 
-Then fill in design.md and tasks.md one by one; every document must be based on the confirmed clarification summary.
+After the change skeleton is created, generate `proposal`, `design`, and `tasks` one by one using the standard artifact loop:
+
+**Standard Artifact Loop** (for each `artifact-id`: `proposal` → `design` → `tasks`):
+
+1. Refresh status: `openspec status --change "<name>" --json`
+2. Fetch artifact instructions:
+
+   ```bash
+   openspec instructions proposal --change "<name>" --json
+   openspec instructions design --change "<name>" --json
+   openspec instructions tasks --change "<name>" --json
+   ```
+
+3. For the returned JSON instruction payload, you must:
+   - Read every completed dependency artifact listed in `dependencies`
+   - Use `template` as the artifact structure
+   - Follow `instruction` guidance
+   - Apply `context` and `rules` as constraints — **must not copy them into the artifact content**
+   - Write to `resolvedOutputPath`
+   - Verify the output file exists and is non-empty
+4. After creating each artifact, re-run `openspec status --change "<name>" --json` to confirm status before continuing to the next artifact
+
+**Failure handling**: If `openspec instructions` fails, returns invalid JSON, reports unmet `dependencies`, or does not provide a usable `resolvedOutputPath`, must immediately stop artifact creation and report the OpenSpec error. Must not fall back to hard-coded artifact prose because that would silently bypass project rules.
 
 **Naming and scope guard**: Change name must use a user-specified name or a name confirmed through the current platform's available user input/confirmation mechanism — must not auto-generate or infer. Change scope must match the user's description — must not expand or narrow it independently.
 
@@ -139,7 +159,7 @@ Confirm the three documents have complete content:
 
 ### 5. User Review and Confirmation (Blocking Point)
 
-After the three documents are created and content completeness check passes, **must use the current platform's available user input/confirmation mechanism to pause and wait for user confirmation**. Must not execute phase guard or auto-transition before user confirmation. If the current platform has no structured question tool, ask an equivalent single-select question in the conversation, stop the workflow, and wait for the user's reply before continuing.
+After the three documents are created and content completeness check passes, **must follow the `comet/reference/decision-point.md` protocol to pause and wait for user confirmation**. Must not execute phase guard or auto-transition before user confirmation.
 
 The user confirmation question must be presented as a single-select question with the following summary and options:
 
@@ -170,17 +190,14 @@ Full workflow auto-transitions to `phase: design`; hotfix/tweak presets auto-tra
 
 ## Automatic Handoff to Next Phase
 
-> **Terminology distinction**: the "phase advancement" above is performed by guard `--apply`, which updates the `.comet.yaml` `phase` field. This step **always happens** and is not controlled by `auto_transition`. This section's "automatic handoff" only controls whether to automatically invoke the next skill.
-
-After user confirmation and guard-based phase advancement, run:
+Follow `comet/reference/auto-transition.md`. Key command:
 
 ```bash
 "$COMET_BASH" "$COMET_STATE" next <change-name>
 ```
 
-The script determines the next action from `phase`, `workflow`, and `auto_transition`:
-- `NEXT: auto` -> invoke the `SKILL` target to continue to the next phase
-- `NEXT: manual` -> do not invoke the next skill; follow `HINT` and ask the user to run `/<SKILL>` manually
-- `NEXT: done` -> workflow is complete; no further action needed
+- `NEXT: auto` → invoke the skill pointed to by `SKILL` to enter the next phase
+- `NEXT: manual` → do not invoke the next skill; prompt user to run `/<SKILL>` manually
+- `NEXT: done` → workflow is complete, no further action needed
 
-Hotfix/tweak presets are controlled by their preset skills (phase goes directly to build), and their `next` output points to the preset path.
+hotfix/tweak presets are controlled by their corresponding preset skill (phase goes directly to build); their `next` returns the corresponding preset skill.

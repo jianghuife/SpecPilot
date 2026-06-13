@@ -198,6 +198,25 @@ npx skills add rpamis/comet
 
 </details>
 
+<details>
+<summary><code>comet uninstall [path]</code> — 卸载 Comet 技能、规则和钩子</summary>
+
+安全移除 Comet 分发的技能、规则和钩子，保留用户自定义的钩子和非 Comet 配置。
+
+| 选项                | 描述                              |
+|-------------------|---------------------------------|
+| `--force`         | 跳过确认提示                          |
+| `--scope <scope>` | 仅卸载 `global` 或 `project` 范围    |
+| `--json`          | 以 JSON 输出卸载结果                  |
+
+```bash
+comet uninstall              # 交互式 — 显示已安装目标，确认后卸载
+comet uninstall --force      # 非交互式 — 直接移除所有内容
+comet uninstall --scope project  # 仅移除项目级安装
+```
+
+</details>
+
 | 命令                | 描述   |
 |-------------------|------|
 | `comet --help`    | 显示帮助 |
@@ -205,7 +224,7 @@ npx skills add rpamis/comet
 
 ## 支持平台
 
-`comet init` 支持 28 个 AI 编码平台：
+`comet init` 支持 29 个 AI 编码平台：
 
 <details>
 <summary>查看完整平台列表</summary>

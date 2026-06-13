@@ -93,11 +93,7 @@ fi
 
 执行 hotfix 期间，只要运行程序、测试、构建或手动验证时出现崩溃、异常行为、测试失败或构建失败，必须使用 Skill 工具加载 Superpowers `systematic-debugging` 技能。在完成根因调查前，不得提出或实施源码修复。
 
-按 `systematic-debugging` 的四阶段流程处理：
-- 先复现并定位根因，读取完整错误、检查近期变更、追踪数据流
-- 若根因指向源码 bug，先补充能复现该崩溃/异常的最小失败测试，再修改源码
-- 修复后运行该失败测试、相关测试和项目构建/验证命令，确认全部通过
-- 将测试、源码修复和 tasks.md 勾选保留在当前 change 内；不得通过另起一个“写测试用例”的 change 来替代当前 change 的验证闭环
+具体调查、最小失败测试、修复验证和保持当前 change 验证闭环的要求，按 `comet/reference/debug-gate.md` 执行。
 
 **如修复影响已有 spec 验收场景**：
 - 在 `openspec/changes/<name>/specs/<capability>/spec.md` 创建 delta spec
@@ -171,7 +167,7 @@ Hotfix 流程默认 **一次性连续执行**。调用 `/comet-hotfix` 后，age
 | 引入新的 public API | 修复产生了新的对外接口 |
 | 修复范围超出单一函数/模块 | 需要多处协调修改 |
 
-满足升级条件时**必须使用当前平台可用的用户输入/确认机制暂停并等待用户明确确认**升级为完整 `/comet` 流程。不得直接进入 `/comet-design`，不得自动补充 Design Doc。若当前平台没有结构化提问工具，则在对话中提出升级确认问题并停止流程，等待用户回复后才能继续。
+满足升级条件时**必须按 `comet/reference/decision-point.md` 的协议暂停并等待用户明确确认**升级为完整 `/comet` 流程。不得直接进入 `/comet-design`，不得自动补充 Design Doc。
 
 用户确认升级后，**必须先更新 workflow 和 phase 字段**再进入完整流程：
 
@@ -193,15 +189,12 @@ Hotfix 流程默认 **一次性连续执行**。调用 `/comet-hotfix` 后，age
 
 ## 自动衔接下一阶段
 
-> **术语区分**：阶段守卫 `--apply` 推进 `.comet.yaml` 的 `phase` 字段——这一步**始终发生**，与 `auto_transition` 无关。本节的「自动衔接」只决定**是否自动调用下一个 skill**。
-
-每次阶段守卫或状态转换推进 phase 后，运行：
+按 `comet/reference/auto-transition.md` 执行。关键命令：
 
 ```bash
 "$COMET_BASH" "$COMET_STATE" next <name>
 ```
 
-脚本根据 `phase`、`workflow`、`auto_transition` 输出确定性的下一步：
 - `NEXT: auto` → 调用 `SKILL` 指向的 skill 继续 hotfix 流程（`phase: build` 返回 `comet-hotfix`，`verify` 返回 `comet-verify`，`archive` 返回 `comet-archive`）
 - `NEXT: manual` → 不要调用下一 skill，按 `HINT` 提示用户手动运行 `/<SKILL>`
 - `NEXT: done` → 流程已完成，无需继续

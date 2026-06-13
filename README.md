@@ -217,6 +217,25 @@ Updates the npm package and refreshes installed Comet skills in detected project
 
 </details>
 
+<details>
+<summary><code>comet uninstall [path]</code> — Remove Comet skills, rules, and hooks</summary>
+
+Safely removes Comet-distributed skills, rules, and hooks from all detected platforms. Preserves user-defined hooks and non-Comet configuration.
+
+| Option            | Description                                    |
+|-------------------|------------------------------------------------|
+| `--force`         | Skip confirmation prompt                       |
+| `--scope <scope>` | Uninstall only `global` or `project` scope     |
+| `--json`          | Output removal results as JSON                 |
+
+```bash
+comet uninstall              # Interactive — shows targets, asks for confirmation
+comet uninstall --force      # Non-interactive — removes everything immediately
+comet uninstall --scope project  # Only remove project-level installations
+```
+
+</details>
+
 | Command           | Description  |
 |-------------------|--------------|
 | `comet --help`    | Show help    |

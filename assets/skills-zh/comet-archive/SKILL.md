@@ -35,7 +35,7 @@ fi
 
 ### 1. 归档前最终确认（阻塞点）
 
-入口验证通过后，**必须使用当前平台可用的用户输入/确认机制暂停并等待用户确认是否立即归档**。不得在用户确认前运行 `"$COMET_BASH" "$COMET_ARCHIVE" "<change-name>"`。若当前平台没有结构化提问工具，则在对话中提出同等单选问题并停止流程，等待用户回复后才能继续。
+入口验证通过后，**必须按 `comet/reference/decision-point.md` 的协议暂停并等待用户确认是否立即归档**。不得在用户确认前运行 `"$COMET_BASH" "$COMET_ARCHIVE" "<change-name>"`。
 
 确认前必须向用户展示简短摘要：
 - change 名称
@@ -97,10 +97,4 @@ Comet 流程全部完成。如需开始新工作，调用 `/comet` 或 `/comet-o
 
 ## 上下文压缩恢复
 
-归档阶段在执行过程中可能触发上下文压缩。恢复时先运行：
-
-```bash
-"$COMET_BASH" "$COMET_STATE" check <change-name> archive --recover
-```
-
-脚本输出结构化恢复上下文（归档状态、已完成步骤）。按 Recovery action 判断下一步。若 `archived: true` 且归档目录存在，归档已完成，无需再次执行归档操作。
+按 `comet/reference/context-recovery.md` 执行，phase 参数为 `archive`。若 `archived: true` 且归档目录存在，归档已完成，无需再次执行归档操作。

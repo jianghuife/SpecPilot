@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash assets/skills/comet/scripts/comet-hook-guard.sh"
+            "command": "bash .claude/skills/comet/scripts/comet-hook-guard.sh"
           }
         ]
       }

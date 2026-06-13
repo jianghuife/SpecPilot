@@ -12,7 +12,8 @@ import {
 } from '../core/skills.js';
 import { installOpenSpec } from '../core/openspec.js';
 import { installSuperpowersForPlatforms } from '../core/superpowers.js';
-import { installCodegraph, filterSupportedPlatforms } from '../core/codegraph.js';
+import { installCodegraph } from '../core/codegraph.js';
+import { printVersionInfo } from '../core/version.js';
 
 type InitOptions = {
   yes?: boolean;
@@ -203,6 +204,9 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
   const log = options.json ? () => undefined : console.log;
 
   log(`\n${COMET_BANNER}\n`);
+  if (!options.json) {
+    await printVersionInfo(log);
+  }
   log(`  Setting up Comet in ${projectPath}\n`);
 
   const detected = await detectPlatforms(projectPath);
@@ -364,9 +368,7 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
   }
 
   let cgGlobalStatus: InstallStatus;
-  const { supported: cgSupported } = filterSupportedPlatforms(selectedPlatformIds);
   const shouldInstallCodegraph =
-    cgSupported.length > 0 &&
     !options.json &&
     (options.yes ||
       (await select({
@@ -379,12 +381,10 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
 
   if (shouldInstallCodegraph) {
     log('\n  Installing CodeGraph...');
-    cgGlobalStatus = await installCodegraph(projectPath, selectedPlatformIds, scope);
+    cgGlobalStatus = await installCodegraph(projectPath, scope);
     log(`  CodeGraph: ${cgGlobalStatus}`);
     for (const r of results) {
-      if (filterSupportedPlatforms([r.platform.id]).supported.length > 0) {
-        r.codegraph = cgGlobalStatus;
-      }
+      r.codegraph = cgGlobalStatus;
     }
   } else {
     log('\n  CodeGraph: skipped');

@@ -120,7 +120,7 @@ Flow chain: open → design → build → verify → archive
 
 **Distinguish phase advancement vs automatic handoff**: each sub-skill runs phase guard `--apply` before exit to advance the `.comet.yaml` `phase` field. This step **always happens** and is not controlled by `auto_transition`. After that, the sub-skill runs `"$COMET_BASH" "$COMET_STATE" next <name>` to resolve the next action: when `auto_transition` is not `false`, output is `NEXT: auto` (auto-invoke next skill); when `auto_transition` is `false`, output is `NEXT: manual` (do not invoke next skill, show a manual run hint). Therefore `auto_transition` **only controls next skill invocation, not phase advancement**. Regardless of `auto_transition`, user decision points below remain blocking.
 
-**Decision points are blocking points**: whenever reaching any of the following nodes, the current `/comet` invocation must stop, **using the current platform's available user input/confirmation mechanism to wait for the user's choice**. If the current platform has no structured question tool, ask clear options in the conversation and stop the workflow, waiting for the user's reply before continuing. Only after the user explicitly chooses can the corresponding state fields be written and operations executed, then auto-advance resumes.
+**Decision points are blocking points**: whenever reaching any of the following nodes, the current `/comet` invocation must stop, and follow the `comet/reference/decision-point.md` protocol to obtain the user's explicit choice. Only after the user explicitly chooses can the corresponding state fields be written and operations executed, then auto-advance resumes.
 
 Nodes requiring user participation (pause only at these nodes):
 1. Open phase proposal/design/tasks review and confirmation
@@ -179,58 +179,8 @@ Agents should not skip these decision points; other unambiguous phase transition
 
 ## Reference Appendix
 
-### .comet.yaml Field Reference
+### State Machine Hard Constraints
 
-```yaml
-workflow: full
-phase: build
-design_doc: docs/superpowers/specs/YYYY-MM-DD-topic-design.md
-plan: docs/superpowers/plans/YYYY-MM-DD-feature.md
-base_ref: a1b2c3d4e5f6...
-build_mode: subagent-driven-development
-build_pause: null
-subagent_dispatch: confirmed
-tdd_mode: tdd
-isolation: branch
-verify_mode: light
-verify_result: pending
-verification_report: null
-branch_status: pending
-created_at: 2026-05-26
-verified_at: null
-archived: false
-```
-
-| Field | Meaning |
-|-------|---------|
-| `workflow` | `full`, `hotfix`, or `tweak` |
-| `phase` | Current phase: `open`, `design`, `build`, `verify`, `archive` (init sets to `open` uniformly, guard handles transitions) |
-| `design_doc` | Associated Superpowers Design Doc path, can be empty |
-| `plan` | Associated Superpowers Plan path, can be empty |
-| `base_ref` | Git commit SHA recorded at init, used for scale assessment. Serves as fallback when no plan exists |
-| `build_mode` | Selected execution method, can be empty |
-| `build_pause` | Internal build-phase pause point. `null` means no pause; `plan-ready` means the plan has been generated and the user chose to pause for switching models |
-| `subagent_dispatch` | `null` or `confirmed`. Only when the current platform has confirmed real background subagent / Task / multi-agent dispatch capability can `build_mode: subagent-driven-development` be written and used to leave the build phase |
-| `tdd_mode` | `tdd` or `direct`. Must be selected before full workflow leaves build phase. `tdd` enforces writing a failing test first for each task; `direct` does not enforce TDD. hotfix/tweak default to `direct` |
-| `isolation` | `branch` or `worktree`, workspace isolation method. Full workflow init may leave this as `null`, but only until `/comet-build` Step 3; hotfix/tweak default to `branch` |
-| `verify_mode` | `light` or `full`, can be empty |
-| `auto_transition` | `true` or `false`. `false` pauses only the next skill invocation; it does not block phase updates |
-| `verify_result` | `pending`, `pass`, or `fail` |
-| `verification_report` | Verification report file path; must point to an existing file before verify can pass |
-| `branch_status` | `pending` or `handled`; set to `handled` after branch handling completes |
-| `created_at` | Change creation date (auto-set at init), format `YYYY-MM-DD` |
-| `verified_at` | Verification pass time, can be empty |
-| `archived` | Whether change is archived |
-
-Optional fields:
-
-| Field | Meaning |
-|-------|---------|
-| `direct_override` | `true`/`false`. Full workflow may use `build_mode: direct` only when this is explicitly `true` |
-| `build_command` | Project build command. Guard runs this first and prints failure output |
-| `verify_command` | Project verification command. Verify guard runs this first; if absent, it falls back to the build command |
-
-State-machine hard constraints:
 - Before `build → verify`, `isolation` must be `branch` or `worktree`
 - Before `build → verify`, `build_mode` must be selected
 - `build_mode: subagent-driven-development` must also have `subagent_dispatch: confirmed`
@@ -238,6 +188,30 @@ State-machine hard constraints:
 - `build_mode: direct` is allowed by default only for `hotfix` / `tweak`; full workflow requires `direct_override: true`
 - `build_pause` is not an execution method and must not be written to `build_mode`
 - These constraints are enforced by both `comet-guard.sh build --apply` and `comet-state.sh transition <name> build-complete`
+
+### .comet.yaml Field Reference
+
+See `comet/reference/comet-yaml-fields.md` for complete field reference with examples and descriptions.
+
+### File Structure
+
+See `comet/reference/file-structure.md` for the complete directory layout and artifact organization.
+
+### Auto-Transition Protocol
+
+See `comet/reference/auto-transition.md` for the complete automatic handoff workflow.
+
+### Context Recovery
+
+See `comet/reference/context-recovery.md` for structured recovery after context compression.
+
+### Decision Point Protocol
+
+See `comet/reference/decision-point.md` for the complete user decision point protocol.
+
+### Debug Gate Protocol
+
+See `comet/reference/debug-gate.md` for the complete debug gate protocol.
 
 ### Script Location
 
@@ -282,7 +256,7 @@ fi
 "$COMET_BASH" "$COMET_STATE" next <change-name>
 ```
 
-Output format: `NEXT: auto|manual|done` + `SKILL: <skill-name>` (omitted for `done`) + `HINT` (for `manual` only). With `auto_transition: false`, output is `manual`, which pauses only the next skill invocation and does not affect the already-applied phase advancement.
+Output format: `NEXT: auto|manual|done` + `SKILL: <skill-name>` (omitted for `done`) + `HINT` (for `manual` only). With `auto_transition: false`, output is `manual`, which pauses only the next skill invocation and does not block phase updates.
 
 **Archive script**: Complete all archive steps in one command:
 
@@ -292,27 +266,6 @@ Output format: `NEXT: auto|manual|done` + `SKILL: <skill-name>` (omitted for `do
 
 After loading comet, agents should run the variable assignments above once, then reuse `$COMET_GUARD`, `$COMET_STATE`, `$COMET_HANDOFF`, `$COMET_ARCHIVE` throughout the session.
 
-### File Structure
-
-```
-openspec/                              # OpenSpec — WHAT
-├── config.yaml
-├── changes/
-│   ├── <name>/                        # Active change
-│   │   ├── .openspec.yaml
-│   │   ├── .comet.yaml
-│   │   ├── proposal.md                # Why + What
-│   │   ├── design.md                  # High-level architecture decisions
-│   │   ├── specs/<capability>/spec.md # Delta capability spec
-│   │   ├── .comet/handoff/            # Script-generated phase handoff packages
-│   │   └── tasks.md                   # Task checklist
-│   └── archive/YYYY-MM-DD-<name>/     # Archived
-└── specs/<capability>/spec.md         # Main specs (merged from delta semantics at archive)
-
-docs/superpowers/                      # Superpowers — HOW
-├── specs/YYYY-MM-DD-<topic>-design.md # Design doc (technical RFC, mark status at archive)
-└── plans/YYYY-MM-DD-<feature>.md      # Implementation plan (file header contains change association metadata)
-```
 
 ### Best Practices
 

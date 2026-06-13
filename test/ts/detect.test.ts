@@ -7,6 +7,7 @@ import {
   detectPlatforms,
   hasSkills,
   hasPluginSuperpowers,
+  hasOpenCodePluginSuperpowers,
 } from '../../src/core/detect.js';
 import { PLATFORMS, type Platform } from '../../src/core/platforms.js';
 
@@ -310,6 +311,128 @@ describe('detect', () => {
         process.env.CLAUDE_CONFIG_DIR = origEnv;
       } else {
         delete process.env.CLAUDE_CONFIG_DIR;
+      }
+    });
+  });
+
+  describe('hasOpenCodePluginSuperpowers', () => {
+    it('returns true when superpowers plugin source directory exists with skills', async () => {
+      const origEnv = process.env.OPENCODE_CONFIG_DIR;
+      const opencodeDir = path.join(tmpDir, '.config', 'opencode');
+      process.env.OPENCODE_CONFIG_DIR = opencodeDir;
+
+      const skillsDir = path.join(opencodeDir, 'superpowers', 'skills');
+      await fs.mkdir(skillsDir, { recursive: true });
+      await fs.mkdir(path.join(skillsDir, 'brainstorming'));
+      await fs.mkdir(path.join(skillsDir, 'using-superpowers'));
+
+      expect(await hasOpenCodePluginSuperpowers()).toBe(true);
+
+      if (origEnv !== undefined) {
+        process.env.OPENCODE_CONFIG_DIR = origEnv;
+      } else {
+        delete process.env.OPENCODE_CONFIG_DIR;
+      }
+    });
+
+    it('returns true when opencode.json contains superpowers plugin entry', async () => {
+      const origEnv = process.env.OPENCODE_CONFIG_DIR;
+      const opencodeDir = path.join(tmpDir, '.config', 'opencode');
+      process.env.OPENCODE_CONFIG_DIR = opencodeDir;
+
+      await fs.mkdir(opencodeDir, { recursive: true });
+      await fs.writeFile(
+        path.join(opencodeDir, 'opencode.json'),
+        JSON.stringify({
+          plugin: ['superpowers@git+https://github.com/obra/superpowers.git'],
+        }),
+      );
+
+      expect(await hasOpenCodePluginSuperpowers()).toBe(true);
+
+      if (origEnv !== undefined) {
+        process.env.OPENCODE_CONFIG_DIR = origEnv;
+      } else {
+        delete process.env.OPENCODE_CONFIG_DIR;
+      }
+    });
+
+    it('returns false when no superpowers plugin is installed', async () => {
+      const origEnv = process.env.OPENCODE_CONFIG_DIR;
+      process.env.OPENCODE_CONFIG_DIR = path.join(tmpDir, 'nonexistent');
+
+      expect(await hasOpenCodePluginSuperpowers()).toBe(false);
+
+      if (origEnv !== undefined) {
+        process.env.OPENCODE_CONFIG_DIR = origEnv;
+      } else {
+        delete process.env.OPENCODE_CONFIG_DIR;
+      }
+    });
+
+    it('returns false when opencode.json exists but has no superpowers entry', async () => {
+      const origEnv = process.env.OPENCODE_CONFIG_DIR;
+      const opencodeDir = path.join(tmpDir, '.config', 'opencode');
+      process.env.OPENCODE_CONFIG_DIR = opencodeDir;
+
+      await fs.mkdir(opencodeDir, { recursive: true });
+      await fs.writeFile(
+        path.join(opencodeDir, 'opencode.json'),
+        JSON.stringify({ plugin: ['some-other-plugin'] }),
+      );
+
+      expect(await hasOpenCodePluginSuperpowers()).toBe(false);
+
+      if (origEnv !== undefined) {
+        process.env.OPENCODE_CONFIG_DIR = origEnv;
+      } else {
+        delete process.env.OPENCODE_CONFIG_DIR;
+      }
+    });
+
+    it('returns false when opencode.json is invalid JSON', async () => {
+      const origEnv = process.env.OPENCODE_CONFIG_DIR;
+      const opencodeDir = path.join(tmpDir, '.config', 'opencode');
+      process.env.OPENCODE_CONFIG_DIR = opencodeDir;
+
+      await fs.mkdir(opencodeDir, { recursive: true });
+      await fs.writeFile(path.join(opencodeDir, 'opencode.json'), 'not valid json');
+
+      expect(await hasOpenCodePluginSuperpowers()).toBe(false);
+
+      if (origEnv !== undefined) {
+        process.env.OPENCODE_CONFIG_DIR = origEnv;
+      } else {
+        delete process.env.OPENCODE_CONFIG_DIR;
+      }
+    });
+  });
+
+  describe('hasSkills for OpenCode plugin-installed superpowers', () => {
+    it('detects superpowers via OpenCode plugin when normal skills dir is empty', async () => {
+      const origEnv = process.env.OPENCODE_CONFIG_DIR;
+      const opencodeDir = path.join(tmpDir, '.config', 'opencode');
+      process.env.OPENCODE_CONFIG_DIR = opencodeDir;
+
+      const opencode = PLATFORMS.find((platform) => platform.id === 'opencode');
+      expect(opencode).toBeDefined();
+      if (!opencode) return;
+
+      // Create the plugin source directory with superpowers skills
+      const pluginSkillsDir = path.join(opencodeDir, 'superpowers', 'skills');
+      await fs.mkdir(pluginSkillsDir, { recursive: true });
+      await fs.mkdir(path.join(pluginSkillsDir, 'brainstorming'));
+      await fs.mkdir(path.join(pluginSkillsDir, 'using-superpowers'));
+
+      // Normal skills directory is empty — no skills there
+      await fs.mkdir(path.join(tmpDir, '.opencode', 'skills'), { recursive: true });
+
+      expect(await hasSkills(tmpDir, opencode, 'superpowers')).toBe(true);
+
+      if (origEnv !== undefined) {
+        process.env.OPENCODE_CONFIG_DIR = origEnv;
+      } else {
+        delete process.env.OPENCODE_CONFIG_DIR;
       }
     });
   });

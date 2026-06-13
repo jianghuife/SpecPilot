@@ -77,7 +77,7 @@ If commit range shows changes exceed lightweight threshold (> 4 files, cross-mod
 
 ### 1b. Verification Failure Decision (Blocking Point)
 
-When verification does not pass, **must use the current platform's available user input/confirmation mechanism to pause and wait for the user to decide whether to fix or accept the deviation**. Must not automatically run `"$COMET_BASH" "$COMET_STATE" transition <change-name> verify-fail`, nor automatically invoke `/comet-build`. If the current platform has no structured question tool, ask fix/accept-deviation options in the conversation, stop the workflow, and wait for the user's reply before continuing.
+When verification does not pass, **must follow the `comet/reference/decision-point.md` protocol to pause and wait for the user to decide whether to fix or accept the deviation**. Must not automatically run `"$COMET_BASH" "$COMET_STATE" transition <change-name> verify-fail`, nor automatically invoke `/comet-build`.
 
 When pausing, must list:
 - Failed items
@@ -180,7 +180,7 @@ After the skill loads, follow its guidance to finish. Branch handling options:
 3. Keep branch (handle later)
 4. Discard work
 
-This is a user decision point. **Must use the current platform's available user input/confirmation mechanism to pause and wait for the user to choose branch handling method**. Must not select based on recommendations, defaults, or current branch status. If the current platform has no structured question tool, ask branch-handling options in the conversation, stop the workflow, and wait for the user's reply before continuing. Only after the user completes selection and the corresponding operation finishes, may `branch_status: handled` be written.
+This is a user decision point. **Must follow the `comet/reference/decision-point.md` protocol to pause and wait for the user to choose branch handling method**. Must not select based on recommendations, defaults, or current branch status. Only after the user completes selection and the corresponding operation finishes, may `branch_status: handled` be written.
 
 **Confirmation items**:
 - All tests pass
@@ -217,27 +217,18 @@ State file auto-updates to `phase: archive`, `verify_result: pass`, `verified_at
 
 ## Automatic Handoff to Next Phase
 
-> **Terminology distinction**: the "phase advancement" above is performed by guard `--apply`, which updates the `.comet.yaml` `phase` field. This step **always happens** and is not controlled by `auto_transition`. This section's "automatic handoff" only controls whether to automatically invoke the next skill.
-
-After verification and branch handling are complete, and guard-based phase advancement has completed, run:
+Follow `comet/reference/auto-transition.md`. Key command:
 
 ```bash
 "$COMET_BASH" "$COMET_STATE" next <change-name>
 ```
 
-The script determines the next action from `phase`, `workflow`, and `auto_transition`:
-- `NEXT: auto` -> invoke the `SKILL` target to continue to the next phase
-- `NEXT: manual` -> do not invoke the next skill; follow `HINT` and ask the user to run `/<SKILL>` manually
-- `NEXT: done` -> workflow is complete; no further action needed
+- `NEXT: auto` → invoke the skill pointed to by `SKILL` to enter the next phase
+- `NEXT: manual` → do not invoke the next skill; prompt user to run `/<SKILL>` manually
+- `NEXT: done` → workflow is complete, no further action needed
 
 Note: after `comet-archive` starts, it must first execute the final archive confirmation blocking point and wait for the user to explicitly choose "Confirm archive" before running the archive script. Must not automatically archive just because verification passed.
 
-## Context Compaction Recovery
+## Context Compression Recovery
 
-The verify phase may trigger context compaction. To recover, first run:
-
-```bash
-"$COMET_BASH" "$COMET_STATE" check <change-name> verify --recover
-```
-
-The script outputs structured recovery context (phase, verification status, branch status, recovery action). Follow the Recovery action to determine next step.
+Follow `comet/reference/context-recovery.md` with phase set to `verify`.

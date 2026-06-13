@@ -135,7 +135,7 @@ brainstorming 阶段不写入 Design Doc 文件，仅产出设计方案供 Step 
 
 ### 1c. 用户确认设计方案（阻塞点）
 
-brainstorming 产出设计方案后，**必须使用当前平台可用的用户输入/确认机制暂停并等待用户明确确认设计方案**。不得在用户确认前创建最终 Design Doc、写入 `design_doc`、运行 design guard，或进入 `/comet-build`。若当前平台没有结构化提问工具，则在对话中提出确认问题并停止流程，等待用户回复后才能继续。
+brainstorming 产出设计方案后，**必须按 `comet/reference/decision-point.md` 的协议暂停并等待用户明确确认设计方案**。不得在用户确认前创建最终 Design Doc、写入 `design_doc`、运行 design guard，或进入 `/comet-build`。
 
 暂停时只展示必要摘要：
 - 采用的技术方案
@@ -249,25 +249,16 @@ canonical_spec: openspec
 
 ## 上下文压缩恢复
 
-design 阶段在 brainstorming 过程中可能触发上下文压缩。恢复时先运行：
-
-```bash
-"$COMET_BASH" "$COMET_STATE" check <change-name> design --recover
-```
-
-脚本输出结构化恢复上下文（阶段、已完成字段、待完成字段、恢复动作）。按 Recovery action 判断下一步。
+按 `comet/reference/context-recovery.md` 执行，phase 参数为 `design`。
 
 ## 自动衔接下一阶段
 
-> **术语区分**：上面的「阶段守卫推进」由 guard `--apply` 完成，更新 `.comet.yaml` 的 `phase` 字段——这一步**始终发生**，与 `auto_transition` 无关。本节的「自动衔接」只决定**是否自动调用下一个 skill**，由 `auto_transition` 控制。
-
-阶段守卫推进 phase 后，运行：
+按 `comet/reference/auto-transition.md` 执行。关键命令：
 
 ```bash
 "$COMET_BASH" "$COMET_STATE" next <change-name>
 ```
 
-脚本根据 `phase`、`workflow`、`auto_transition` 输出确定性的下一步：
 - `NEXT: auto` → 调用 `SKILL` 指向的 skill 进入下一阶段
 - `NEXT: manual` → 不要调用下一 skill，按 `HINT` 提示用户手动运行 `/<SKILL>`
 - `NEXT: done` → 流程已完成，无需继续
