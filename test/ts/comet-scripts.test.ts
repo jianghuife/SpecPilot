@@ -2235,7 +2235,7 @@ describeShell('comet shell scripts', () => {
 
   it('reports accurate archive step counts when syncing and annotating', async () => {
     const archiveScript = path.join(tmpDir, 'scripts', 'comet-archive.sh');
-    const { fakeOpenSpec, logFile } = await createFakeOpenSpecArchive(tmpDir);
+    const { fakeOpenSpec, logFile } = await createFakeOpenSpecArchive(tmpDir, 'echo 2026-05-21');
     await createChange(
       tmpDir,
       'ready-to-archive',
@@ -2291,8 +2291,76 @@ describeShell('comet shell scripts', () => {
     });
 
     expect(result.status).toBe(0);
-    expect(result.stderr).toContain('Archive complete. 7/7 steps succeeded.');
+    expect(result.stderr).toContain('Archive complete. 8/8 steps succeeded.');
     await expect(fs.readFile(logFile, 'utf-8')).resolves.toBe('archive ready-to-archive --yes\n');
+    const draft = await fs.readFile(
+      path.join(
+        tmpDir,
+        'openspec',
+        'changes',
+        'archive',
+        '2026-05-21-ready-to-archive',
+        '.comet',
+        'archive',
+        'changelog-draft.md',
+      ),
+      'utf-8',
+    );
+    expect(draft).toContain('# Changelog Draft');
+    expect(draft).toContain('- Change: ready-to-archive');
+    expect(draft).toContain('- No evidence ledger found');
+  }, 20_000);
+
+  it('generates an archive changelog draft without running archive in draft mode', async () => {
+    const archiveScript = path.join(tmpDir, 'scripts', 'comet-archive.sh');
+    const { fakeOpenSpec, logFile } = await createFakeOpenSpecArchive(tmpDir);
+    await createChange(
+      tmpDir,
+      'draft-only',
+      [
+        'workflow: full',
+        'phase: archive',
+        'build_mode: executing-plans',
+        'build_pause: null',
+        'tdd_mode: null',
+        'isolation: branch',
+        'verify_mode: light',
+        'design_doc: null',
+        'plan: null',
+        'verify_result: pass',
+        'verification_report: docs/superpowers/reports/draft.md',
+        'branch_status: handled',
+        'verified_at: 2026-05-21',
+        'archived: false',
+        '',
+      ].join('\n'),
+    );
+    await writeFile(path.join(tmpDir, 'docs', 'superpowers', 'reports', 'draft.md'), 'PASS\n');
+    await writeFile(
+      path.join(tmpDir, 'openspec', 'changes', 'draft-only', '.comet', 'evidence.jsonl'),
+      '{"summary":"pnpm test passed"}\n',
+    );
+
+    const result = runBash(tmpDir, archiveScript, ['draft-only', '--draft'], {
+      COMET_OPENSPEC: toBashPath(fakeOpenSpec),
+    });
+    const draft = await fs.readFile(
+      path.join(
+        tmpDir,
+        'openspec',
+        'changes',
+        'draft-only',
+        '.comet',
+        'archive',
+        'changelog-draft.md',
+      ),
+      'utf-8',
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain('Changelog draft generated. 3/3 steps succeeded.');
+    await expect(fs.stat(logFile)).rejects.toThrow();
+    expect(draft).toContain('- pnpm test passed');
   }, 20_000);
 
   it('merges delta specs without copying delta-only requirement headings into main specs', async () => {

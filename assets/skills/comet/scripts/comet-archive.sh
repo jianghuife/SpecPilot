@@ -1,6 +1,6 @@
 #!/bin/bash
 # Comet Archive — automates the archive phase in one command
-# Usage: comet-archive.sh <change-name> [--dry-run]
+# Usage: comet-archive.sh <change-name> [--dry-run|--draft]
 # Exit 0 = archive complete, exit 1 = fatal error
 
 set -euo pipefail
@@ -13,9 +13,21 @@ green() { echo -e "\033[32m$1\033[0m" >&2; }
 yellow() { echo -e "\033[33m$1\033[0m" >&2; }
 
 DRY_RUN=0
-if [[ "${2:-}" == "--dry-run" ]]; then
-  DRY_RUN=1
-fi
+DRAFT_ONLY=0
+case "${2:-}" in
+  "")
+    ;;
+  --dry-run)
+    DRY_RUN=1
+    ;;
+  --draft)
+    DRAFT_ONLY=1
+    ;;
+  *)
+    red "FATAL: Unknown option: ${2:-}"
+    exit 1
+    ;;
+esac
 
 # Input validation
 validate_change_name() {
@@ -64,6 +76,58 @@ step_dry_run() {
   yellow "  [DRY-RUN] $1"
   STEPS_OK=$((STEPS_OK + 1))
   STEPS_TOTAL=$((STEPS_TOTAL + 1))
+}
+
+generate_changelog_draft() {
+  local draft_dir="$CHANGE_DIR/.comet/archive"
+  local draft_file="$draft_dir/changelog-draft.md"
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    step_dry_run "Would generate changelog draft: $draft_file"
+    return 0
+  fi
+
+  mkdir -p "$draft_dir"
+  {
+    echo "# Changelog Draft"
+    echo ""
+    echo "- Change: $CHANGE"
+    echo "- Archive target: $ARCHIVE_NAME"
+    echo "- Date: $TODAY"
+    echo ""
+    echo "## Tasks"
+    if [ -f "$CHANGE_DIR/tasks.md" ]; then
+      awk '/^- \[[ xX]\] / { print }' "$CHANGE_DIR/tasks.md"
+    else
+      echo "- tasks.md not found"
+    fi
+    echo ""
+    echo "## Evidence"
+    if [ -f "$CHANGE_DIR/.comet/evidence.jsonl" ]; then
+      awk '
+        {
+          line = $0
+          sub(/^.*"summary":"?/, "", line)
+          sub(/"[,}].*$/, "", line)
+          if (line != "") print "- " line
+        }
+      ' "$CHANGE_DIR/.comet/evidence.jsonl"
+    else
+      echo "- No evidence ledger found"
+    fi
+    echo ""
+    echo "## Recent Commits"
+    if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      git log --oneline -10 2>/dev/null | awk '{ print "- " $0 }'
+    else
+      echo "- Git history unavailable"
+    fi
+    echo ""
+    echo "## Notes"
+    echo "- Review this draft manually. Do not copy it into CHANGELOG.md without editing for release scope."
+  } > "$draft_file"
+
+  step_ok "Generated changelog draft: $draft_file"
 }
 
 echo "=== Comet Archive: $CHANGE ===" >&2
@@ -159,7 +223,16 @@ fi
 
 step_ok "Archive target available"
 
-# --- Step 4: Prepare document frontmatter annotation ---
+# --- Step 4: Generate changelog draft ---
+
+generate_changelog_draft
+
+if [ "$DRAFT_ONLY" -eq 1 ]; then
+  green "Changelog draft generated. $STEPS_OK/$STEPS_TOTAL steps succeeded."
+  exit 0
+fi
+
+# --- Step 5: Prepare document frontmatter annotation ---
 
 annotate_frontmatter() {
   local file="$1"
@@ -209,7 +282,7 @@ annotate_frontmatter() {
   step_ok "Annotated: $file"
 }
 
-# --- Step 5: Run OpenSpec archive for delta merge and move ---
+# --- Step 6: Run OpenSpec archive for delta merge and move ---
 
 verify_main_specs_clean() {
   if [ ! -d "openspec/specs" ]; then
@@ -270,7 +343,7 @@ else
   step_ok "Main specs verified clean"
 fi
 
-# --- Step 6: Annotate design doc and plan frontmatter ---
+# --- Step 7: Annotate design doc and plan frontmatter ---
 
 if [ -n "$DESIGN_DOC" ] && [ "$DESIGN_DOC" != "null" ]; then
   annotate_frontmatter "$DESIGN_DOC" "status: final"
@@ -280,7 +353,7 @@ if [ -n "$PLAN_PATH" ] && [ "$PLAN_PATH" != "null" ]; then
   annotate_frontmatter "$PLAN_PATH" ""
 fi
 
-# --- Step 7: Mark archived via comet-state transition ---
+# --- Step 8: Mark archived via comet-state transition ---
 
 ARCHIVE_YAML="$ARCHIVE_DIR/.comet.yaml"
 
@@ -295,7 +368,7 @@ else
   fi
 fi
 
-# --- Step 8: Print summary ---
+# --- Step 9: Print summary ---
 
 echo "" >&2
 if [ "$DRY_RUN" -eq 1 ]; then

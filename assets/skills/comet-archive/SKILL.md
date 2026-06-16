@@ -35,12 +35,21 @@ Proceed to Step 1 after verification passes. The script outputs specific failure
 
 ### 1. Final Archive Confirmation (Blocking Point)
 
+After entry verification passes, first generate an archive changelog draft for user review:
+
+```bash
+"$COMET_BASH" "$COMET_ARCHIVE" "<change-name>" --draft
+```
+
+The draft path is `openspec/changes/<name>/.comet/archive/changelog-draft.md`. It only summarizes tasks, evidence, and recent commits for manual archive-scope confirmation; it must not automatically write to the top-level `CHANGELOG.md`.
+
 After entry verification passes, **must follow the `comet/reference/decision-point.md` protocol to pause and wait for the user to confirm whether to archive immediately**. Must not run `"$COMET_BASH" "$COMET_ARCHIVE" "<change-name>"` before user confirmation.
 
 Before confirmation, show the user a brief summary:
 - Change name
 - Verification report path and result
 - Evidence ledger path if present: `"$COMET_BASH" "$COMET_EVIDENCE" path <change-name>`
+- Changelog draft path: `openspec/changes/<name>/.comet/archive/changelog-draft.md`
 - Branch handling status
 - Irreversible actions this archive will perform: merge main specs with OpenSpec delta semantics, annotate design doc / plan, and move the change to the archive directory
 
