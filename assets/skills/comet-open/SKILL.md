@@ -15,6 +15,18 @@ description: "Comet Phase 1: Open. Invoke with /comet-open. Explore ideas throug
 
 Every prompt and artifact request passed to OpenSpec must include the output-language constraint: use the language of the user request that triggered this workflow. When resuming an existing change with a clear dominant artifact language, preserve that language unless the user explicitly asks to switch.
 
+### 0b. Workflow Preflight (Recommended)
+
+Before deep clarification, recommended to run one lightweight preflight:
+
+```bash
+COMET_ENV="${COMET_ENV:-$(find . "$HOME"/.*/skills "$HOME/.config" "$HOME/.gemini" -path '*/comet/scripts/comet-env.sh' -type f -print -quit 2>/dev/null)}"
+. "$COMET_ENV"
+"$COMET_BASH" "$COMET_PREFLIGHT"
+```
+
+Preflight surfaces environment status early, including git, OpenSpec, CodeGraph, Understand Anything, and build/verify command configuration. `PREFLIGHT WARN` does not block the open phase; carry key warnings into later design or build risk notes.
+
 ### 1. Explore Ideas and Clarify Requirements
 
 **Immediately execute:** Use the Skill tool to load the `openspec-explore` skill. Skipping this step is prohibited.

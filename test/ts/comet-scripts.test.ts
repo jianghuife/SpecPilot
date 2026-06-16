@@ -177,6 +177,7 @@ describeShell('comet shell scripts', () => {
       'comet-handoff.sh',
       'comet-state.sh',
       'comet-evidence.sh',
+      'comet-preflight.sh',
       'comet-yaml-validate.sh',
       'comet-hook-guard.sh',
     ]) {
@@ -569,7 +570,7 @@ describeShell('comet shell scripts', () => {
       [
         '#!/bin/bash',
         `. "${toBashPath(envScript)}"`,
-        'printf "%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n" "$COMET_STATE" "$COMET_GUARD" "$COMET_HANDOFF" "$COMET_ARCHIVE" "$COMET_EVIDENCE" "$COMET_BASH"',
+        'printf "%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n" "$COMET_STATE" "$COMET_GUARD" "$COMET_HANDOFF" "$COMET_ARCHIVE" "$COMET_EVIDENCE" "$COMET_PREFLIGHT" "$COMET_BASH"',
         '',
       ].join('\n'),
     );
@@ -582,6 +583,7 @@ describeShell('comet shell scripts', () => {
     expect(result.stdout).toContain('comet-handoff.sh');
     expect(result.stdout).toContain('comet-archive.sh');
     expect(result.stdout).toContain('comet-evidence.sh');
+    expect(result.stdout).toContain('comet-preflight.sh');
     expect(result.stdout).toContain('bash');
   }, 20_000);
 
@@ -635,6 +637,43 @@ describeShell('comet shell scripts', () => {
       'pass',
       'summary',
     ]);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('Invalid change name');
+  }, 20_000);
+
+  it('reports workflow preflight warnings for optional context tools', async () => {
+    const preflightScript = path.join(tmpDir, 'scripts', 'comet-preflight.sh');
+    const result = runBash(tmpDir, preflightScript);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('PREFLIGHT WARN: CodeGraph index missing');
+    expect(result.stdout).toContain('PREFLIGHT WARN: Understand Anything graph missing');
+    expect(result.stdout).toContain('PREFLIGHT WARN: build_command not configured');
+    expect(result.stdout).toContain('PREFLIGHT WARN: verify_command not configured');
+  }, 20_000);
+
+  it('reports configured build and verify commands during preflight', async () => {
+    const preflightScript = path.join(tmpDir, 'scripts', 'comet-preflight.sh');
+    await writeFile(
+      path.join(tmpDir, '.comet.yaml'),
+      'build_command: pnpm build\nverify_command: pnpm test\n',
+    );
+    await fs.mkdir(path.join(tmpDir, '.codegraph'), { recursive: true });
+    await writeFile(path.join(tmpDir, '.understand-anything', 'knowledge-graph.json'), '{}\n');
+
+    const result = runBash(tmpDir, preflightScript);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('PREFLIGHT PASS: CodeGraph index present');
+    expect(result.stdout).toContain('PREFLIGHT PASS: Understand Anything graph present');
+    expect(result.stdout).toContain('PREFLIGHT PASS: build_command configured: pnpm build');
+    expect(result.stdout).toContain('PREFLIGHT PASS: verify_command configured: pnpm test');
+  }, 20_000);
+
+  it('rejects invalid preflight change names', async () => {
+    const preflightScript = path.join(tmpDir, 'scripts', 'comet-preflight.sh');
+    const result = runBash(tmpDir, preflightScript, ['../bad']);
 
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('Invalid change name');

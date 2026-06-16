@@ -30,6 +30,16 @@ fi
 
 **幂等性**：所有 design 阶段操作可以安全重试。如果 `handoff_context` 和 `handoff_hash` 已存在，先确认它们与当前产物一致再决定是否重新生成。
 
+### 0b. Workflow Preflight（推荐）
+
+入口验证通过后，推荐针对当前 change 运行预检：
+
+```bash
+"$COMET_BASH" "$COMET_PREFLIGHT" <change-name>
+```
+
+预检只提供环境风险提示，不改变 `.comet.yaml`，也不替代 Step 1a 的 handoff 生成。若输出 `PREFLIGHT WARN`，在 brainstorming 的风险和测试策略中显式考虑；不要因为可选工具缺失而阻塞 design。
+
 ### 1a. 生成 OpenSpec → Superpowers 交接包
 
 **必须由脚本生成，不允许 agent 临场手写 summary 代替。**
