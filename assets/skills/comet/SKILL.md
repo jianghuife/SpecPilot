@@ -213,6 +213,10 @@ See `comet/reference/context-recovery.md` for structured recovery after context 
 
 See `comet/reference/decision-point.md` for the complete user decision point protocol.
 
+### Decision Point Templates
+
+See `comet/reference/decision-templates.md` for standard question templates for common blocking points.
+
 ### Debug Gate Protocol
 
 See `comet/reference/debug-gate.md` for the complete debug gate protocol.

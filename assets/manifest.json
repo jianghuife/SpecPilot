@@ -7,6 +7,7 @@
     "comet/reference/context-recovery.md",
     "comet/reference/debug-gate.md",
     "comet/reference/decision-point.md",
+    "comet/reference/decision-templates.md",
     "comet/reference/dirty-worktree.md",
     "comet/reference/file-structure.md",
     "comet/reference/subagent-dispatch.md",
