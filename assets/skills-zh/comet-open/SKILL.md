@@ -21,6 +21,10 @@ description: "Comet 阶段 1：开启。用 /comet-open 调用。通过 OpenSpec
 
 ```bash
 COMET_ENV="${COMET_ENV:-$(find . "$HOME"/.*/skills "$HOME/.config" "$HOME/.gemini" -path '*/comet/scripts/comet-env.sh' -type f -print -quit 2>/dev/null)}"
+if [ -z "$COMET_ENV" ]; then
+  echo "ERROR: comet-env.sh not found. Ensure the comet skill is installed." >&2
+  return 1
+fi
 . "$COMET_ENV"
 "$COMET_BASH" "$COMET_PREFLIGHT"
 ```

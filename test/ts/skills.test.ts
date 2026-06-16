@@ -50,6 +50,7 @@ describe('skills', () => {
       expect(Array.isArray(skills)).toBe(true);
       expect(skills.length).toBeGreaterThan(0);
       expect(skills.some((s) => s.includes('comet/SKILL.md'))).toBe(true);
+      expect(skills.some((s) => s.includes('comet/reference/decision-templates.md'))).toBe(true);
     });
   });
 
@@ -95,6 +96,37 @@ describe('skills', () => {
         expect(buildSkill).toContain('.codegraph/');
         expect(buildSkill).toContain('codegraph init -i');
       }
+    });
+
+    it('ships bilingual decision point templates', async () => {
+      const assetsDir = getAssetsDir();
+      const zhTemplates = await fs.readFile(
+        path.join(assetsDir, 'skills-zh', 'comet', 'reference', 'decision-templates.md'),
+        'utf-8',
+      );
+      const enTemplates = await fs.readFile(
+        path.join(assetsDir, 'skills', 'comet', 'reference', 'decision-templates.md'),
+        'utf-8',
+      );
+      const zhComet = await fs.readFile(
+        path.join(assetsDir, 'skills-zh', 'comet', 'SKILL.md'),
+        'utf-8',
+      );
+      const enComet = await fs.readFile(
+        path.join(assetsDir, 'skills', 'comet', 'SKILL.md'),
+        'utf-8',
+      );
+
+      expect(zhTemplates).toContain('## 设计方案确认');
+      expect(zhTemplates).toContain('## Plan-Ready 暂停');
+      expect(zhTemplates).toContain('## Verify 失败处理');
+      expect(zhTemplates).toContain('## 归档确认');
+      expect(enTemplates).toContain('## Design Proposal Confirmation');
+      expect(enTemplates).toContain('## Plan-Ready Pause');
+      expect(enTemplates).toContain('## Verify Failure Handling');
+      expect(enTemplates).toContain('## Archive Confirmation');
+      expect(zhComet).toContain('comet/reference/decision-templates.md');
+      expect(enComet).toContain('comet/reference/decision-templates.md');
     });
   });
 
