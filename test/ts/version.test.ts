@@ -98,7 +98,7 @@ describe('getCurrentVersion', () => {
 
 describe('package metadata', () => {
   it('uses SpecPilot package and repository branding', () => {
-    expect(packageJson.name).toBe('specpilot');
+    expect(packageJson.name).toBe('specpilot-ai');
     expect(packageJson.description).toBe('Spec-driven workflow automation for AI coding agents');
     expect(packageJson.repository?.url).toBe('git+ssh://git@github.com/jianghuife/SpecPilot.git');
     expect(packageJson.bin).toMatchObject({

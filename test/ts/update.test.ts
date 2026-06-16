@@ -148,7 +148,7 @@ describe('update command helpers', () => {
 
   it('detects project package scope from local node_modules install path', async () => {
     const projectDir = path.join(tmpDir, 'project');
-    const packageRoot = path.join(projectDir, 'node_modules', 'specpilot');
+    const packageRoot = path.join(projectDir, 'node_modules', 'specpilot-ai');
 
     await expect(detectCometPackageScope(projectDir, packageRoot)).resolves.toBe('project');
   });
@@ -158,7 +158,7 @@ describe('update command helpers', () => {
     await fs.mkdir(projectDir, { recursive: true });
     await fs.writeFile(
       path.join(projectDir, 'package.json'),
-      JSON.stringify({ devDependencies: { specpilot: '^0.2.4' } }),
+      JSON.stringify({ devDependencies: { 'specpilot-ai': '^0.2.4' } }),
       'utf-8',
     );
 
@@ -176,13 +176,13 @@ describe('update command helpers', () => {
     expect(buildNpmUpdateArgs('global')).toEqual([
       'install',
       '-g',
-      'specpilot@latest',
+      'specpilot-ai@latest',
       '--registry',
       'https://registry.npmjs.org',
     ]);
     expect(buildNpmUpdateArgs('project')).toEqual([
       'install',
-      'specpilot@latest',
+      'specpilot-ai@latest',
       '--registry',
       'https://registry.npmjs.org',
     ]);
@@ -190,10 +190,10 @@ describe('update command helpers', () => {
 
   it('formats the npm update command for friendly console output', () => {
     expect(formatNpmUpdateCommand('global')).toBe(
-      'npm install -g specpilot@latest --registry https://registry.npmjs.org',
+      'npm install -g specpilot-ai@latest --registry https://registry.npmjs.org',
     );
     expect(formatNpmUpdateCommand('project')).toBe(
-      'npm install specpilot@latest --registry https://registry.npmjs.org',
+      'npm install specpilot-ai@latest --registry https://registry.npmjs.org',
     );
   });
 

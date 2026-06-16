@@ -17,7 +17,7 @@ import { installCodegraph } from '../core/codegraph.js';
 import type { InstallScope } from '../core/types.js';
 import { printVersionInfo } from '../core/version.js';
 
-const PACKAGE_NAME = 'specpilot';
+const PACKAGE_NAME = 'specpilot-ai';
 const OFFICIAL_REGISTRY = 'https://registry.npmjs.org';
 
 interface UpdateOptions {

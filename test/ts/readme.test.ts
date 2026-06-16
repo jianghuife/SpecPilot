@@ -9,7 +9,7 @@ describe('README assets', () => {
 
     expect(content).not.toMatch(/\b(?:src|srcset)=["'](?:\.\/)?img\//);
     expect(content).toContain('https://github.com/jianghuife/SpecPilot/blob/master/img/');
-    expect(content).toContain('https://www.npmjs.com/package/specpilot');
+    expect(content).toContain('https://www.npmjs.com/package/specpilot-ai');
     expect(content).not.toContain('https://www.npmjs.com/package/@rpamis/comet');
   });
 

@@ -4,7 +4,7 @@ import https from 'https';
 const require = createRequire(import.meta.url);
 const { version: CURRENT_VERSION } = require('../../package.json');
 
-const PACKAGE_NAME = 'specpilot';
+const PACKAGE_NAME = 'specpilot-ai';
 const REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME}/latest`;
 
 export interface VersionCheckResult {
