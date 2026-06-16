@@ -195,6 +195,9 @@ mkdir -p docs/superpowers/reports
 
 "$COMET_BASH" "$COMET_STATE" set <change-name> verification_report docs/superpowers/reports/YYYY-MM-DD-<change-name>-verify.md
 "$COMET_BASH" "$COMET_STATE" set <change-name> branch_status handled
+
+# 推荐：记录验证证据，供 archive / changelog 草稿引用
+"$COMET_BASH" "$COMET_EVIDENCE" record <change-name> verify pass "verification report passed; branch handled"
 ```
 
 ## 退出条件

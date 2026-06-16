@@ -278,6 +278,7 @@ Build is the longest phase and may span many tasks. To support resume after cont
 - All tasks.md checked
 - Code committed
 - Project-specific build/tests explicitly run and pass; do not rely only on guard auto-detection
+- Key build/test results recorded to the evidence ledger (recommended): `"$COMET_BASH" "$COMET_EVIDENCE" record <change-name> build pass "<command> passed"`; if `COMET_EVIDENCE` is unavailable, do not block the workflow, but note the missing ledger in the verification report
 - `isolation` has been written as `branch` or `worktree`
 - `build_mode` has been written as `subagent-driven-development`, `executing-plans`, or `direct` with explicit override; if `subagent-driven-development`, `subagent_dispatch` must be `confirmed`
 - `tdd_mode` has been written as `tdd` or `direct`

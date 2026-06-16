@@ -15,6 +15,7 @@
     "comet/scripts/comet-state.sh",
     "comet/scripts/comet-handoff.sh",
     "comet/scripts/comet-archive.sh",
+    "comet/scripts/comet-evidence.sh",
     "comet/scripts/comet-yaml-validate.sh",
     "comet/scripts/comet-hook-guard.sh",
     "comet-open/SKILL.md",
