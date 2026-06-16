@@ -40,6 +40,7 @@ fi
 确认前必须向用户展示简短摘要：
 - change 名称
 - 验证报告路径和结论
+- evidence ledger 路径（如存在）：`"$COMET_BASH" "$COMET_EVIDENCE" path <change-name>`
 - 分支处理状态
 - 本次归档将执行的不可逆动作：按 OpenSpec delta 语义合并主 spec、标注 design doc / plan、移动 change 到 archive 目录
 
@@ -68,6 +69,7 @@ fi
 
 如脚本返回非零退出码，报告错误并停止。
 如脚本返回零退出码，归档完成。
+归档完成后，推荐记录 evidence：`"$COMET_BASH" "$COMET_EVIDENCE" record <archive-name> archive pass "archive completed"`。
 脚本摘要中的 `X/Y steps succeeded` 以真实执行步骤计数，不会因 delta spec 同步或文档标注重复累计。
 
 脚本会调用 OpenSpec 归档能力按 `ADDED/MODIFIED/REMOVED/RENAMED` 语义合并主 spec，并在归档后校验主 spec 中没有残留 delta-only section 标题。

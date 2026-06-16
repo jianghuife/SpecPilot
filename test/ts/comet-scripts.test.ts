@@ -176,6 +176,7 @@ describeShell('comet shell scripts', () => {
       'comet-guard.sh',
       'comet-handoff.sh',
       'comet-state.sh',
+      'comet-evidence.sh',
       'comet-yaml-validate.sh',
       'comet-hook-guard.sh',
     ]) {
@@ -568,7 +569,7 @@ describeShell('comet shell scripts', () => {
       [
         '#!/bin/bash',
         `. "${toBashPath(envScript)}"`,
-        'printf "%s\\n%s\\n%s\\n%s\\n%s\\n" "$COMET_STATE" "$COMET_GUARD" "$COMET_HANDOFF" "$COMET_ARCHIVE" "$COMET_BASH"',
+        'printf "%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n" "$COMET_STATE" "$COMET_GUARD" "$COMET_HANDOFF" "$COMET_ARCHIVE" "$COMET_EVIDENCE" "$COMET_BASH"',
         '',
       ].join('\n'),
     );
@@ -580,7 +581,63 @@ describeShell('comet shell scripts', () => {
     expect(result.stdout).toContain('comet-guard.sh');
     expect(result.stdout).toContain('comet-handoff.sh');
     expect(result.stdout).toContain('comet-archive.sh');
+    expect(result.stdout).toContain('comet-evidence.sh');
     expect(result.stdout).toContain('bash');
+  }, 20_000);
+
+  it('records workflow evidence as JSONL', async () => {
+    const evidenceScript = path.join(tmpDir, 'scripts', 'comet-evidence.sh');
+    await createChange(
+      tmpDir,
+      'evidence-change',
+      ['workflow: full', 'phase: build', 'archived: false', ''].join('\n'),
+    );
+
+    const result = runBash(tmpDir, evidenceScript, [
+      'record',
+      'evidence-change',
+      'build',
+      'pass',
+      'npx vitest run passed',
+    ]);
+    const evidencePath = path.join(
+      tmpDir,
+      'openspec',
+      'changes',
+      'evidence-change',
+      '.comet',
+      'evidence.jsonl',
+    );
+    const evidence = await fs.readFile(evidencePath, 'utf-8');
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('EVIDENCE: openspec/changes/evidence-change/.comet/evidence.jsonl');
+    expect(evidence).toContain('"change":"evidence-change"');
+    expect(evidence).toContain('"phase":"build"');
+    expect(evidence).toContain('"status":"pass"');
+    expect(evidence).toContain('"summary":"npx vitest run passed"');
+  }, 20_000);
+
+  it('prints the evidence path without creating a record', async () => {
+    const evidenceScript = path.join(tmpDir, 'scripts', 'comet-evidence.sh');
+    const result = runBash(tmpDir, evidenceScript, ['path', 'evidence-path']);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('openspec/changes/evidence-path/.comet/evidence.jsonl');
+  }, 20_000);
+
+  it('rejects invalid evidence change names', async () => {
+    const evidenceScript = path.join(tmpDir, 'scripts', 'comet-evidence.sh');
+    const result = runBash(tmpDir, evidenceScript, [
+      'record',
+      '../bad',
+      'build',
+      'pass',
+      'summary',
+    ]);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('Invalid change name');
   }, 20_000);
 
   it('comet-env.sh returns failure when a bundled script is missing', async () => {

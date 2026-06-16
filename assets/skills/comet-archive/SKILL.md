@@ -40,6 +40,7 @@ After entry verification passes, **must follow the `comet/reference/decision-poi
 Before confirmation, show the user a brief summary:
 - Change name
 - Verification report path and result
+- Evidence ledger path if present: `"$COMET_BASH" "$COMET_EVIDENCE" path <change-name>`
 - Branch handling status
 - Irreversible actions this archive will perform: merge main specs with OpenSpec delta semantics, annotate design doc / plan, and move the change to the archive directory
 
@@ -68,6 +69,7 @@ The script automatically executes:
 
 If script returns non-zero exit code, report error and stop.
 If script returns zero exit code, archive is complete.
+After archive completes, recommended evidence record: `"$COMET_BASH" "$COMET_EVIDENCE" record <archive-name> archive pass "archive completed"`.
 The summary `X/Y steps succeeded` counts real executed steps and does not double-count delta spec sync or document annotation.
 
 The script calls OpenSpec archive to merge `ADDED/MODIFIED/REMOVED/RENAMED` delta semantics into main specs, then verifies main specs do not contain delta-only section headings.
