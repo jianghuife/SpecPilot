@@ -2,6 +2,16 @@
 
 All notable changes to @rpamis/comet will be documented in this file.
 
+## What's Changed [0.3.9] - 2026-06-16
+
+### Changed
+
+- **Context intelligence workflow guidance**: Comet now recommends Understand Anything during design for codebase architecture context and CodeGraph during build for symbol lookup and impact analysis, improving implementation grounding while keeping both tools advisory and non-blocking.
+
+### Tests
+
+- **Context intelligence skill coverage**: Added bilingual skill-content assertions for the Understand Anything and CodeGraph workflow guidance.
+
 ## What's Changed [0.3.8] - 2026-06-13
 
 ### Added

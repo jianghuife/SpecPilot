@@ -198,6 +198,17 @@ git add docs/superpowers/plans/YYYY-MM-DD-feature.md
 git commit -m "chore: add implementation plan"
 ```
 
+### 3a. CodeGraph Lookup and Impact Analysis (Recommended)
+
+Before executing the plan and editing implementation files, prefer CodeGraph for code lookup and impact analysis related to the current task:
+
+- Query relevant symbols, entry functions, classes, components, callers, callees, and potentially affected dependency paths first.
+- If `.codegraph/` does not exist, tell the user they can run `codegraph init -i` to initialize the project index. This is not a blocking condition; if the user skips it or the current platform cannot use it, continue with normal repository search and file reading.
+- CodeGraph results are implementation navigation and risk hints, not proof of correctness. You must still implement according to the plan, run project builds/tests, complete the review gate, and enter Comet verify.
+- If CodeGraph results conflict with current source code, trust the current source code.
+
+When `build_mode: subagent-driven-development`, the main session only coordinates, but should include the CodeGraph expectation in relevant background task instructions: implementation agents should prefer CodeGraph before editing to query target symbols and impact; if unavailable, fall back to normal search.
+
 **Execute plan**: Must handle execution according to the actual runtime of `build_mode`.
 
 - `build_mode: executing-plans`: **Immediately execute:** Use the Skill tool to load the Superpowers `executing-plans` skill. Skipping this step is prohibited. If the skill is unavailable, stop the process and prompt to install or enable the corresponding skill; do not substitute with normal conversation. After the skill loads, ARGUMENTS must include the same Language constraint as Step 1: `Language: Use the language of the user request that triggered this workflow`. Execute according to plan.

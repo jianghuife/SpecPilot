@@ -10,7 +10,11 @@ OpenSpec and Superpowers orbit the same goal like a binary star system.
 ```
 OpenSpec handles WHAT  — outline, proposal, spec lifecycle, archive
 Superpowers handles HOW — technical design, planning, execution, closing
+Understand Anything owns CODEBASE MAP — architecture, components, layers, and existing implementation boundaries
+CodeGraph owns SYMBOL/IMPACT INDEX — symbol lookup, call relationships, and impact analysis
 ```
+
+Understand Anything and CodeGraph are recommended context accelerators: the former helps the design phase understand existing code structure, and the latter helps the build phase locate symbols and analyze impact. They do not replace OpenSpec as the requirements source of truth, Superpowers process gates, project tests, builds, or verification conclusions; when unavailable, continue with normal file reading and search.
 
 **Core principle: brainstorming cannot be skipped. Every change must undergo deep design (except hotfix and tweak presets).**
 
@@ -153,8 +157,8 @@ Agents should not skip these decision points; other unambiguous phase transition
 | Command | Phase | Owner | Artifacts |
 |---------|-------|-------|-----------|
 | `/comet-open` | 1. Open | OpenSpec | proposal.md, design.md, tasks.md |
-| `/comet-design` | 2. Deep Design | Superpowers | Design Doc, delta spec |
-| `/comet-build` | 3. Plan and Build | Superpowers | Implementation plan, code commits |
+| `/comet-design` | 2. Deep Design | Superpowers + Understand Anything (recommended) | Design Doc, delta spec |
+| `/comet-build` | 3. Plan and Build | Superpowers + CodeGraph (recommended) | Implementation plan, code commits |
 | `/comet-verify` | 4. Verify and Close | Both | Verification report, branch handling |
 | `/comet-archive` | 5. Archive | OpenSpec | delta→main spec sync, design doc markup, archive |
 | `/comet-hotfix` | Preset path | Both | Quick fix (skip brainstorming) |

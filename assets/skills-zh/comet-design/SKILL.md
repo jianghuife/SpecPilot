@@ -83,7 +83,20 @@ beta 交接包是 **结构化 spec projection**，用于减少 OpenSpec 原文 t
 - `tasks.md`：初始任务边界
 - `specs/*/spec.md`：delta 能力规格
 
-### 1b. 执行 Brainstorming（带上下文）
+### 1b. 代码库理解增强（Understand Anything，推荐）
+
+在执行 brainstorming 前，优先检查当前仓库是否已有 Understand Anything 知识图谱：
+
+```bash
+test -f .understand-anything/knowledge-graph.json
+```
+
+- 若文件存在，推荐使用 `understand-chat` 围绕本 change 提出聚焦问题，例如相关模块边界、已有组件职责、关键数据流、相邻能力和潜在复用点。只读取与本 change 有关的图谱结果，不要把整份图谱灌入上下文。
+- 若文件不存在，提示用户可运行 `/understand --language <当前语言>` 生成 `.understand-anything/knowledge-graph.json` 后再继续，但这不是阻塞条件；用户选择跳过或当前平台不可用时，继续普通文件阅读和搜索。
+- Understand Anything 只用于理解既有代码库结构和实现边界。OpenSpec 交接包仍是需求事实源，不得用知识图谱内容覆盖 proposal、design、tasks 或 delta spec。
+- 图谱可能过期；当图谱结果与当前源码冲突时，以当前源码为准。
+
+### 1c. 执行 Brainstorming（带上下文）
 
 **立即执行：** 使用 Skill 工具加载 Superpowers `brainstorming` 技能。禁止跳过此步骤。
 
@@ -129,11 +142,11 @@ canonical_spec: openspec
 - 需求/范围缺口与需回写的 Spec Patch
 - 如需补充验收场景，标明将回写的 delta spec 变更
 
-brainstorming 阶段不写入 Design Doc 文件，仅产出设计方案供 Step 1c 用户确认。确认后才创建 `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` 并回写 delta spec。
+brainstorming 阶段不写入 Design Doc 文件，仅产出设计方案供 Step 1d 用户确认。确认后才创建 `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` 并回写 delta spec。
 
-但为了上下文压缩恢复，brainstorming 过程中必须增量更新 `brainstorm-summary.md`。每轮澄清或方案迭代后，只要产生新的已确认事实、关键约束、候选方案、取舍/风险、测试策略或 Spec Patch 候选，就更新该文件；未确认内容必须标注为“待确认”或“候选”。该文件是恢复检查点，不是 Design Doc，也不得替代 Step 1c 的用户确认。
+但为了上下文压缩恢复，brainstorming 过程中必须增量更新 `brainstorm-summary.md`。每轮澄清或方案迭代后，只要产生新的已确认事实、关键约束、候选方案、取舍/风险、测试策略或 Spec Patch 候选，就更新该文件；未确认内容必须标注为“待确认”或“候选”。该文件是恢复检查点，不是 Design Doc，也不得替代 Step 1d 的用户确认。
 
-### 1c. 用户确认设计方案（阻塞点）
+### 1d. 用户确认设计方案（阻塞点）
 
 brainstorming 产出设计方案后，**必须按 `comet/reference/decision-point.md` 的协议暂停并等待用户明确确认设计方案**。不得在用户确认前创建最终 Design Doc、写入 `design_doc`、运行 design guard，或进入 `/comet-build`。
 
@@ -146,7 +159,7 @@ brainstorming 产出设计方案后，**必须按 `comet/reference/decision-poin
 用户明确确认后，才继续 Step 2。若用户要求调整，继续 brainstorming 迭代，直到用户确认。
 
 
-### 1d. Brainstorming 检查点定稿
+### 1e. Brainstorming 检查点定稿
 
 用户确认设计方案后，在创建 Design Doc 前，创建或更新已增量维护的检查点文件，将其定稿为确认后的设计方案摘要：
 
@@ -184,9 +197,9 @@ mkdir -p openspec/changes/<name>/.comet/handoff
 - `openspec/changes/<name>/.comet/handoff/design-context.md`（或 beta 模式的 `spec-context.md`）
 - `openspec/changes/<name>/.comet/handoff/design-context.json`（或 beta 模式的 `spec-context.json`）
 
-### 1e. 主动上下文压缩门
+### 1f. 主动上下文压缩门
 
-完成 Step 1d 并确认 `brainstorm-summary.md` 已写入后，进入 Design Doc 创建前的主动压缩门。此时 OpenSpec 交接包、brainstorming 决策和待确认项都已落盘，应主动释放前面读取 Spec 和 brainstorming 消耗的上下文，为 Step 2 及后续 Build 阶段保留窗口。
+完成 Step 1e 并确认 `brainstorm-summary.md` 已写入后，进入 Design Doc 创建前的主动压缩门。此时 OpenSpec 交接包、brainstorming 决策和待确认项都已落盘，应主动释放前面读取 Spec 和 brainstorming 消耗的上下文，为 Step 2 及后续 Build 阶段保留窗口。
 
 执行规则：
 - 如果当前平台提供原生上下文压缩/清理机制（例如宿主 Agent 的 compact/compaction 命令、工具或 UI 操作），必须在这里触发一次主动压缩；不要尝试用 shell 脚本伪造压缩命令。
@@ -210,7 +223,7 @@ canonical_spec: openspec
 将 Design Doc 写入 `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`。
 如需回写 delta spec（Spec Patch），同时编辑对应的 `specs/*/spec.md`。
 
-**上下文压缩恢复**：若上下文已被压缩，从 `brainstorm-summary.md` + handoff 上下文恢复。若用户尚未确认设计方案，回到 Step 1b/1c 继续 brainstorming；若用户已确认，继续创建 Design Doc。brainstorm-summary.md 是压缩恢复的落盘点，不是 Design Doc 的唯一输入——创建时应尽可能利用恢复后的完整上下文。
+**上下文压缩恢复**：若上下文已被压缩，从 `brainstorm-summary.md` + handoff 上下文恢复。若用户尚未确认设计方案，回到 Step 1c/1d 继续 brainstorming；若用户已确认，继续创建 Design Doc。brainstorm-summary.md 是压缩恢复的落盘点，不是 Design Doc 的唯一输入——创建时应尽可能利用恢复后的完整上下文。
 
 ### 3. 更新 Comet 状态
 
