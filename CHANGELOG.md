@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to specpilot will be documented in this file.
+All notable changes to specpilot-ai will be documented in this file.
 
 ## What's Changed [0.3.9] - 2026-06-16
 
@@ -11,13 +11,13 @@ All notable changes to specpilot will be documented in this file.
 - **Workflow decision and archive support**: Added reusable decision-point templates and archive changelog draft generation so user confirmations and release notes are easier to review consistently.
 - **Workflow doctor checks**: Added `specpilot doctor --workflow` checks for active changes, context graph availability, project command configuration, and evidence ledger presence without changing default doctor output.
 - **Actionable status guidance**: Added `specpilot status --next` to show each active change's next skill and recovery command, with matching JSON metadata available only when `--next --json` is requested.
-- **SpecPilot branding**: Renamed the external package and CLI surface to `specpilot`, added the `specpilot` bin entry, and updated repository metadata to `jianghuife/SpecPilot` while keeping existing comet-prefixed workflow skills and scripts as the internal workflow layer.
+- **SpecPilot branding**: Renamed the external npm package to `specpilot-ai`, kept the CLI command as `specpilot`, and updated repository metadata to `jianghuife/SpecPilot` while keeping existing comet-prefixed workflow skills and scripts as the internal workflow layer.
 
 ### Changed
 
 - **Context intelligence workflow guidance**: SpecPilot now recommends Understand Anything during design for codebase architecture context and CodeGraph during build for symbol lookup and impact analysis, improving implementation grounding while keeping both tools advisory and non-blocking.
 - **Build and verify evidence guidance**: Build and verify skills now recommend `COMET_RUN` for command execution so pass/fail results are recorded automatically while non-command events can still use manual evidence records.
-- **CLI identity**: Version and update output now present the tool as SpecPilot and update from `specpilot@latest`.
+- **CLI identity**: Version and update output now present the tool as SpecPilot and update from `specpilot-ai@latest`.
 
 ### Tests
 

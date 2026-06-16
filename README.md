@@ -10,9 +10,9 @@
 <p align="center">
   <a href="https://github.com/jianghuife/SpecPilot/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/jianghuife/SpecPilot/ci.yml?branch=master&style=flat-square&label=CI" /></a>
   <a href="https://deepwiki.com/jianghuife/SpecPilot"><img alt="DeepWiki" src="https://img.shields.io/badge/DeepWiki-jianghuife%2FSpecPilot-blue?style=flat-square" /></a>
-  <a href="https://www.npmjs.com/package/specpilot"><img alt="npm version" src="https://img.shields.io/npm/v/specpilot?style=flat-square" /></a>
-  <a href="https://www.npmjs.com/package/specpilot"><img alt="npm download count" src="https://img.shields.io/npm/dm/specpilot?style=flat-square&label=Downloads/mo" /></a>
-  <a href="https://www.npmjs.com/package/specpilot"><img alt="npm weekly download count" src="https://img.shields.io/npm/dw/specpilot?style=flat-square&label=Downloads/wk" /></a>
+  <a href="https://www.npmjs.com/package/specpilot-ai"><img alt="npm version" src="https://img.shields.io/npm/v/specpilot-ai?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/specpilot-ai"><img alt="npm download count" src="https://img.shields.io/npm/dm/specpilot-ai?style=flat-square&label=Downloads/mo" /></a>
+  <a href="https://www.npmjs.com/package/specpilot-ai"><img alt="npm weekly download count" src="https://img.shields.io/npm/dw/specpilot-ai?style=flat-square&label=Downloads/wk" /></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" /></a>
 </p>
 
@@ -114,7 +114,7 @@ Requirements:
 - Bash-compatible shell for workflow scripts (Windows users should use Git Bash or an equivalent bash environment)
 
 ```bash
-npm install -g specpilot
+npm install -g specpilot-ai
 ```
 
 ## Quick Start
@@ -137,7 +137,7 @@ specpilot init
 > [!TIP]
 > update version
 >
-> `specpilot update` or `npm install -g specpilot@latest` to get the latest features and fixes.
+> `specpilot update` or `npm install -g specpilot-ai@latest` to get the latest features and fixes.
 
 ## Support for OpenClaw and Hermes, and other AI platforms
 
@@ -273,7 +273,7 @@ After `specpilot init`, three groups of skills are installed to the selected pla
 ### SpecPilot Skills
 
 SpecPilot currently keeps the installed workflow skill prefix as `/comet*` for the internal workflow layer, state files,
-scripts, and platform integrations. The npm package and CLI are branded as `specpilot`.
+scripts, and platform integrations. The npm package is `specpilot-ai`, and the CLI command is `specpilot`.
 
 <details>
 <summary>View SpecPilot skills</summary>
