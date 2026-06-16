@@ -48,6 +48,7 @@ program
   .command('doctor [path]')
   .description('Diagnose Comet installation health')
   .option('--json', 'Output as JSON')
+  .option('--workflow', 'Include workflow readiness checks')
   .addOption(
     new Option('--scope <scope>', 'Install scope to diagnose').choices([
       'auto',
