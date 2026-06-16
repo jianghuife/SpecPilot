@@ -53,6 +53,51 @@ describe('skills', () => {
     });
   });
 
+  describe('skill content', () => {
+    it('documents recommended Understand Anything and CodeGraph workflow guidance in both languages', async () => {
+      const assetsDir = getAssetsDir();
+      const zhComet = await fs.readFile(
+        path.join(assetsDir, 'skills-zh', 'comet', 'SKILL.md'),
+        'utf-8',
+      );
+      const zhDesign = await fs.readFile(
+        path.join(assetsDir, 'skills-zh', 'comet-design', 'SKILL.md'),
+        'utf-8',
+      );
+      const zhBuild = await fs.readFile(
+        path.join(assetsDir, 'skills-zh', 'comet-build', 'SKILL.md'),
+        'utf-8',
+      );
+      const enComet = await fs.readFile(
+        path.join(assetsDir, 'skills', 'comet', 'SKILL.md'),
+        'utf-8',
+      );
+      const enDesign = await fs.readFile(
+        path.join(assetsDir, 'skills', 'comet-design', 'SKILL.md'),
+        'utf-8',
+      );
+      const enBuild = await fs.readFile(
+        path.join(assetsDir, 'skills', 'comet-build', 'SKILL.md'),
+        'utf-8',
+      );
+
+      for (const cometSkill of [zhComet, enComet]) {
+        expect(cometSkill).toContain('Understand Anything');
+        expect(cometSkill).toContain('CodeGraph');
+      }
+
+      for (const designSkill of [zhDesign, enDesign]) {
+        expect(designSkill).toContain('.understand-anything/knowledge-graph.json');
+        expect(designSkill).toContain('/understand --language');
+      }
+
+      for (const buildSkill of [zhBuild, enBuild]) {
+        expect(buildSkill).toContain('.codegraph/');
+        expect(buildSkill).toContain('codegraph init -i');
+      }
+    });
+  });
+
   describe('createWorkingDirs', () => {
     it('creates superpowers spec and plan directories', async () => {
       await createWorkingDirs(tmpDir);
@@ -631,7 +676,7 @@ describe('skills', () => {
       // MEDIUM: comet-design brainstorming does not write Design Doc before confirmation
       expect(zhDesign).toContain('brainstorming 阶段不写入 Design Doc 文件');
       expect(zhDesign).toContain('增量更新 `brainstorm-summary.md`');
-      expect(zhDesign).toContain('### 1e. 主动上下文压缩门');
+      expect(zhDesign).toContain('### 1f. 主动上下文压缩门');
 
       // MEDIUM: comet-verify Spec drift requires user choice
       expect(zhVerify).toContain(
@@ -1027,7 +1072,7 @@ describe('skills', () => {
       expect(enDesign).toContain('openspec/changes/<name>/.comet/handoff/spec-context.md');
       expect(enDesign).toContain('In beta mode, `spec-context.json` must be structurally valid');
       expect(enDesign).toContain('incrementally update `brainstorm-summary.md`');
-      expect(enDesign).toContain('### 1e. Active Context Compaction Gate');
+      expect(enDesign).toContain('### 1f. Active Context Compaction Gate');
       expect(enHotfix).toContain('Immediately use the Skill tool to load the `comet-design` skill');
       expect(enTweak).toContain('Immediately use the Skill tool to load the `comet-design` skill');
       expect(enVerify).toContain(

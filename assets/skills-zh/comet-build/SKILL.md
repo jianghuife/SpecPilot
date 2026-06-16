@@ -198,6 +198,17 @@ git add docs/superpowers/plans/YYYY-MM-DD-feature.md
 git commit -m "chore: add implementation plan"
 ```
 
+### 3a. CodeGraph 定位与影响分析（推荐）
+
+在执行计划、编辑实现文件前，优先使用 CodeGraph 做与当前任务相关的代码定位和影响面分析：
+
+- 优先查询相关符号、入口函数、类、组件、调用者、被调用者和可能受影响的依赖路径。
+- 如果 `.codegraph/` 不存在，提示用户可运行 `codegraph init -i` 初始化项目索引；这不是阻塞条件，用户选择跳过或当前平台不可用时，继续使用普通仓库搜索和文件阅读。
+- CodeGraph 结果是实现前的导航和风险提示，不是正确性证明。仍必须按计划执行实现、运行项目构建/测试、完成 review gate，并进入 Comet verify。
+- 如果 CodeGraph 结果与当前源码不一致，以当前源码为准。
+
+`build_mode: subagent-driven-development` 时，主会话只做协调，但应在相关后台任务指令中加入 CodeGraph 期望：实现 agent 在编辑前优先使用 CodeGraph 查询目标符号和影响面；不可用时回退普通搜索。
+
 **执行计划**：必须按 `build_mode` 的真实运行位置处理。
 
 - `build_mode: executing-plans`：**立即执行：** 使用 Skill 工具加载 Superpowers `executing-plans` 技能。禁止跳过此步骤。若该技能不可用，停止流程并提示安装或启用对应技能，不要用普通对话替代该步骤。技能加载后，ARGUMENTS 必须包含与 Step 1 相同的 Language 约束：`Language: 使用触发本次工作流的用户请求语言输出`。按计划执行。
