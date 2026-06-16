@@ -4,10 +4,17 @@ import { promises as fs } from 'fs';
 
 type CometState = Record<string, string>;
 
+interface NextAction {
+  mode: 'auto' | 'manual';
+  skill: string;
+  recoveryCommand: string;
+}
+
 interface ChangeStatus {
   name: string;
   workflow: string;
   phase: string;
+  autoTransition: string;
   buildMode: string;
   isolation: string;
   verifyMode: string;
@@ -17,15 +24,18 @@ interface ChangeStatus {
   tasksCompleted: number;
   tasksTotal: number;
   nextCommand: string | null;
+  nextAction?: NextAction | null;
 }
 
-function getNextCommand(phase: string): string | null {
+function getNextCommand(phase: string, workflow = 'full'): string | null {
   switch (phase) {
     case 'open':
       return '/comet-open';
     case 'design':
       return '/comet-design';
     case 'build':
+      if (workflow === 'hotfix') return '/comet-hotfix';
+      if (workflow === 'tweak') return '/comet-tweak';
       return '/comet-build';
     case 'verify':
       return '/comet-verify';
@@ -34,6 +44,22 @@ function getNextCommand(phase: string): string | null {
     default:
       return null;
   }
+}
+
+function getNextAction(
+  changeName: string,
+  phase: string,
+  workflow: string,
+  autoTransition: string,
+): NextAction | null {
+  const skill = getNextCommand(phase, workflow);
+  if (!skill) return null;
+
+  return {
+    mode: autoTransition === 'false' ? 'manual' : 'auto',
+    skill,
+    recoveryCommand: `"$COMET_BASH" "$COMET_STATE" check ${changeName} ${phase} --recover`,
+  };
 }
 
 async function countTasks(tasksPath: string): Promise<{ done: number; total: number }> {
@@ -75,11 +101,15 @@ async function getActiveChanges(projectPath: string): Promise<ChangeStatus[]> {
     if (state.archived === 'true') continue;
 
     const { done, total } = await countTasks(path.join(changeDir, 'tasks.md'));
+    const workflow = state.workflow ?? 'full';
+    const phase = state.phase ?? 'unknown';
+    const autoTransition = state.auto_transition ?? 'true';
 
     changes.push({
       name: entry,
-      workflow: state.workflow ?? 'full',
-      phase: state.phase ?? 'unknown',
+      workflow,
+      phase,
+      autoTransition,
       buildMode: state.build_mode ?? 'null',
       isolation: state.isolation ?? 'null',
       verifyMode: state.verify_mode ?? 'null',
@@ -88,7 +118,8 @@ async function getActiveChanges(projectPath: string): Promise<ChangeStatus[]> {
       plan: state.plan === 'null' ? null : (state.plan ?? null),
       tasksCompleted: done,
       tasksTotal: total,
-      nextCommand: getNextCommand(state.phase ?? 'unknown'),
+      nextCommand: getNextCommand(phase, workflow),
+      nextAction: getNextAction(entry, phase, workflow, autoTransition),
     });
   }
 
@@ -116,8 +147,32 @@ function displayStatus(changes: ChangeStatus[]): void {
   }
 }
 
+function displayNextActions(changes: ChangeStatus[]): void {
+  if (changes.length === 0) {
+    console.log('No active changes.\n');
+    return;
+  }
+
+  console.log('Next Actions:\n');
+
+  for (let i = 0; i < changes.length; i++) {
+    const c = changes[i];
+    const taskStr = c.tasksTotal > 0 ? ` [${c.tasksCompleted}/${c.tasksTotal} tasks]` : '';
+    console.log(`  ${i + 1}. ${c.name} [phase: ${c.phase}${taskStr}]`);
+    console.log(`     workflow: ${c.workflow} | build_mode: ${c.buildMode}`);
+    if (c.nextAction) {
+      console.log(`     next: ${c.nextAction.skill} (${c.nextAction.mode})`);
+      console.log(`     recover: ${c.nextAction.recoveryCommand}`);
+    } else {
+      console.log('     next: unavailable');
+    }
+    console.log();
+  }
+}
+
 interface StatusOptions {
   json?: boolean;
+  next?: boolean;
 }
 
 export async function statusCommand(
@@ -128,7 +183,17 @@ export async function statusCommand(
   const changes = await getActiveChanges(projectPath);
 
   if (options.json) {
-    console.log(JSON.stringify({ changes }, null, 2));
+    const outputChanges = options.next
+      ? changes
+      : changes.map(
+          ({ autoTransition: _autoTransition, nextAction: _nextAction, ...change }) => change,
+        );
+    console.log(JSON.stringify({ changes: outputChanges }, null, 2));
+    return;
+  }
+
+  if (options.next) {
+    displayNextActions(changes);
     return;
   }
 

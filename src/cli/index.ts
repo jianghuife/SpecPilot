@@ -40,6 +40,7 @@ program
   .command('status [path]')
   .description('Show active changes and workflow status')
   .option('--json', 'Output as JSON')
+  .option('--next', 'Show actionable next-step recovery guidance')
   .action(async (targetPath = '.', options) => {
     await statusCommand(targetPath, options);
   });
