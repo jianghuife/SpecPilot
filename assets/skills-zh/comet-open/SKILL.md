@@ -15,6 +15,18 @@ description: "Comet 阶段 1：开启。用 /comet-open 调用。通过 OpenSpec
 
 传递给 OpenSpec 的所有提问和产物要求都必须包含输出语言约束：使用触发本次工作流的用户请求语言。恢复已有 change 且产物已有明确主语言时，除非用户明确要求切换，否则保持该语言。
 
+### 0b. Workflow Preflight（推荐）
+
+在深入澄清前，推荐运行一次轻量预检：
+
+```bash
+COMET_ENV="${COMET_ENV:-$(find . "$HOME"/.*/skills "$HOME/.config" "$HOME/.gemini" -path '*/comet/scripts/comet-env.sh' -type f -print -quit 2>/dev/null)}"
+. "$COMET_ENV"
+"$COMET_BASH" "$COMET_PREFLIGHT"
+```
+
+预检用于提前暴露 git、OpenSpec、CodeGraph、Understand Anything、build/verify 命令配置等环境状态。`PREFLIGHT WARN` 不阻塞 open 阶段；只需把关键警告纳入后续设计或构建风险。
+
 ### 1. 探索想法与需求澄清
 
 **立即执行：** 使用 Skill 工具加载 `openspec-explore` 技能。禁止跳过此步骤。
