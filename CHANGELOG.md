@@ -11,7 +11,7 @@ All notable changes to specpilot will be documented in this file.
 - **Workflow decision and archive support**: Added reusable decision-point templates and archive changelog draft generation so user confirmations and release notes are easier to review consistently.
 - **Workflow doctor checks**: Added `specpilot doctor --workflow` checks for active changes, context graph availability, project command configuration, and evidence ledger presence without changing default doctor output.
 - **Actionable status guidance**: Added `specpilot status --next` to show each active change's next skill and recovery command, with matching JSON metadata available only when `--next --json` is requested.
-- **SpecPilot branding**: Renamed the external package and CLI surface to `specpilot`, added the `specpilot` bin entry, and updated repository metadata to `jianghuife/SpecPilot` while keeping existing comet-prefixed workflow skills and scripts as the internal compatibility layer.
+- **SpecPilot branding**: Renamed the external package and CLI surface to `specpilot`, added the `specpilot` bin entry, and updated repository metadata to `jianghuife/SpecPilot` while keeping existing comet-prefixed workflow skills and scripts as the internal workflow layer.
 
 ### Changed
 

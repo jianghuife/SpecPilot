@@ -253,7 +253,7 @@ specpilot uninstall --scope project  # 仅移除项目级安装
 
 ### SpecPilot 技能
 
-SpecPilot 目前保留已安装工作流技能的 `/comet*` 前缀，以兼容现有状态文件、脚本和各平台集成；npm 包和 CLI 品牌为 `specpilot`。
+SpecPilot 目前保留已安装工作流技能的 `/comet*` 前缀，用于内部工作流层、状态文件、脚本和各平台集成；npm 包和 CLI 品牌为 `specpilot`。
 
 <details>
 <summary>查看 SpecPilot 技能列表</summary>

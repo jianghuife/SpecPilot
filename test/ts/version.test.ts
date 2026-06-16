@@ -103,8 +103,8 @@ describe('package metadata', () => {
     expect(packageJson.repository?.url).toBe('git+ssh://git@github.com/jianghuife/SpecPilot.git');
     expect(packageJson.bin).toMatchObject({
       specpilot: './bin/specpilot.js',
-      comet: './bin/comet.js',
     });
+    expect(packageJson.bin).not.toHaveProperty('comet');
   });
 });
 

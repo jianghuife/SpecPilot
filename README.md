@@ -272,8 +272,8 @@ After `specpilot init`, three groups of skills are installed to the selected pla
 
 ### SpecPilot Skills
 
-SpecPilot currently keeps the installed workflow skill prefix as `/comet*` for compatibility with existing state files,
-scripts, and platform integrations. The package and CLI are branded as `specpilot`.
+SpecPilot currently keeps the installed workflow skill prefix as `/comet*` for the internal workflow layer, state files,
+scripts, and platform integrations. The npm package and CLI are branded as `specpilot`.
 
 <details>
 <summary>View SpecPilot skills</summary>
