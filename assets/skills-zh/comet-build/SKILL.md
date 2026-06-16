@@ -80,6 +80,14 @@ Subagent 完成后：
 
 无需手动更新 phase，阶段守卫（guard `--apply`）会在退出条件满足后推进 `phase` 字段。
 
+计划写入后，先运行 plan lint：
+
+```bash
+"$COMET_BASH" "$COMET_PLAN_LINT" docs/superpowers/plans/YYYY-MM-DD-feature.md
+```
+
+若 plan lint 失败，必须先修正计划文件并重新运行，直到 `PLAN_LINT_RESULT: pass`。不得在计划结构缺失、缺少验证步骤或含占位措辞时进入 plan-ready 决策点。
+
 计划写入后，立即提供一个新的用户决策点：
 
 | 选项 | 行为 | 说明 |

@@ -18,6 +18,7 @@ export COMET_ARCHIVE="${COMET_ARCHIVE:-${_comet_script_dir}/comet-archive.sh}"
 export COMET_YAML_VALIDATE="${COMET_YAML_VALIDATE:-${_comet_script_dir}/comet-yaml-validate.sh}"
 export COMET_EVIDENCE="${COMET_EVIDENCE:-${_comet_script_dir}/comet-evidence.sh}"
 export COMET_PREFLIGHT="${COMET_PREFLIGHT:-${_comet_script_dir}/comet-preflight.sh}"
+export COMET_PLAN_LINT="${COMET_PLAN_LINT:-${_comet_script_dir}/comet-plan-lint.sh}"
 
 _comet_bash_is_usable() {
   local _comet_bash_candidate="$1"
@@ -97,7 +98,8 @@ for _comet_script in \
   "$COMET_ARCHIVE" \
   "$COMET_YAML_VALIDATE" \
   "$COMET_EVIDENCE" \
-  "$COMET_PREFLIGHT"; do
+  "$COMET_PREFLIGHT" \
+  "$COMET_PLAN_LINT"; do
   if [ ! -f "$_comet_script" ]; then
     _comet_env_fail
     _comet_env_missing=1
