@@ -156,11 +156,45 @@ describe('skills', () => {
       }
 
       for (const verifySkill of [zhVerify, enVerify]) {
-        expect(verifySkill).toContain('"$COMET_BASH" "$COMET_RUN" <change-name> verify -- pnpm test');
+        expect(verifySkill).toContain(
+          '"$COMET_BASH" "$COMET_RUN" <change-name> verify -- pnpm test',
+        );
         expect(verifySkill).toContain(
           '"$COMET_BASH" "$COMET_EVIDENCE" record <change-name> verify pass "verification report passed; branch handled"',
         );
       }
+    });
+
+    it('keeps the optional React best practices skill SPA-only and aligned with React semantics', async () => {
+      const assetsDir = getAssetsDir();
+      const reactSkillDir = path.join(assetsDir, 'optional_skills', 'vercel-react-best-practices');
+      const files = await collectMarkdownFiles(reactSkillDir);
+      const contents = await Promise.all(
+        files.map(async (file) => ({
+          file,
+          content: await fs.readFile(file, 'utf-8'),
+        })),
+      );
+      const allContent = contents.map(({ content }) => content).join('\n');
+
+      const forbiddenServerTerms =
+        /\b(?:SSR|Next\.js|nextjs|Server Components?|React Server|RSC|server actions?|use server|app router|pages router|server bundles?)\b/i;
+      const forbiddenFrameworkComponents = /\b(?:Document|RootLayout)\b/;
+
+      for (const { file, content } of contents) {
+        expect(
+          content,
+          `${path.relative(reactSkillDir, file)} should not mention SSR/server app patterns`,
+        ).not.toMatch(forbiddenServerTerms);
+        expect(
+          content,
+          `${path.relative(reactSkillDir, file)} should not use framework shell component names`,
+        ).not.toMatch(forbiddenFrameworkComponents);
+      }
+
+      expect(allContent).toContain('wrap state updates after an awaited async request');
+      expect(allContent).toContain('Effect Events are not stable dependency values');
+      expect(allContent).toContain('hidden Activity subtrees still receive lower-priority updates');
     });
   });
 
@@ -221,7 +255,9 @@ describe('skills', () => {
       const manifest = await readManifest();
       for (const skillRelPath of manifest.skills) {
         const copiedPath = path.join(tmpDir, '.claude', 'skills', skillRelPath);
-        expect(await fileExists(copiedPath), `zh install should include ${skillRelPath}`).toBe(true);
+        expect(await fileExists(copiedPath), `zh install should include ${skillRelPath}`).toBe(
+          true,
+        );
       }
     });
 
@@ -557,15 +593,9 @@ describe('skills', () => {
         'utf-8',
       );
 
-      expect(zhOpen).toContain(
-        'openspec instructions proposal --change "<name>" --json',
-      );
-      expect(zhOpen).toContain(
-        'openspec instructions design --change "<name>" --json',
-      );
-      expect(zhOpen).toContain(
-        'openspec instructions tasks --change "<name>" --json',
-      );
+      expect(zhOpen).toContain('openspec instructions proposal --change "<name>" --json');
+      expect(zhOpen).toContain('openspec instructions design --change "<name>" --json');
+      expect(zhOpen).toContain('openspec instructions tasks --change "<name>" --json');
       for (const field of [
         '`context`',
         '`rules`',
@@ -589,15 +619,9 @@ describe('skills', () => {
         'utf-8',
       );
 
-      expect(enOpen).toContain(
-        'openspec instructions proposal --change "<name>" --json',
-      );
-      expect(enOpen).toContain(
-        'openspec instructions design --change "<name>" --json',
-      );
-      expect(enOpen).toContain(
-        'openspec instructions tasks --change "<name>" --json',
-      );
+      expect(enOpen).toContain('openspec instructions proposal --change "<name>" --json');
+      expect(enOpen).toContain('openspec instructions design --change "<name>" --json');
+      expect(enOpen).toContain('openspec instructions tasks --change "<name>" --json');
       for (const field of [
         '`context`',
         '`rules`',
@@ -663,7 +687,9 @@ describe('skills', () => {
 
       expect(zhComet).toContain('决策点是阻塞点');
       expect(zhComet).toContain('`comet/reference/decision-point.md`');
-      expect(zhDecisionPoint).toContain('若当前平台没有结构化提问工具，则必须在对话中提出明确选项并停止流程');
+      expect(zhDecisionPoint).toContain(
+        '若当前平台没有结构化提问工具，则必须在对话中提出明确选项并停止流程',
+      );
       expect(zhDecisionPoint).toContain('不得用推荐规则、默认值、历史偏好');
       expect(zhOpen).toContain('### 1b. 需求澄清完成确认（阻塞点）');
       expect(zhOpen).toContain(
@@ -772,7 +798,9 @@ describe('skills', () => {
       expect(zhVerify).toContain('CRITICAL 或 IMPORTANT 失败项必须修复');
       expect(zhVerify).toContain('不允许跳过修复直接全部接受');
       expect(zhVerify).toContain('简化代码审查');
-      expect(zhVerify).toContain('必须使用 Skill 工具加载 Superpowers `requesting-code-review` 技能');
+      expect(zhVerify).toContain(
+        '必须使用 Skill 工具加载 Superpowers `requesting-code-review` 技能',
+      );
       expect(zhVerify).toContain('只检查正确性、安全、边界条件');
       expect(zhVerify).toContain('无 CRITICAL 或 IMPORTANT 问题');
       expect(zhVerify).toContain('不影响正确性、安全、边界条件的 code pattern consistency 建议');
@@ -883,7 +911,9 @@ describe('skills', () => {
       expect(zhCometRule).toContain(
         '使用 Skill 工具重新加载 Superpowers `subagent-driven-development` 技能',
       );
-      expect(zhCometRule).toContain('读取 `comet/reference/subagent-dispatch.md` 获取 Comet 专属扩展');
+      expect(zhCometRule).toContain(
+        '读取 `comet/reference/subagent-dispatch.md` 获取 Comet 专属扩展',
+      );
       expect(zhCometRule).toContain('禁止在主会话中直接执行 task');
       for (const [content] of [
         [zhOpen, '/comet-design'],
@@ -960,8 +990,12 @@ describe('skills', () => {
       );
 
       expect(enComet).toContain('Decision points are blocking points');
-      expect(enDecisionPoint).toContain('If the current platform has no structured question tool, ask clear options in the conversation and stop until the user replies');
-      expect(enDecisionPoint).toContain('Never substitute recommendation rules, defaults, historical preferences');
+      expect(enDecisionPoint).toContain(
+        'If the current platform has no structured question tool, ask clear options in the conversation and stop until the user replies',
+      );
+      expect(enDecisionPoint).toContain(
+        'Never substitute recommendation rules, defaults, historical preferences',
+      );
       expect(enOpen).toContain(
         '### 1b. Requirements Clarification Completion Confirmation (Blocking Point)',
       );
@@ -1048,7 +1082,7 @@ describe('skills', () => {
       expect(enTweak).toContain('Final archive confirmation');
       expect(enDesign).toContain('The brainstorming phase does not write to the Design Doc file');
       expect(enVerify).toContain(
-        'must use the current platform\'s available user input/confirmation mechanism as a single-select question to pause and wait for the user to choose the handling method',
+        "must use the current platform's available user input/confirmation mechanism as a single-select question to pause and wait for the user to choose the handling method",
       );
       expect(enComet).toContain('first check `build_pause`, `plan`, `build_mode`, and `isolation`');
       expect(enComet).toContain('`build_pause: plan-ready` and the plan file exists');
@@ -1327,14 +1361,14 @@ describe('skills', () => {
       expect(zhDispatch).toContain('implementer 不得勾选 plan 或 OpenSpec task');
       expect(zhDispatch).toContain('协调者唯一允许的文件修改');
       expect(zhDispatch).toContain('plan、OpenSpec task 和 subagent 进度检查点');
-      expect(zhDispatch).toContain(
-        'openspec/changes/<name>/.comet/subagent-progress.md',
-      );
+      expect(zhDispatch).toContain('openspec/changes/<name>/.comet/subagent-progress.md');
       expect(zhDispatch).toContain('final-review | final-fix');
       expect(zhDispatch).toContain('当前审查-修复轮次');
       expect(zhDispatch).toContain('已通过的审查阶段');
       expect(zhDispatch).toContain('所有 task 已勾选且检查点处于 `final-review` 或 `final-fix`');
-      expect(zhDispatch).toContain('使用 Skill 工具加载 Superpowers `test-driven-development` 技能');
+      expect(zhDispatch).toContain(
+        '使用 Skill 工具加载 Superpowers `test-driven-development` 技能',
+      );
       expect(zhDispatch).toContain('两个审查都通过后');
       expect(zhDispatch).toContain(
         '"$COMET_BASH" "$COMET_STATE" task-checkoff "$PLAN_FILE" "$PLAN_TASK_TEXT"',
@@ -1350,14 +1384,10 @@ describe('skills', () => {
       expect(zhDispatch).toContain('返回 `comet-build` 继续执行退出条件、阶段守卫和后续阶段衔接');
       expect(zhRecovery).toContain('重新加载 Superpowers `subagent-driven-development` 技能');
       expect(zhRecovery).toContain('重新阅读 `comet/reference/subagent-dispatch.md`');
-      expect(zhRecovery).toContain(
-        '读取 `openspec/changes/<name>/.comet/subagent-progress.md`',
-      );
+      expect(zhRecovery).toContain('读取 `openspec/changes/<name>/.comet/subagent-progress.md`');
       expect(zhGuard).toContain('重新加载 Superpowers `subagent-driven-development` 技能');
       expect(zhGuard).toContain('读取 `comet/reference/subagent-dispatch.md` 获取 Comet 专属扩展');
-      expect(zhGuard).toContain(
-        '读取 `openspec/changes/<name>/.comet/subagent-progress.md`',
-      );
+      expect(zhGuard).toContain('读取 `openspec/changes/<name>/.comet/subagent-progress.md`');
     });
 
     it('keeps the English dispatch contract behaviorally aligned', async () => {
@@ -1403,9 +1433,7 @@ describe('skills', () => {
       expect(enDispatch).toContain('implementation commit or diff and the RED/GREEN evidence');
       expect(enDispatch).toContain('The coordinator may modify only');
       expect(enDispatch).toContain('plan, OpenSpec task, and subagent progress checkpoint');
-      expect(enDispatch).toContain(
-        'openspec/changes/<name>/.comet/subagent-progress.md',
-      );
+      expect(enDispatch).toContain('openspec/changes/<name>/.comet/subagent-progress.md');
       expect(enDispatch).toContain('final-review | final-fix');
       expect(enDispatch).toContain('current review-fix round');
       expect(enDispatch).toContain('review stages already passed');
@@ -1424,16 +1452,12 @@ describe('skills', () => {
       );
       expect(enRecovery).toContain('reload the Superpowers `subagent-driven-development` skill');
       expect(enRecovery).toContain('Re-read `comet/reference/subagent-dispatch.md`');
-      expect(enRecovery).toContain(
-        'Read `openspec/changes/<name>/.comet/subagent-progress.md`',
-      );
+      expect(enRecovery).toContain('Read `openspec/changes/<name>/.comet/subagent-progress.md`');
       expect(enGuard).toContain('reload the Superpowers `subagent-driven-development` skill');
       expect(enGuard).toContain(
         'Re-read `comet/reference/subagent-dispatch.md` for Comet-specific extensions',
       );
-      expect(enGuard).toContain(
-        'Read `openspec/changes/<name>/.comet/subagent-progress.md`',
-      );
+      expect(enGuard).toContain('Read `openspec/changes/<name>/.comet/subagent-progress.md`');
     });
 
     it('does not install a Stop hook for task continuity', async () => {
@@ -1447,17 +1471,17 @@ describe('skills', () => {
   });
 
   describe('Repository authoring guidance', () => {
-    it('documents consistent skill invocation wording in CLAUDE.md', async () => {
-      const claude = await fs.readFile(path.resolve('CLAUDE.md'), 'utf-8');
+    it('documents consistent skill invocation wording in AGENTS.md', async () => {
+      const agents = await fs.readFile(path.resolve('AGENTS.md'), 'utf-8');
 
-      expect(claude).toContain('## Skill 触发表述规范');
-      expect(claude).toContain(
+      expect(agents).toContain('## Skill 触发表述规范');
+      expect(agents).toContain(
         '中文统一使用：`**立即执行：** 使用 Skill 工具加载 <skill-name> 技能。禁止跳过此步骤。`',
       );
-      expect(claude).toContain(
+      expect(agents).toContain(
         '英文统一使用：`**Immediately execute:** Use the Skill tool to load the <skill-name> skill. Skipping this step is prohibited.`',
       );
-      expect(claude).toContain(
+      expect(agents).toContain(
         '后续输入、上下文或执行要求写在“技能加载后 / After the skill loads”段落',
       );
     });
@@ -1563,9 +1587,10 @@ describe('skills', () => {
             continue;
           }
 
-          expect(locatorBlock, `${languageDir}/${skillPath} should reuse the shared locator block`).toBe(
-            baseline,
-          );
+          expect(
+            locatorBlock,
+            `${languageDir}/${skillPath} should reuse the shared locator block`,
+          ).toBe(baseline);
         }
       }
     });
@@ -1629,4 +1654,18 @@ async function fileExists(filePath: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+async function collectMarkdownFiles(dir: string): Promise<string[]> {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const files = await Promise.all(
+    entries.map(async (entry) => {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        return collectMarkdownFiles(fullPath);
+      }
+      return entry.isFile() && entry.name.endsWith('.md') ? [fullPath] : [];
+    }),
+  );
+  return files.flat().sort();
 }

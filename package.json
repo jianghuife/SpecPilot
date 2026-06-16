@@ -1,6 +1,6 @@
 {
   "name": "specpilot-ai",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "description": "Spec-driven workflow automation for AI coding agents",
   "keywords": [
     "comet",
@@ -24,7 +24,7 @@
     "access": "public"
   },
   "bin": {
-    "specpilot": "./bin/specpilot.js"
+    "specpilot": "bin/specpilot.js"
   },
   "files": [
     "dist",
@@ -71,6 +71,7 @@
     "vitest": "^4.1.6"
   },
   "dependencies": {
+    "@fission-ai/openspec": "^1.4.1",
     "@inquirer/prompts": "^8.4.3",
     "commander": "^14.0.0"
   }

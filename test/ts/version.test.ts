@@ -102,7 +102,7 @@ describe('package metadata', () => {
     expect(packageJson.description).toBe('Spec-driven workflow automation for AI coding agents');
     expect(packageJson.repository?.url).toBe('git+ssh://git@github.com/jianghuife/SpecPilot.git');
     expect(packageJson.bin).toMatchObject({
-      specpilot: './bin/specpilot.js',
+      specpilot: 'bin/specpilot.js',
     });
     expect(packageJson.bin).not.toHaveProperty('comet');
   });

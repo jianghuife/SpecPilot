@@ -3,17 +3,21 @@ import os from 'os';
 import { promises as fs } from 'fs';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
-import { select } from '@inquirer/prompts';
+import { checkbox, select } from '@inquirer/prompts';
 import { fileExists, readDir, readJson } from '../utils/file-system.js';
 import { getBaseDir } from '../core/detect.js';
 import {
   copyCometSkillsForPlatform,
+  copyOptionalSkillsForPlatform,
   copyCometRulesForPlatform,
   installCometHooksForPlatform,
   getManifestSkills,
+  OPTIONAL_SKILLS,
+  type OptionalSkillId,
 } from '../core/skills.js';
 import { PLATFORMS, getPlatformSkillsDir, type Platform } from '../core/platforms.js';
 import { installCodegraph } from '../core/codegraph.js';
+import { installUnderstandAnythingForPlatforms } from '../core/understand-anything.js';
 import type { InstallScope } from '../core/types.js';
 import { printVersionInfo } from '../core/version.js';
 
@@ -181,6 +185,19 @@ function getNpmExecutable(): string {
   return process.platform === 'win32' ? 'npm.cmd' : 'npm';
 }
 
+async function selectOptionalSkills(jsonMode: boolean): Promise<OptionalSkillId[]> {
+  if (jsonMode) return [];
+
+  return checkbox({
+    message: 'Select optional skills to install/update:',
+    choices: OPTIONAL_SKILLS.map((skill) => ({
+      name: skill.label,
+      value: skill.id,
+      checked: false,
+    })),
+  });
+}
+
 async function updateCometNpmPackage(
   scope: InstallScope,
   projectPath: string,
@@ -266,6 +283,8 @@ export async function updateCommand(
             rules: { totalCopied: 0 },
             hooks: { totalInstalled: 0 },
             codegraph: 'skipped',
+            understandAnything: 'skipped',
+            optionalSkills: { selected: [], totalCopied: 0, totalSkipped: 0 },
           },
           null,
           2,
@@ -292,6 +311,9 @@ export async function updateCommand(
   let totalCopied = 0;
   let totalRulesCopied = 0;
   let totalHooksInstalled = 0;
+  let totalOptionalCopied = 0;
+  let totalOptionalSkipped = 0;
+  const selectedOptionalSkillIds = await selectOptionalSkills(options.json === true);
   const targetResults = [];
   for (const target of targets) {
     const baseDir = getBaseDir(target.scope, projectPath);
@@ -325,6 +347,7 @@ export async function updateCommand(
         target.platform,
         true,
         target.scope,
+        languageSkillsDir,
       );
       totalRulesCopied += ruleCopied;
       if (ruleCopied > 0) {
@@ -352,6 +375,22 @@ export async function updateCommand(
         log(`  Comet hooks -> ${target.platform.name}: failed (${(err as Error).message})`);
       }
     }
+
+    if (selectedOptionalSkillIds.length > 0) {
+      const { copied: optionalCopied, skipped: optionalSkipped } =
+        await copyOptionalSkillsForPlatform(
+          baseDir,
+          target.platform,
+          selectedOptionalSkillIds,
+          true,
+          target.scope,
+        );
+      totalOptionalCopied += optionalCopied;
+      totalOptionalSkipped += optionalSkipped;
+      log(
+        `  Optional skills -> ${target.platform.name}: ${optionalCopied} updated, ${optionalSkipped} skipped`,
+      );
+    }
   }
 
   // CodeGraph optional step
@@ -376,6 +415,30 @@ export async function updateCommand(
     }
   }
 
+  // Understand Anything optional step
+  let understandAnythingStatus: 'installed' | 'failed' | 'skipped' = 'skipped';
+  if (!options.json) {
+    const shouldInstallUnderstandAnything = await select({
+      message: 'Install/update Understand Anything for codebase knowledge graphs?',
+      choices: [
+        { name: 'Yes (recommended for design-phase codebase maps)', value: true },
+        { name: 'No', value: false },
+      ],
+    });
+
+    if (shouldInstallUnderstandAnything) {
+      log('\n  Installing Understand Anything...');
+      understandAnythingStatus = await installUnderstandAnythingForPlatforms(
+        projectPath,
+        primaryScope,
+        [...new Set(targets.map((target) => target.platform.id))],
+      );
+      log(`  Understand Anything: ${understandAnythingStatus}`);
+    } else {
+      log('\n  Understand Anything: skipped');
+    }
+  }
+
   if (options.json) {
     console.log(
       JSON.stringify(
@@ -392,6 +455,12 @@ export async function updateCommand(
           rules: { totalCopied: totalRulesCopied },
           hooks: { totalInstalled: totalHooksInstalled },
           codegraph: codegraphStatus,
+          understandAnything: understandAnythingStatus,
+          optionalSkills: {
+            selected: selectedOptionalSkillIds,
+            totalCopied: totalOptionalCopied,
+            totalSkipped: totalOptionalSkipped,
+          },
         },
         null,
         2,
@@ -405,7 +474,11 @@ export async function updateCommand(
   log(`\n  Summary:`);
   log(`    npm: ${npmStatus}${options.skipNpm ? '' : ` (${packageScope})`}`);
   log(`    skills: ${targets.length} target(s), ${totalCopied} files updated`);
+  log(
+    `    optionalSkills: ${totalOptionalCopied} installed/updated, ${totalOptionalSkipped} skipped`,
+  );
   log(`    codegraph: ${codegraphStatus}`);
+  log(`    understandAnything: ${understandAnythingStatus}`);
   log(`    scope: ${scopes}`);
   log(`    language: ${languages}`);
   log(`\n  Update complete.\n`);

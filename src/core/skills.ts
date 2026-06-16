@@ -1,5 +1,5 @@
 import path from 'path';
-import { readFile, writeFile } from 'fs/promises';
+import { cp, readFile, rm, writeFile } from 'fs/promises';
 import { fileURLToPath } from 'url';
 
 import { fileExists, readJson, copyFile, ensureDir } from '../utils/file-system.js';
@@ -27,6 +27,33 @@ type Manifest = {
   hooks?: Record<string, HookConfig>;
   languages?: LanguageConfig[];
 };
+
+type OptionalSkillId = 'antd' | 'typescript' | 'react' | 'zustand';
+
+type OptionalSkill = {
+  id: OptionalSkillId;
+  label: string;
+  directory: string;
+};
+
+const OPTIONAL_SKILLS: OptionalSkill[] = [
+  { id: 'antd', label: 'Ant Design (antd)', directory: 'antd' },
+  {
+    id: 'typescript',
+    label: 'TypeScript advanced types',
+    directory: 'typescript-advanced-types',
+  },
+  {
+    id: 'react',
+    label: 'React best practices',
+    directory: 'vercel-react-best-practices',
+  },
+  {
+    id: 'zustand',
+    label: 'Zustand best practices',
+    directory: 'zustand-best-practices',
+  },
+];
 
 const OPENCODE_COMMAND_HEADER = `---
 description: Run the {skillName} Comet workflow
@@ -106,6 +133,47 @@ async function copyCometSkillsForPlatform(
   }
 
   return { copied, skipped: skippedCount };
+}
+
+async function copyOptionalSkillsForPlatform(
+  baseDir: string,
+  platform: Platform,
+  skillIds: OptionalSkillId[],
+  overwrite: boolean,
+  scope: InstallScope = 'project',
+): Promise<{ copied: number; skipped: number }> {
+  const assetsDir = getAssetsDir();
+  let copied = 0;
+  let skipped = 0;
+
+  for (const skillId of skillIds) {
+    const optionalSkill = OPTIONAL_SKILLS.find((skill) => skill.id === skillId);
+    if (!optionalSkill) {
+      throw new Error(`Unknown optional skill: ${skillId}`);
+    }
+
+    const src = path.join(assetsDir, 'optional_skills', optionalSkill.directory);
+    const dest = path.join(
+      baseDir,
+      getPlatformSkillsDir(platform, scope),
+      'skills',
+      optionalSkill.directory,
+    );
+
+    if (!overwrite && (await fileExists(dest))) {
+      skipped++;
+      continue;
+    }
+
+    if (overwrite) {
+      await rm(dest, { recursive: true, force: true });
+    }
+    await ensureDir(path.dirname(dest));
+    await cp(src, dest, { recursive: true, force: true, dereference: true });
+    copied++;
+  }
+
+  return { copied, skipped };
 }
 
 function getTopLevelSkillNames(skillPaths: string[]): string[] {
@@ -271,6 +339,7 @@ async function copyCometRulesForPlatform(
   platform: Platform,
   overwrite: boolean,
   scope: InstallScope = 'project',
+  languageSkillsDir: string = 'skills',
 ): Promise<{ copied: number; skipped: number }> {
   if (!platform.rulesDir || !platform.rulesFormat) {
     return { copied: 0, skipped: 0 };
@@ -295,7 +364,7 @@ async function copyCometRulesForPlatform(
   let skippedCount = 0;
 
   for (const ruleRelPath of rulePaths) {
-    const src = path.join(assetsDir, 'skills', ruleRelPath);
+    const src = await resolveRuleSourcePath(assetsDir, ruleRelPath, languageSkillsDir);
     if (!(await fileExists(src))) {
       console.error(`    Rule source not found: ${ruleRelPath}`);
       continue;
@@ -322,6 +391,25 @@ async function copyCometRulesForPlatform(
   }
 
   return { copied, skipped: skippedCount };
+}
+
+async function resolveRuleSourcePath(
+  assetsDir: string,
+  ruleRelPath: string,
+  languageSkillsDir: string,
+): Promise<string> {
+  const defaultSrc = path.join(assetsDir, 'skills', ruleRelPath);
+
+  if (languageSkillsDir === 'skills') {
+    const parsed = path.parse(ruleRelPath);
+    const englishSrc = path.join(assetsDir, 'skills', parsed.dir, `${parsed.name}.en${parsed.ext}`);
+    if (await fileExists(englishSrc)) return englishSrc;
+  } else {
+    const localizedSrc = path.join(assetsDir, languageSkillsDir, ruleRelPath);
+    if (await fileExists(localizedSrc)) return localizedSrc;
+  }
+
+  return defaultSrc;
 }
 
 function computeRuleDestPath(
@@ -753,6 +841,7 @@ async function createWorkingDirs(projectPath: string): Promise<void> {
 
 export {
   copyCometSkillsForPlatform,
+  copyOptionalSkillsForPlatform,
   copyCometRulesForPlatform,
   installCometHooksForPlatform,
   readManifest,
@@ -761,5 +850,6 @@ export {
   getAssetsDir,
   computeRuleDestPath,
   isManagedHookCommand,
+  OPTIONAL_SKILLS,
 };
-export type { Manifest, LanguageConfig };
+export type { Manifest, LanguageConfig, OptionalSkillId, OptionalSkill };
