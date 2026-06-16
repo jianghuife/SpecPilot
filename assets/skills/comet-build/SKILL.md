@@ -80,6 +80,14 @@ Record plan path:
 
 No manual phase update needed — guard auto-transitions when exit conditions are met.
 
+After the plan is recorded, run plan lint first:
+
+```bash
+"$COMET_BASH" "$COMET_PLAN_LINT" docs/superpowers/plans/YYYY-MM-DD-feature.md
+```
+
+If plan lint fails, fix the plan file and rerun it until `PLAN_LINT_RESULT: pass`. Do not enter the plan-ready decision point while the plan is missing structure, lacks verification steps, or contains placeholder wording.
+
 After the plan is recorded, immediately provide a new user decision point:
 
 | Option | Behavior | Description |

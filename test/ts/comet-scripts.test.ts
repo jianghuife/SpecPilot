@@ -178,6 +178,7 @@ describeShell('comet shell scripts', () => {
       'comet-state.sh',
       'comet-evidence.sh',
       'comet-preflight.sh',
+      'comet-plan-lint.sh',
       'comet-yaml-validate.sh',
       'comet-hook-guard.sh',
     ]) {
@@ -570,7 +571,7 @@ describeShell('comet shell scripts', () => {
       [
         '#!/bin/bash',
         `. "${toBashPath(envScript)}"`,
-        'printf "%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n" "$COMET_STATE" "$COMET_GUARD" "$COMET_HANDOFF" "$COMET_ARCHIVE" "$COMET_EVIDENCE" "$COMET_PREFLIGHT" "$COMET_BASH"',
+        'printf "%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n" "$COMET_STATE" "$COMET_GUARD" "$COMET_HANDOFF" "$COMET_ARCHIVE" "$COMET_EVIDENCE" "$COMET_PREFLIGHT" "$COMET_PLAN_LINT" "$COMET_BASH"',
         '',
       ].join('\n'),
     );
@@ -584,6 +585,7 @@ describeShell('comet shell scripts', () => {
     expect(result.stdout).toContain('comet-archive.sh');
     expect(result.stdout).toContain('comet-evidence.sh');
     expect(result.stdout).toContain('comet-preflight.sh');
+    expect(result.stdout).toContain('comet-plan-lint.sh');
     expect(result.stdout).toContain('bash');
   }, 20_000);
 
@@ -677,6 +679,59 @@ describeShell('comet shell scripts', () => {
 
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('Invalid change name');
+  }, 20_000);
+
+  it('passes a complete implementation plan through plan lint', async () => {
+    const planLintScript = path.join(tmpDir, 'scripts', 'comet-plan-lint.sh');
+    await writeFile(
+      path.join(tmpDir, 'docs', 'superpowers', 'plans', 'good-plan.md'),
+      [
+        '---',
+        'change: good-change',
+        'design-doc: docs/superpowers/specs/good-change.md',
+        'base-ref: abc123',
+        '---',
+        '',
+        '# Good Plan',
+        '',
+        '- [ ] Implement the feature',
+        '- [ ] Run `npx vitest run test/ts/skills.test.ts` to verify behavior',
+        '',
+      ].join('\n'),
+    );
+
+    const result = runBash(tmpDir, planLintScript, [
+      'docs/superpowers/plans/good-plan.md',
+    ]);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('PLAN_LINT_RESULT: pass');
+  }, 20_000);
+
+  it('fails plan lint when metadata and verification guidance are missing', async () => {
+    const planLintScript = path.join(tmpDir, 'scripts', 'comet-plan-lint.sh');
+    await writeFile(
+      path.join(tmpDir, 'docs', 'superpowers', 'plans', 'bad-plan.md'),
+      ['# Bad Plan', '', '- [ ] Implement later', ''].join('\n'),
+    );
+
+    const result = runBash(tmpDir, planLintScript, [
+      'docs/superpowers/plans/bad-plan.md',
+    ]);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).toContain('PLAN_LINT FAIL: frontmatter must start at first line');
+    expect(result.stdout).toContain('PLAN_LINT FAIL: frontmatter missing change');
+    expect(result.stdout).toContain('PLAN_LINT FAIL: plan must include test/build/verification guidance');
+    expect(result.stdout).toContain('PLAN_LINT FAIL: plan contains placeholder or vague wording');
+  }, 20_000);
+
+  it('rejects unsafe plan lint paths', async () => {
+    const planLintScript = path.join(tmpDir, 'scripts', 'comet-plan-lint.sh');
+    const result = runBash(tmpDir, planLintScript, ['../plan.md']);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("plan file cannot contain '..'");
   }, 20_000);
 
   it('comet-env.sh returns failure when a bundled script is missing', async () => {

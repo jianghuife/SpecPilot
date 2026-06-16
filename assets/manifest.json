@@ -17,6 +17,7 @@
     "comet/scripts/comet-archive.sh",
     "comet/scripts/comet-evidence.sh",
     "comet/scripts/comet-preflight.sh",
+    "comet/scripts/comet-plan-lint.sh",
     "comet/scripts/comet-yaml-validate.sh",
     "comet/scripts/comet-hook-guard.sh",
     "comet-open/SKILL.md",
