@@ -10,6 +10,7 @@ All notable changes to @rpamis/comet will be documented in this file.
 - **Workflow readiness gates**: Added preflight and plan-lint scripts to surface missing context graphs, project commands, and incomplete implementation-plan metadata before agents enter long build work.
 - **Workflow decision and archive support**: Added reusable decision-point templates and archive changelog draft generation so user confirmations and release notes are easier to review consistently.
 - **Workflow doctor checks**: Added `comet doctor --workflow` checks for active changes, context graph availability, project command configuration, and evidence ledger presence without changing default doctor output.
+- **Actionable status guidance**: Added `comet status --next` to show each active change's next skill and recovery command, with matching JSON metadata available only when `--next --json` is requested.
 
 ### Changed
 
@@ -20,6 +21,7 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 - **Context intelligence skill coverage**: Added bilingual skill-content assertions for the Understand Anything and CodeGraph workflow guidance.
 - **Workflow script coverage**: Added shell-script coverage for evidence recording, preflight checks, plan linting, archive draft generation, and automatic command evidence pass/fail behavior.
+- **Status next-step coverage**: Added regression coverage for actionable `status --next` text output, `--next --json` metadata, and unchanged default JSON shape.
 
 ## What's Changed [0.3.8] - 2026-06-13
 
