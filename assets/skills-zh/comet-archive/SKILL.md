@@ -35,12 +35,21 @@ fi
 
 ### 1. 归档前最终确认（阻塞点）
 
+入口验证通过后，先生成归档 changelog 草稿供用户审阅：
+
+```bash
+"$COMET_BASH" "$COMET_ARCHIVE" "<change-name>" --draft
+```
+
+草稿路径为 `openspec/changes/<name>/.comet/archive/changelog-draft.md`。它只汇总 tasks、evidence 和近期 commits，供人工确认归档范围；不得自动写入顶层 `CHANGELOG.md`。
+
 入口验证通过后，**必须按 `comet/reference/decision-point.md` 的协议暂停并等待用户确认是否立即归档**。不得在用户确认前运行 `"$COMET_BASH" "$COMET_ARCHIVE" "<change-name>"`。
 
 确认前必须向用户展示简短摘要：
 - change 名称
 - 验证报告路径和结论
 - evidence ledger 路径（如存在）：`"$COMET_BASH" "$COMET_EVIDENCE" path <change-name>`
+- changelog 草稿路径：`openspec/changes/<name>/.comet/archive/changelog-draft.md`
 - 分支处理状态
 - 本次归档将执行的不可逆动作：按 OpenSpec delta 语义合并主 spec、标注 design doc / plan、移动 change 到 archive 目录
 
