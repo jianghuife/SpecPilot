@@ -177,6 +177,7 @@ describeShell('comet shell scripts', () => {
       'comet-handoff.sh',
       'comet-state.sh',
       'comet-evidence.sh',
+      'comet-run.sh',
       'comet-preflight.sh',
       'comet-plan-lint.sh',
       'comet-yaml-validate.sh',
@@ -571,7 +572,7 @@ describeShell('comet shell scripts', () => {
       [
         '#!/bin/bash',
         `. "${toBashPath(envScript)}"`,
-        'printf "%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n" "$COMET_STATE" "$COMET_GUARD" "$COMET_HANDOFF" "$COMET_ARCHIVE" "$COMET_EVIDENCE" "$COMET_PREFLIGHT" "$COMET_PLAN_LINT" "$COMET_BASH"',
+        'printf "%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n%s\\n" "$COMET_STATE" "$COMET_GUARD" "$COMET_HANDOFF" "$COMET_ARCHIVE" "$COMET_EVIDENCE" "$COMET_RUN" "$COMET_PREFLIGHT" "$COMET_PLAN_LINT" "$COMET_BASH"',
         '',
       ].join('\n'),
     );
@@ -584,6 +585,7 @@ describeShell('comet shell scripts', () => {
     expect(result.stdout).toContain('comet-handoff.sh');
     expect(result.stdout).toContain('comet-archive.sh');
     expect(result.stdout).toContain('comet-evidence.sh');
+    expect(result.stdout).toContain('comet-run.sh');
     expect(result.stdout).toContain('comet-preflight.sh');
     expect(result.stdout).toContain('comet-plan-lint.sh');
     expect(result.stdout).toContain('bash');
@@ -642,6 +644,76 @@ describeShell('comet shell scripts', () => {
 
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('Invalid change name');
+  }, 20_000);
+
+  it('records passing command execution evidence', async () => {
+    const runScript = path.join(tmpDir, 'scripts', 'comet-run.sh');
+    await createChange(
+      tmpDir,
+      'run-pass',
+      ['workflow: full', 'phase: build', 'archived: false', ''].join('\n'),
+    );
+
+    const result = runBash(tmpDir, runScript, [
+      'run-pass',
+      'build',
+      '--',
+      bashCommand!,
+      '-lc',
+      'printf "command-output\\n"',
+    ]);
+    const evidence = await fs.readFile(
+      path.join(tmpDir, 'openspec', 'changes', 'run-pass', '.comet', 'evidence.jsonl'),
+      'utf-8',
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('command-output');
+    expect(result.stdout).toContain('EVIDENCE: openspec/changes/run-pass/.comet/evidence.jsonl');
+    expect(evidence).toContain('"change":"run-pass"');
+    expect(evidence).toContain('"phase":"build"');
+    expect(evidence).toContain('"status":"pass"');
+    expect(evidence).toContain('"summary":"');
+    expect(evidence).toContain('passed');
+    expect(evidence).toContain(bashCommand!.replace(/\\/g, '\\\\'));
+  }, 20_000);
+
+  it('records failing command execution evidence and returns the command exit code', async () => {
+    const runScript = path.join(tmpDir, 'scripts', 'comet-run.sh');
+    await createChange(
+      tmpDir,
+      'run-fail',
+      ['workflow: full', 'phase: verify', 'archived: false', ''].join('\n'),
+    );
+
+    const result = runBash(tmpDir, runScript, [
+      'run-fail',
+      'verify',
+      '--',
+      bashCommand!,
+      '-lc',
+      'printf "failing-output\\n"; exit 7',
+    ]);
+    const evidence = await fs.readFile(
+      path.join(tmpDir, 'openspec', 'changes', 'run-fail', '.comet', 'evidence.jsonl'),
+      'utf-8',
+    );
+
+    expect(result.status).toBe(7);
+    expect(result.stdout).toContain('failing-output');
+    expect(result.stdout).toContain('EVIDENCE: openspec/changes/run-fail/.comet/evidence.jsonl');
+    expect(evidence).toContain('"change":"run-fail"');
+    expect(evidence).toContain('"phase":"verify"');
+    expect(evidence).toContain('"status":"fail"');
+    expect(evidence).toContain('failed with exit 7');
+  }, 20_000);
+
+  it('requires a command separator before running command evidence', async () => {
+    const runScript = path.join(tmpDir, 'scripts', 'comet-run.sh');
+    const result = runBash(tmpDir, runScript, ['missing-separator', 'build', bashCommand!, '-lc', 'true']);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('Usage:');
   }, 20_000);
 
   it('reports workflow preflight warnings for optional context tools', async () => {

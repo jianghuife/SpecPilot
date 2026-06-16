@@ -193,10 +193,13 @@ mkdir -p docs/superpowers/reports
 # 将本次验证结论写入报告文件，例如：
 # docs/superpowers/reports/YYYY-MM-DD-<change-name>-verify.md
 
+# 推荐：用 COMET_RUN 执行关键验证命令并自动记录 pass/fail 证据，例如：
+"$COMET_BASH" "$COMET_RUN" <change-name> verify -- pnpm test
+
 "$COMET_BASH" "$COMET_STATE" set <change-name> verification_report docs/superpowers/reports/YYYY-MM-DD-<change-name>-verify.md
 "$COMET_BASH" "$COMET_STATE" set <change-name> branch_status handled
 
-# 推荐：记录验证证据，供 archive / changelog 草稿引用
+# 非命令类验证结论可继续手动记录，供 archive / changelog 草稿引用
 "$COMET_BASH" "$COMET_EVIDENCE" record <change-name> verify pass "verification report passed; branch handled"
 ```
 

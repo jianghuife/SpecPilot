@@ -128,6 +128,40 @@ describe('skills', () => {
       expect(zhComet).toContain('comet/reference/decision-templates.md');
       expect(enComet).toContain('comet/reference/decision-templates.md');
     });
+
+    it('documents automatic command evidence recording in build and verify skills', async () => {
+      const assetsDir = getAssetsDir();
+      const zhBuild = await fs.readFile(
+        path.join(assetsDir, 'skills-zh', 'comet-build', 'SKILL.md'),
+        'utf-8',
+      );
+      const zhVerify = await fs.readFile(
+        path.join(assetsDir, 'skills-zh', 'comet-verify', 'SKILL.md'),
+        'utf-8',
+      );
+      const enBuild = await fs.readFile(
+        path.join(assetsDir, 'skills', 'comet-build', 'SKILL.md'),
+        'utf-8',
+      );
+      const enVerify = await fs.readFile(
+        path.join(assetsDir, 'skills', 'comet-verify', 'SKILL.md'),
+        'utf-8',
+      );
+
+      for (const buildSkill of [zhBuild, enBuild]) {
+        expect(buildSkill).toContain(
+          '"$COMET_BASH" "$COMET_RUN" <change-name> build -- <command...>',
+        );
+        expect(buildSkill).toContain('"$COMET_BASH" "$COMET_EVIDENCE" record ...');
+      }
+
+      for (const verifySkill of [zhVerify, enVerify]) {
+        expect(verifySkill).toContain('"$COMET_BASH" "$COMET_RUN" <change-name> verify -- pnpm test');
+        expect(verifySkill).toContain(
+          '"$COMET_BASH" "$COMET_EVIDENCE" record <change-name> verify pass "verification report passed; branch handled"',
+        );
+      }
+    });
   });
 
   describe('createWorkingDirs', () => {

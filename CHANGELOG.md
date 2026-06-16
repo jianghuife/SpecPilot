@@ -4,13 +4,22 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 ## What's Changed [0.3.9] - 2026-06-16
 
+### Added
+
+- **Workflow evidence automation**: Added a durable evidence ledger plus `comet-run.sh`, so build and verification commands can execute normally while automatically recording pass/fail evidence for archive and changelog review.
+- **Workflow readiness gates**: Added preflight and plan-lint scripts to surface missing context graphs, project commands, and incomplete implementation-plan metadata before agents enter long build work.
+- **Workflow decision and archive support**: Added reusable decision-point templates and archive changelog draft generation so user confirmations and release notes are easier to review consistently.
+- **Workflow doctor checks**: Added `comet doctor --workflow` checks for active changes, context graph availability, project command configuration, and evidence ledger presence without changing default doctor output.
+
 ### Changed
 
 - **Context intelligence workflow guidance**: Comet now recommends Understand Anything during design for codebase architecture context and CodeGraph during build for symbol lookup and impact analysis, improving implementation grounding while keeping both tools advisory and non-blocking.
+- **Build and verify evidence guidance**: Build and verify skills now recommend `COMET_RUN` for command execution so pass/fail results are recorded automatically while non-command events can still use manual evidence records.
 
 ### Tests
 
 - **Context intelligence skill coverage**: Added bilingual skill-content assertions for the Understand Anything and CodeGraph workflow guidance.
+- **Workflow script coverage**: Added shell-script coverage for evidence recording, preflight checks, plan linting, archive draft generation, and automatic command evidence pass/fail behavior.
 
 ## What's Changed [0.3.8] - 2026-06-13
 

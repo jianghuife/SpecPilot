@@ -195,10 +195,13 @@ mkdir -p docs/superpowers/reports
 # Write verification conclusions to report file, e.g.:
 # docs/superpowers/reports/YYYY-MM-DD-<change-name>-verify.md
 
+# Recommended: run key verification commands through COMET_RUN so pass/fail evidence is recorded automatically, for example:
+"$COMET_BASH" "$COMET_RUN" <change-name> verify -- pnpm test
+
 "$COMET_BASH" "$COMET_STATE" set <change-name> verification_report docs/superpowers/reports/YYYY-MM-DD-<change-name>-verify.md
 "$COMET_BASH" "$COMET_STATE" set <change-name> branch_status handled
 
-# Recommended: record verification evidence for archive / changelog drafts
+# Non-command verification conclusions may still be recorded manually for archive / changelog drafts
 "$COMET_BASH" "$COMET_EVIDENCE" record <change-name> verify pass "verification report passed; branch handled"
 ```
 
