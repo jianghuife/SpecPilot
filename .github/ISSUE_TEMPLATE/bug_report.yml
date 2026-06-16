@@ -1,5 +1,5 @@
 name: 🐛 Bug Report
-description: Report a reproducible problem with Comet.
+description: Report a reproducible problem with SpecPilot.
 title: 'fix: '
 labels: ['bug']
 body:
@@ -14,11 +14,11 @@ body:
   - type: dropdown
     attributes:
       label: 🎯 Affected area
-      description: Which part of Comet is affected?
+      description: Which part of SpecPilot is affected?
       options:
         - CLI command
         - Skill installation
-        - Comet workflow skill
+        - SpecPilot workflow skill
         - Shell script
         - Documentation
         - CI / release
@@ -28,8 +28,8 @@ body:
 
   - type: input
     attributes:
-      label: 📦 Comet version
-      description: Run `comet --version` or check the installed package version.
+      label: 📦 SpecPilot version
+      description: Run `specpilot --version` or check the installed package version.
       placeholder: '0.2.8'
     validations:
       required: false
@@ -55,7 +55,7 @@ body:
       description: Include the exact command, project state, and options used.
       placeholder: |
         1. In a project with ...
-        2. Run `comet init --scope project --json`
+        2. Run `specpilot init --scope project --json`
         3. See ...
     validations:
       required: true

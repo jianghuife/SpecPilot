@@ -8,7 +8,9 @@ describe('README assets', () => {
     const content = await fs.readFile(readmePath, 'utf-8');
 
     expect(content).not.toMatch(/\b(?:src|srcset)=["'](?:\.\/)?img\//);
-    expect(content).toContain('https://github.com/rpamis/comet/blob/master/img/');
+    expect(content).toContain('https://github.com/jianghuife/SpecPilot/blob/master/img/');
+    expect(content).toContain('https://www.npmjs.com/package/specpilot');
+    expect(content).not.toContain('https://www.npmjs.com/package/@rpamis/comet');
   });
 
   it('documents build_pause in README state examples and field descriptions', async () => {

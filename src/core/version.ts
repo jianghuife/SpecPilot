@@ -4,7 +4,7 @@ import https from 'https';
 const require = createRequire(import.meta.url);
 const { version: CURRENT_VERSION } = require('../../package.json');
 
-const PACKAGE_NAME = '@rpamis/comet';
+const PACKAGE_NAME = 'specpilot';
 const REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME}/latest`;
 
 export interface VersionCheckResult {
@@ -44,7 +44,7 @@ export function compareVersions(a: string, b: string): number {
 }
 
 /**
- * Get the current installed Comet version from package.json.
+ * Get the current installed SpecPilot version from package.json.
  */
 export function getCurrentVersion(): string {
   return CURRENT_VERSION;
@@ -113,14 +113,14 @@ export async function checkForUpdate(): Promise<VersionCheckResult> {
 
 /**
  * Format and print version info to the console.
- * Used by `comet init` and `comet update` at the start of command output.
+ * Used by `specpilot init` and `specpilot update` at the start of command output.
  */
 export async function printVersionInfo(
   log: (message: string) => void,
 ): Promise<VersionCheckResult> {
   const result = await checkForUpdate();
 
-  log(`  Comet v${result.currentVersion}`);
+  log(`  SpecPilot v${result.currentVersion}`);
 
   if (!result.checked) {
     // Registry unreachable — skip silently per requirement #6

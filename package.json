@@ -1,7 +1,7 @@
 {
-  "name": "@rpamis/comet",
+  "name": "specpilot",
   "version": "0.3.9",
-  "description": "OpenSpec + Superpowers dual-star development workflow",
+  "description": "Spec-driven workflow automation for AI coding agents",
   "keywords": [
     "comet",
     "openspec",
@@ -10,12 +10,21 @@
     "workflow"
   ],
   "license": "MIT",
-  "author": "benym",
+  "author": "jianghuife",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/jianghuife/SpecPilot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jianghuife/SpecPilot/issues"
+  },
+  "homepage": "https://github.com/jianghuife/SpecPilot#readme",
   "publishConfig": {
     "access": "public"
   },
   "bin": {
+    "specpilot": "./bin/specpilot.js",
     "comet": "./bin/comet.js"
   },
   "files": [

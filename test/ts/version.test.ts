@@ -1,11 +1,20 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import https from 'https';
+import { createRequire } from 'module';
 import {
   compareVersions,
   getCurrentVersion,
   checkForUpdate,
   printVersionInfo,
 } from '../../src/core/version.js';
+
+const require = createRequire(import.meta.url);
+const packageJson = require('../../package.json') as {
+  name: string;
+  description: string;
+  repository?: { url?: string };
+  bin?: Record<string, string>;
+};
 
 /**
  * Helper: mock https.get to return a specific response body.
@@ -87,6 +96,18 @@ describe('getCurrentVersion', () => {
   });
 });
 
+describe('package metadata', () => {
+  it('uses SpecPilot package and repository branding', () => {
+    expect(packageJson.name).toBe('specpilot');
+    expect(packageJson.description).toBe('Spec-driven workflow automation for AI coding agents');
+    expect(packageJson.repository?.url).toBe('git+ssh://git@github.com/jianghuife/SpecPilot.git');
+    expect(packageJson.bin).toMatchObject({
+      specpilot: './bin/specpilot.js',
+      comet: './bin/comet.js',
+    });
+  });
+});
+
 describe('checkForUpdate', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -144,9 +165,10 @@ describe('printVersionInfo', () => {
 
     await printVersionInfo(log);
 
-    expect(logs[0]).toMatch(/^  Comet v\d+\.\d+\.\d+$/);
+    expect(logs[0]).toMatch(/^  SpecPilot v\d+\.\d+\.\d+$/);
     expect(logs[1]).toContain('99.99.99');
     expect(logs[1]).toContain('npm update -g');
+    expect(logs[1]).toContain('specpilot');
   });
 
   it('prints latest version confirmation when on latest', async () => {
@@ -157,7 +179,7 @@ describe('printVersionInfo', () => {
 
     await printVersionInfo(log);
 
-    expect(logs[0]).toMatch(/^  Comet v/);
+    expect(logs[0]).toMatch(/^  SpecPilot v/);
     expect(logs[1]).toContain('latest version');
   });
 
@@ -170,6 +192,6 @@ describe('printVersionInfo', () => {
     await printVersionInfo(log);
 
     expect(logs).toHaveLength(1);
-    expect(logs[0]).toMatch(/^  Comet v/);
+    expect(logs[0]).toMatch(/^  SpecPilot v/);
   });
 });

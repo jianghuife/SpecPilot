@@ -11,7 +11,7 @@ const runTsc = (args = []) => {
   execFileSync(process.execPath, [tscPath, ...args], { stdio: 'inherit' });
 };
 
-console.log('Building Comet...\n');
+console.log('Building SpecPilot...\n');
 
 if (existsSync('dist')) {
   console.log('Cleaning dist directory...');
