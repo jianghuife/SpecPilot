@@ -17,6 +17,7 @@ export COMET_HANDOFF="${COMET_HANDOFF:-${_comet_script_dir}/comet-handoff.sh}"
 export COMET_ARCHIVE="${COMET_ARCHIVE:-${_comet_script_dir}/comet-archive.sh}"
 export COMET_YAML_VALIDATE="${COMET_YAML_VALIDATE:-${_comet_script_dir}/comet-yaml-validate.sh}"
 export COMET_EVIDENCE="${COMET_EVIDENCE:-${_comet_script_dir}/comet-evidence.sh}"
+export COMET_RUN="${COMET_RUN:-${_comet_script_dir}/comet-run.sh}"
 export COMET_PREFLIGHT="${COMET_PREFLIGHT:-${_comet_script_dir}/comet-preflight.sh}"
 export COMET_PLAN_LINT="${COMET_PLAN_LINT:-${_comet_script_dir}/comet-plan-lint.sh}"
 
@@ -98,6 +99,7 @@ for _comet_script in \
   "$COMET_ARCHIVE" \
   "$COMET_YAML_VALIDATE" \
   "$COMET_EVIDENCE" \
+  "$COMET_RUN" \
   "$COMET_PREFLIGHT" \
   "$COMET_PLAN_LINT"; do
   if [ ! -f "$_comet_script" ]; then

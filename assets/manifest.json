@@ -17,6 +17,7 @@
     "comet/scripts/comet-handoff.sh",
     "comet/scripts/comet-archive.sh",
     "comet/scripts/comet-evidence.sh",
+    "comet/scripts/comet-run.sh",
     "comet/scripts/comet-preflight.sh",
     "comet/scripts/comet-plan-lint.sh",
     "comet/scripts/comet-yaml-validate.sh",
