@@ -24,8 +24,7 @@
     "access": "public"
   },
   "bin": {
-    "specpilot": "./bin/specpilot.js",
-    "comet": "./bin/comet.js"
+    "specpilot": "./bin/specpilot.js"
   },
   "files": [
     "dist",

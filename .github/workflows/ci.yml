@@ -111,7 +111,7 @@ jobs:
 
       - name: Run comet init (project scope)
         run: |
-          node bin/comet.js init "$RUNNER_TEMP/comet-e2e-project" --yes --json \
+          node bin/specpilot.js init "$RUNNER_TEMP/comet-e2e-project" --yes --json \
             | tee "$RUNNER_TEMP/comet-init-project.json"
         shell: bash
 
@@ -201,7 +201,7 @@ jobs:
         run: |
           export HOME="$RUNNER_TEMP/comet-e2e-global"
           export USERPROFILE="$RUNNER_TEMP/comet-e2e-global"
-          node bin/comet.js init "$RUNNER_TEMP/comet-e2e-global" --yes --scope global --json \
+          node bin/specpilot.js init "$RUNNER_TEMP/comet-e2e-global" --yes --scope global --json \
             | tee "$RUNNER_TEMP/comet-init-global.json"
         shell: bash
 
