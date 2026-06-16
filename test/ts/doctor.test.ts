@@ -8,7 +8,10 @@ describe('doctor command', () => {
   let tmpDir: string;
 
   beforeEach(async () => {
-    tmpDir = path.join(os.tmpdir(), `comet-doctor-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    tmpDir = path.join(
+      os.tmpdir(),
+      `comet-doctor-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    );
     await fs.mkdir(tmpDir, { recursive: true });
   });
 
@@ -73,12 +76,7 @@ describe('doctor command', () => {
     await fs.mkdir(invalidChangeDir, { recursive: true });
     await fs.writeFile(
       path.join(invalidChangeDir, '.comet.yaml'),
-      [
-        'workflow: full',
-        'phase: verify',
-        'unknown_root_field: true',
-        '',
-      ].join('\n'),
+      ['workflow: full', 'phase: verify', 'unknown_root_field: true', ''].join('\n'),
     );
 
     const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -90,15 +88,90 @@ describe('doctor command', () => {
       log.mockRestore();
     }
 
-    const results = JSON.parse(json).results as Array<{ check: string; status: string; message: string }>;
+    const results = JSON.parse(json).results as Array<{
+      check: string;
+      status: string;
+      message: string;
+    }>;
 
     expect(results.find((result) => result.check === '.comet.yaml: nested-valid')).toMatchObject({
       status: 'pass',
     });
 
-    expect(results.find((result) => result.check === '.comet.yaml: top-level-invalid')).toMatchObject({
+    expect(
+      results.find((result) => result.check === '.comet.yaml: top-level-invalid'),
+    ).toMatchObject({
       status: 'fail',
       message: expect.stringContaining('unknown_root_field'),
+    });
+  });
+
+  it('adds workflow readiness checks only when requested', async () => {
+    const changeDir = path.join(tmpDir, 'openspec', 'changes', 'workflow-ready');
+    await fs.mkdir(path.join(changeDir, '.comet'), { recursive: true });
+    await fs.mkdir(path.join(tmpDir, '.codegraph'), { recursive: true });
+    await fs.mkdir(path.join(tmpDir, '.understand-anything'), { recursive: true });
+    await fs.writeFile(path.join(tmpDir, '.understand-anything', 'knowledge-graph.json'), '{}\n');
+    await fs.writeFile(
+      path.join(tmpDir, '.comet.yaml'),
+      'build_command: pnpm build\nverify_command: pnpm test\n',
+    );
+    await fs.writeFile(
+      path.join(changeDir, '.comet.yaml'),
+      ['workflow: full', 'phase: build', 'verify_result: pending', 'archived: false', ''].join(
+        '\n',
+      ),
+    );
+    await fs.writeFile(
+      path.join(changeDir, '.comet', 'evidence.jsonl'),
+      '{"phase":"build","status":"pass"}\n',
+    );
+
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    let defaultJson = '';
+    let workflowJson = '';
+    try {
+      await doctorCommand(tmpDir, { json: true });
+      defaultJson = log.mock.calls.map((call) => call.join(' ')).join('\n');
+      log.mockClear();
+      await doctorCommand(tmpDir, { json: true, workflow: true });
+      workflowJson = log.mock.calls.map((call) => call.join(' ')).join('\n');
+    } finally {
+      log.mockRestore();
+    }
+
+    const defaultResults = JSON.parse(defaultJson).results as Array<{ check: string }>;
+    const workflowResults = JSON.parse(workflowJson).results as Array<{
+      check: string;
+      status: string;
+      message: string;
+    }>;
+
+    expect(defaultResults.some((result) => result.check.startsWith('workflow:'))).toBe(false);
+    expect(
+      workflowResults.find((result) => result.check === 'workflow: active changes'),
+    ).toMatchObject({
+      status: 'pass',
+      message: expect.stringContaining('workflow-ready'),
+    });
+    expect(
+      workflowResults.find((result) => result.check === 'workflow: CodeGraph index'),
+    ).toMatchObject({
+      status: 'pass',
+    });
+    expect(
+      workflowResults.find((result) => result.check === 'workflow: Understand Anything graph'),
+    ).toMatchObject({ status: 'pass' });
+    expect(
+      workflowResults.find((result) => result.check === 'workflow: build command'),
+    ).toMatchObject({
+      status: 'pass',
+      message: expect.stringContaining('pnpm build'),
+    });
+    expect(
+      workflowResults.find((result) => result.check === 'workflow: evidence: workflow-ready'),
+    ).toMatchObject({
+      status: 'pass',
     });
   });
 });

@@ -49,6 +49,18 @@ function collectTopLevelYamlKeys(yamlContent: string): string[] {
   return topLevelKeys;
 }
 
+function readYamlField(yamlContent: string, field: string): string | null {
+  for (const line of yamlContent.split(/\r?\n/u)) {
+    const match = line.match(new RegExp(`^${field}:\\s*(.*)$`, 'u'));
+    if (!match) continue;
+    return match[1]
+      .replace(/\s+#.*$/u, '')
+      .replace(/^['"]|['"]$/gu, '')
+      .trim();
+  }
+  return null;
+}
+
 async function checkOpenSpecCli(): Promise<CheckResult> {
   if (!isCommandAvailable('openspec')) {
     return {
@@ -240,7 +252,91 @@ async function checkCodegraph(projectPath: string, scope: DoctorScope): Promise<
   return { check: 'CodeGraph', status: 'pass', message: 'initialized (.codegraph/ present)' };
 }
 
-async function collectResults(projectPath: string, scope: DoctorScope): Promise<CheckResult[]> {
+async function collectWorkflowResults(projectPath: string): Promise<CheckResult[]> {
+  const results: CheckResult[] = [];
+  const changesDir = path.join(projectPath, 'openspec', 'changes');
+  const activeChanges: string[] = [];
+
+  if (await fileExists(changesDir)) {
+    for (const entry of await readDir(changesDir)) {
+      if (entry === 'archive') continue;
+      const yamlPath = path.join(changesDir, entry, '.comet.yaml');
+      if (await fileExists(yamlPath)) {
+        activeChanges.push(entry);
+      }
+    }
+  }
+
+  results.push({
+    check: 'workflow: active changes',
+    status: activeChanges.length > 0 ? 'pass' : 'warn',
+    message:
+      activeChanges.length > 0
+        ? `${activeChanges.length} active (${activeChanges.join(', ')})`
+        : 'none found',
+  });
+
+  results.push({
+    check: 'workflow: CodeGraph index',
+    status: (await fileExists(path.join(projectPath, '.codegraph'))) ? 'pass' : 'warn',
+    message: (await fileExists(path.join(projectPath, '.codegraph')))
+      ? 'present'
+      : 'missing — run: codegraph init -i',
+  });
+
+  results.push({
+    check: 'workflow: Understand Anything graph',
+    status: (await fileExists(
+      path.join(projectPath, '.understand-anything', 'knowledge-graph.json'),
+    ))
+      ? 'pass'
+      : 'warn',
+    message: (await fileExists(
+      path.join(projectPath, '.understand-anything', 'knowledge-graph.json'),
+    ))
+      ? 'present'
+      : 'missing — run: /understand --language <lang>',
+  });
+
+  const configFiles = ['.comet.yaml', 'comet.yaml', '.comet.yml', 'comet.yml'];
+  let buildCommand: string | null = null;
+  let verifyCommand: string | null = null;
+  for (const configFile of configFiles) {
+    const configPath = path.join(projectPath, configFile);
+    if (!(await fileExists(configPath))) continue;
+    const raw = await fs.readFile(configPath, 'utf-8');
+    buildCommand ??= readYamlField(raw, 'build_command');
+    verifyCommand ??= readYamlField(raw, 'verify_command');
+  }
+
+  results.push({
+    check: 'workflow: build command',
+    status: buildCommand ? 'pass' : 'warn',
+    message: buildCommand ? `configured (${buildCommand})` : 'not configured',
+  });
+  results.push({
+    check: 'workflow: verify command',
+    status: verifyCommand ? 'pass' : 'warn',
+    message: verifyCommand ? `configured (${verifyCommand})` : 'not configured',
+  });
+
+  for (const change of activeChanges) {
+    const evidencePath = path.join(changesDir, change, '.comet', 'evidence.jsonl');
+    results.push({
+      check: `workflow: evidence: ${change}`,
+      status: (await fileExists(evidencePath)) ? 'pass' : 'warn',
+      message: (await fileExists(evidencePath)) ? 'present' : 'missing',
+    });
+  }
+
+  return results;
+}
+
+async function collectResults(
+  projectPath: string,
+  scope: DoctorScope,
+  workflow = false,
+): Promise<CheckResult[]> {
   const results: CheckResult[] = [];
   results.push(await checkOpenSpecCli());
   if (scope !== 'global') {
@@ -250,6 +346,9 @@ async function collectResults(projectPath: string, scope: DoctorScope): Promise<
   results.push(await checkScriptsPresent());
   results.push(await checkCodegraph(projectPath, scope));
   results.push(...(await checkCometYamlValidity(projectPath)));
+  if (workflow && scope !== 'global') {
+    results.push(...(await collectWorkflowResults(projectPath)));
+  }
   return results;
 }
 
@@ -262,6 +361,7 @@ function icon(status: string): string {
 interface DoctorOptions {
   json?: boolean;
   scope?: DoctorScope;
+  workflow?: boolean;
 }
 
 export async function doctorCommand(
@@ -270,14 +370,17 @@ export async function doctorCommand(
 ): Promise<void> {
   const projectPath = path.resolve(targetPath);
   const scope = options.scope ?? 'auto';
-  const results = await collectResults(projectPath, scope);
+  const workflow = options.workflow === true;
+  const results = await collectResults(projectPath, scope, workflow);
 
   if (options.json) {
-    console.log(JSON.stringify({ scope, results }, null, 2));
+    console.log(
+      JSON.stringify(workflow ? { scope, workflow, results } : { scope, results }, null, 2),
+    );
     return;
   }
 
-  console.log(`Comet Doctor (scope: ${scope})\n`);
+  console.log(`Comet Doctor (scope: ${scope}${workflow ? ', workflow: on' : ''})\n`);
 
   for (const r of results) {
     console.log(`  ${icon(r.status)} ${r.check}: ${r.message}`);
