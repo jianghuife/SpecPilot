@@ -93,12 +93,18 @@ describe('comet init E2E', () => {
     expect(result.scope).toBe('project');
     expect(result.language).toBe('en');
     expect(result.selectedPlatforms).toContain('claude');
+    expect(result.optionalSkills).toEqual({ selected: [], totalCopied: 0, totalSkipped: 0 });
     expect(result.workingDirsCreated).toBe(true);
 
-    const claudeResult = (result.results as { platform: string; comet: string }[]).find(
-      (r) => r.platform === 'claude',
-    );
+    const claudeResult = (
+      result.results as {
+        platform: string;
+        comet: string;
+        optionalSkills: { copied: number; skipped: number };
+      }[]
+    ).find((r) => r.platform === 'claude');
     expect(claudeResult?.comet).toBe('installed');
+    expect(claudeResult?.optionalSkills).toEqual({ copied: 0, skipped: 0 });
 
     const manifest = await readManifest();
     for (const skillPath of manifest.skills) {

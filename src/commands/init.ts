@@ -5,14 +5,18 @@ import { PLATFORMS, getPlatformSkillsDir, type Platform } from '../core/platform
 import { detectPlatforms, hasSkills, getBaseDir, type InstallScope } from '../core/detect.js';
 import {
   copyCometSkillsForPlatform,
+  copyOptionalSkillsForPlatform,
   copyCometRulesForPlatform,
   installCometHooksForPlatform,
   createWorkingDirs,
+  OPTIONAL_SKILLS,
+  type OptionalSkillId,
   type LanguageConfig,
 } from '../core/skills.js';
 import { installOpenSpec } from '../core/openspec.js';
 import { installSuperpowersForPlatforms } from '../core/superpowers.js';
 import { installCodegraph } from '../core/codegraph.js';
+import { installUnderstandAnythingForPlatforms } from '../core/understand-anything.js';
 import { printVersionInfo } from '../core/version.js';
 
 type InitOptions = {
@@ -33,6 +37,11 @@ interface PlatformResult {
   superpowers: InstallStatus;
   comet: InstallStatus;
   codegraph: InstallStatus;
+  understandAnything: InstallStatus;
+  optionalSkills: {
+    copied: number;
+    skipped: number;
+  };
 }
 
 type ComponentPlan = {
@@ -93,6 +102,19 @@ async function selectPlatforms(detected: Set<string>, options: InitOptions): Pro
   }
 
   return checkbox({ message: 'Select platforms to set up:', choices, required: true });
+}
+
+async function selectOptionalSkills(options: InitOptions): Promise<OptionalSkillId[]> {
+  if (options.yes || options.json) return [];
+
+  return checkbox({
+    message: 'Select optional skills to install:',
+    choices: OPTIONAL_SKILLS.map((skill) => ({
+      name: skill.label,
+      value: skill.id,
+      checked: false,
+    })),
+  });
 }
 
 async function promptOverwriteChoice(
@@ -159,21 +181,26 @@ function displaySummary(results: PlatformResult[], scope: InstallScope): void {
       r.openspec === 'installed' ||
       r.superpowers === 'installed' ||
       r.comet === 'installed' ||
-      r.codegraph === 'installed',
+      r.codegraph === 'installed' ||
+      r.understandAnything === 'installed' ||
+      r.optionalSkills.copied > 0,
   );
   const skipped = results.filter(
     (r) =>
       r.openspec === 'skipped' &&
       r.superpowers === 'skipped' &&
       r.comet === 'skipped' &&
-      r.codegraph === 'skipped',
+      r.codegraph === 'skipped' &&
+      r.understandAnything === 'skipped' &&
+      r.optionalSkills.copied === 0,
   );
   const failed = results.filter(
     (r) =>
       r.openspec === 'failed' ||
       r.superpowers === 'failed' ||
       r.comet === 'failed' ||
-      r.codegraph === 'failed',
+      r.codegraph === 'failed' ||
+      r.understandAnything === 'failed',
   );
 
   if (installed.length > 0) {
@@ -237,6 +264,7 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
   }
 
   const selectedPlatforms = PLATFORMS.filter((p) => selectedPlatformIds.includes(p.id));
+  const selectedOptionalSkillIds = await selectOptionalSkills(options);
   const baseDir = getBaseDir(scope, projectPath);
 
   type PlatformPlan = ComponentPlan & {
@@ -342,6 +370,7 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
         platform,
         cmAction === 'overwrite',
         scope,
+        language.skillsDir,
       );
       if (ruleCopied > 0) {
         log(`  Comet rules -> ${platform.name}: ${ruleCopied} rule(s) installed`);
@@ -358,12 +387,34 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
       }
     }
 
+    let optionalCopied = 0;
+    let optionalSkipped = 0;
+    if (selectedOptionalSkillIds.length > 0) {
+      const result = await copyOptionalSkillsForPlatform(
+        baseDir,
+        platform,
+        selectedOptionalSkillIds,
+        cmAction === 'overwrite',
+        scope,
+      );
+      optionalCopied = result.copied;
+      optionalSkipped = result.skipped;
+      log(
+        `  Optional skills -> ${platform.name}: ${optionalCopied} installed, ${optionalSkipped} skipped`,
+      );
+    }
+
     results.push({
       platform,
       openspec: osToolIds.includes(platform.openspecToolId) ? osGlobalStatus : 'skipped',
       superpowers: plan.spAction !== 'skip' ? spGlobalStatus : 'skipped',
       comet: cmStatus,
       codegraph: 'skipped',
+      understandAnything: 'skipped',
+      optionalSkills: {
+        copied: optionalCopied,
+        skipped: optionalSkipped,
+      },
     });
   }
 
@@ -390,6 +441,35 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
     log('\n  CodeGraph: skipped');
   }
 
+  const shouldInstallUnderstandAnything =
+    !options.json &&
+    (options.yes ||
+      (await select({
+        message: 'Install Understand Anything for codebase knowledge graphs?',
+        choices: [
+          { name: 'Yes (recommended for design-phase codebase maps)', value: true },
+          { name: 'No', value: false },
+        ],
+      })));
+
+  if (shouldInstallUnderstandAnything) {
+    log('\n  Installing Understand Anything...');
+    const uaGlobalStatus = await installUnderstandAnythingForPlatforms(
+      projectPath,
+      scope,
+      selectedPlatformIds,
+    );
+    log(`  Understand Anything: ${uaGlobalStatus}`);
+    if (uaGlobalStatus === 'installed') {
+      log(`  Generate a graph later with: /understand --language ${language.id}`);
+    }
+    for (const r of results) {
+      r.understandAnything = uaGlobalStatus;
+    }
+  } else {
+    log('\n  Understand Anything: skipped');
+  }
+
   if (scope === 'project') {
     await createWorkingDirs(projectPath);
   }
@@ -402,6 +482,11 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
           scope,
           language: language.id,
           selectedPlatforms: selectedPlatformIds,
+          optionalSkills: {
+            selected: selectedOptionalSkillIds,
+            totalCopied: results.reduce((sum, result) => sum + result.optionalSkills.copied, 0),
+            totalSkipped: results.reduce((sum, result) => sum + result.optionalSkills.skipped, 0),
+          },
           results: results.map((result) => ({
             platform: result.platform.id,
             platformName: result.platform.name,
@@ -409,6 +494,8 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
             superpowers: result.superpowers,
             comet: result.comet,
             codegraph: result.codegraph,
+            understandAnything: result.understandAnything,
+            optionalSkills: result.optionalSkills,
           })),
           workingDirsCreated: scope === 'project',
         },

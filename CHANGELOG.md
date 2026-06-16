@@ -2,6 +2,28 @@
 
 All notable changes to specpilot-ai will be documented in this file.
 
+## What's Changed [0.3.10] - 2026-06-16
+
+### Added
+
+- **Understand Anything setup**: Added an optional `specpilot init` / `specpilot update` installer for the Understand Anything skill plugin, so design-phase codebase maps can be enabled during setup without automatically running repository analysis.
+- **Optional skill installation**: Added selectable built-in optional skills for Ant Design, TypeScript advanced types, React best practices, and Zustand best practices during `specpilot init` and `specpilot update`.
+
+### Changed
+
+- **Comet phase guard localization**: `specpilot init` and `specpilot update` now generate `comet-phase-guard.md` from the selected Comet language, using the English rule for English installs and preserving the Chinese rule for Chinese installs.
+- **React best practices skill**: Removed server-rendering framework guidance from the optional React skill and corrected Activity, Effect Event, and async transition examples so generated SPA guidance follows React 19 semantics.
+- **Package bin metadata**: Normalized the published `specpilot` binary path and executable mode so npm keeps the CLI entry unchanged during publish.
+- **Repository guidance location**: Moved the skill invocation wording guard to `AGENTS.md`, keeping repository authoring checks active without requiring `CLAUDE.md`.
+
+### Tests
+
+- **Comet rule installation coverage**: Added regression coverage confirming the installed `comet-phase-guard.md` rule follows the selected English or Chinese language source.
+- **Understand Anything installer coverage**: Added regression coverage for the generated skills CLI install command, global-scope flags, skip behavior for unsupported agents, and update JSON status output.
+- **Optional skill installation coverage**: Added regression coverage for optional skill id mapping, recursive skill directory copying, skip/overwrite behavior, and JSON status output.
+- **React best practices skill coverage**: Added content regression coverage that rejects server-rendering framework terms and verifies the corrected React Activity, Effect Event, and async transition guidance.
+- **Repository guidance coverage**: Updated the skill invocation wording regression to validate `AGENTS.md` instead of `CLAUDE.md`.
+
 ## What's Changed [0.3.9] - 2026-06-16
 
 ### Added

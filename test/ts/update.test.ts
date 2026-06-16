@@ -16,6 +16,7 @@ import {
 // Mock the interactive select prompt so tests don't hang on CI (no TTY).
 vi.mock('@inquirer/prompts', () => ({
   select: vi.fn().mockResolvedValue(false),
+  checkbox: vi.fn().mockResolvedValue([]),
 }));
 
 const claudePlatform: Platform = {
@@ -252,5 +253,7 @@ describe('update command helpers', () => {
       language: 'en',
       source: 'skills',
     });
+    expect(result.understandAnything).toBe('skipped');
+    expect(result.optionalSkills).toEqual({ selected: [], totalCopied: 0, totalSkipped: 0 });
   });
 });
