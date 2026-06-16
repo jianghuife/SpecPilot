@@ -17,7 +17,7 @@ import { installCodegraph } from '../core/codegraph.js';
 import type { InstallScope } from '../core/types.js';
 import { printVersionInfo } from '../core/version.js';
 
-const PACKAGE_NAME = '@rpamis/comet';
+const PACKAGE_NAME = 'specpilot';
 const OFFICIAL_REGISTRY = 'https://registry.npmjs.org';
 
 interface UpdateOptions {
@@ -135,7 +135,7 @@ async function detectCometPackageScope(
   projectPath: string,
   packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..'),
 ): Promise<InstallScope> {
-  const localPackageRoot = path.join(projectPath, 'node_modules', '@rpamis', 'comet');
+  const localPackageRoot = path.join(projectPath, 'node_modules', PACKAGE_NAME);
   if (isSameOrInside(packageRoot, localPackageRoot)) return 'project';
 
   const packageJsonPath = path.join(projectPath, 'package.json');
@@ -222,7 +222,7 @@ export async function updateCommand(
   const projectPath = path.resolve(targetPath);
   const log = options.json ? () => undefined : console.log;
 
-  log(`\n  Comet Update`);
+  log(`\n  SpecPilot Update`);
   if (!options.json) {
     await printVersionInfo(log);
   }
@@ -273,7 +273,7 @@ export async function updateCommand(
       );
       return;
     }
-    log('\n  No platforms with comet skills installed. Run `comet init` first.\n');
+    log('\n  No platforms with comet skills installed. Run `specpilot init` first.\n');
     return;
   }
 

@@ -1,5 +1,5 @@
 name: 💬 Question
-description: Ask about installing, configuring, or using Comet.
+description: Ask about installing, configuring, or using SpecPilot.
 title: 'Question: '
 labels: ['question']
 body:
@@ -7,7 +7,7 @@ body:
     attributes:
       label: ❓ Question
       description: What are you trying to understand or accomplish?
-      placeholder: 'I am trying to use Comet to ...'
+      placeholder: 'I am trying to use SpecPilot to ...'
     validations:
       required: true
 
@@ -16,7 +16,7 @@ body:
       label: 🔍 What you tried
       description: Include commands, configuration, docs you read, or workflow steps you followed.
       placeholder: |
-        - Ran `comet init ...`
+        - Ran `specpilot init ...`
         - Read `README.md` section ...
     validations:
       required: false

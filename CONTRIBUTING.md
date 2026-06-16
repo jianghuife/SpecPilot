@@ -22,8 +22,8 @@ shell scripts.
 ## Development Setup
 
 ```bash
-git clone https://github.com/rpamis/comet
-cd comet
+git clone https://github.com/jianghuife/SpecPilot
+cd SpecPilot
 pnpm install
 pnpm build
 ```

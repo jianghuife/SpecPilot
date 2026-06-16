@@ -12,13 +12,13 @@ const { version } = require('../../package.json');
 const program = new Command();
 
 program
-  .name('comet')
-  .description('OpenSpec + Superpowers dual-star development workflow')
+  .name('specpilot')
+  .description('Spec-driven workflow automation for AI coding agents')
   .version(version);
 
 program
   .command('init [path]')
-  .description('Initialize Comet workflow in your project')
+  .description('Initialize SpecPilot workflow in your project')
   .option('--yes', 'Auto-install missing components, skip existing')
   .option('--skip-existing', 'Never overwrite existing components')
   .option('--overwrite', 'Overwrite manifest-managed files')

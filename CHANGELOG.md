@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to @rpamis/comet will be documented in this file.
+All notable changes to specpilot will be documented in this file.
 
 ## What's Changed [0.3.9] - 2026-06-16
 
@@ -9,13 +9,15 @@ All notable changes to @rpamis/comet will be documented in this file.
 - **Workflow evidence automation**: Added a durable evidence ledger plus `comet-run.sh`, so build and verification commands can execute normally while automatically recording pass/fail evidence for archive and changelog review.
 - **Workflow readiness gates**: Added preflight and plan-lint scripts to surface missing context graphs, project commands, and incomplete implementation-plan metadata before agents enter long build work.
 - **Workflow decision and archive support**: Added reusable decision-point templates and archive changelog draft generation so user confirmations and release notes are easier to review consistently.
-- **Workflow doctor checks**: Added `comet doctor --workflow` checks for active changes, context graph availability, project command configuration, and evidence ledger presence without changing default doctor output.
-- **Actionable status guidance**: Added `comet status --next` to show each active change's next skill and recovery command, with matching JSON metadata available only when `--next --json` is requested.
+- **Workflow doctor checks**: Added `specpilot doctor --workflow` checks for active changes, context graph availability, project command configuration, and evidence ledger presence without changing default doctor output.
+- **Actionable status guidance**: Added `specpilot status --next` to show each active change's next skill and recovery command, with matching JSON metadata available only when `--next --json` is requested.
+- **SpecPilot branding**: Renamed the external package and CLI surface to `specpilot`, added the `specpilot` bin entry, and updated repository metadata to `jianghuife/SpecPilot` while keeping existing comet-prefixed workflow skills and scripts as the internal compatibility layer.
 
 ### Changed
 
-- **Context intelligence workflow guidance**: Comet now recommends Understand Anything during design for codebase architecture context and CodeGraph during build for symbol lookup and impact analysis, improving implementation grounding while keeping both tools advisory and non-blocking.
+- **Context intelligence workflow guidance**: SpecPilot now recommends Understand Anything during design for codebase architecture context and CodeGraph during build for symbol lookup and impact analysis, improving implementation grounding while keeping both tools advisory and non-blocking.
 - **Build and verify evidence guidance**: Build and verify skills now recommend `COMET_RUN` for command execution so pass/fail results are recorded automatically while non-command events can still use manual evidence records.
+- **CLI identity**: Version and update output now present the tool as SpecPilot and update from `specpilot@latest`.
 
 ### Tests
 
@@ -27,12 +29,12 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 ### Added
 
-- **Kimi Code CLI support**: Added Kimi Code as the 29th supported platform, including project/global skill installation under `.kimi-code/`, OpenSpec `kimi` tool integration, Superpowers `kimi-code-cli` mapping, detection, documentation, and cross-platform regression coverage ([#90](https://github.com/rpamis/comet/pull/90)).
-- **Version info and update check**: `comet init` and `comet update` now display the current installed Comet version at the start of command output and check the npm registry for newer versions. If an update is available, users see a prompt to upgrade; if already on the latest version, a confirmation message is shown; if the registry is unreachable, the check is skipped silently without error ([#99](https://github.com/rpamis/comet/issues/99)).
-- **Official registry enforcement for update**: `comet update` now passes `--registry https://registry.npmjs.org` to npm when updating the `@rpamis/comet` package, ensuring it always fetches from the official npm registry regardless of the user's local `.npmrc` or mirror configuration. Other packages continue using the user's normal registry settings. If the official registry is unreachable, a clear error message indicates the registry issue ([#100](https://github.com/rpamis/comet/issues/100)).
-- **Subagent dispatch Comet extensions**: Rewrote the inline subagent dispatch protocol from `comet-build/SKILL.md` into `comet/reference/subagent-dispatch.md` (Chinese and English) as Comet-specific extensions layered on top of the Superpowers `subagent-driven-development` skill. The skill provides the core dispatch loop; the Comet extensions add real background dispatch, durable per-task checkpoints (`subagent-progress.md`), coordinator-only source execution, TDD ownership by background agents, bounded review-fix rounds (3 max), continuous task execution without pauses, and precise context recovery from checkpoint stages.
+- **Kimi Code CLI support**: Added Kimi Code as the 29th supported platform, including project/global skill installation under `.kimi-code/`, OpenSpec `kimi` tool integration, Superpowers `kimi-code-cli` mapping, detection, documentation, and cross-platform regression coverage ([#90](https://github.com/jianghuife/SpecPilot/pull/90)).
+- **Version info and update check**: `specpilot init` and `specpilot update` now display the current installed SpecPilot version at the start of command output and check the npm registry for newer versions. If an update is available, users see a prompt to upgrade; if already on the latest version, a confirmation message is shown; if the registry is unreachable, the check is skipped silently without error ([#99](https://github.com/jianghuife/SpecPilot/issues/99)).
+- **Official registry enforcement for update**: `specpilot update` now passes `--registry https://registry.npmjs.org` to npm when updating the `specpilot` package, ensuring it always fetches from the official npm registry regardless of the user's local `.npmrc` or mirror configuration. Other packages continue using the user's normal registry settings. If the official registry is unreachable, a clear error message indicates the registry issue ([#100](https://github.com/jianghuife/SpecPilot/issues/100)).
+- **Subagent dispatch SpecPilot extensions**: Rewrote the inline subagent dispatch protocol from `comet-build/SKILL.md` into `comet/reference/subagent-dispatch.md` (Chinese and English) as SpecPilot-specific extensions layered on top of the Superpowers `subagent-driven-development` skill. The skill provides the core dispatch loop; the SpecPilot extensions add real background dispatch, durable per-task checkpoints (`subagent-progress.md`), coordinator-only source execution, TDD ownership by background agents, bounded review-fix rounds (3 max), continuous task execution without pauses, and precise context recovery from checkpoint stages.
 - **`task-checkoff` subcommand**: Added `comet-state task-checkoff <file> <task-text>` to verify a specific task is uniquely checked in a markdown file. Used by the subagent dispatch protocol for targeted completion verification after dual review passes. Includes path traversal prevention, CRLF handling, and exact-match validation.
-- **`comet uninstall` command**: Added `comet uninstall [path]` CLI command to safely remove Comet-distributed skills, rules, and hooks across all 29 supported AI coding platforms. Supports `--scope` (project/global), `--force` (skip confirmation), and `--json` output. Auto-detects installed targets, removes only Comet-managed artifacts while preserving user-defined hooks and non-Comet configuration, cleans up empty directories and working directories (`.comet/`, `docs/superpowers/`), and handles all 7 hook formats (Claude Code, Qwen, Qoder, Gemini, Windsurf, GitHub Copilot, Kiro) and all 3 rule formats (md, mdc, copilot instructions) ([#95](https://github.com/rpamis/comet/issues/95)).
+- **`specpilot uninstall` command**: Added `specpilot uninstall [path]` CLI command to safely remove SpecPilot-distributed skills, rules, and hooks across all 29 supported AI coding platforms. Supports `--scope` (project/global), `--force` (skip confirmation), and `--json` output. Auto-detects installed targets, removes only SpecPilot-managed artifacts while preserving user-defined hooks and non-SpecPilot configuration, cleans up empty directories and working directories (`.comet/`, `docs/superpowers/`), and handles all 7 hook formats (Claude Code, Qwen, Qoder, Gemini, Windsurf, GitHub Copilot, Kiro) and all 3 rule formats (md, mdc, copilot instructions) ([#95](https://github.com/jianghuife/SpecPilot/issues/95)).
 - **Progressive loading reference docs**: Extracted four reference documents from inline skill content to enable on-demand loading and reduce per-invocation token cost (both Chinese and English): `auto-transition.md` (auto-transition protocol, replacing 7 × ~10 lines of repeated content across sub-skills), `context-recovery.md` (context compression recovery, replacing 4 × ~8 lines), `comet-yaml-fields.md` (`.comet.yaml` field table, ~40 lines), and `file-structure.md` (directory structure, ~20 lines). Main `comet/SKILL.md` retains critical state machine hard constraints inline while pointing to reference docs for detailed field descriptions. Estimated per-invocation savings: 600–1,500 tokens depending on skill; cumulative ~4,100 tokens across a full workflow.
 - **Pre-commit formatting hook**: Added a `husky` + `lint-staged` pre-commit hook that automatically runs `prettier --write` on staged source files under `src/` at every `git commit` (scope aligned with CI `format:check`). Editor-agnostic — enforced for all contributors regardless of IDE or agent — preventing Prettier formatting issues from reaching CI. The `prepare` script installs the hook on `pnpm install`, and `.husky/` is excluded from the published package via the `files` whitelist.
 
@@ -42,27 +44,27 @@ All notable changes to @rpamis/comet will be documented in this file.
 - **Phase guard recovery with durable checkpoints**: Updated recovery steps in `comet-phase-guard.md` (Chinese and English) to reload the Superpowers `subagent-driven-development` skill, read `subagent-progress.md` for exact stage recovery (implementation commit, RED/GREEN evidence, passed reviews, unresolved feedback, review-fix round), and resume from the checkpoint's precise phase instead of always starting from the first unchecked task. Both `.claude/rules/` and `assets/skills/comet/rules/` copies include consistent references with bilingual identifiers for cross-language test compatibility.
 - **Decision point protocol extraction**: Extracted inline user-decision-point text from all 7 sub-skills (`comet-open`, `comet-design`, `comet-build`, `comet-verify`, `comet-archive`, `comet-hotfix`, `comet-tweak`) and main `comet/SKILL.md` into shared `comet/reference/decision-point.md` (both Chinese and English). Sub-skills now reference the protocol by path instead of repeating the full blocking-point rules, reducing per-invocation token cost and ensuring consistency across skills.
 - **Debug gate protocol extraction**: Extracted the inline systematic-debugging four-stage flow from `comet-build`, `comet-hotfix`, and `comet-tweak` into shared `comet/reference/debug-gate.md` (both Chinese and English). Sub-skills now reference the debug gate protocol by path, centralizing the investigation, minimal failing test, fix verification, and verification-loop rules.
-- **Lightweight verification review**: Lightweight verification now requires a scoped Superpowers `requesting-code-review` review focused on correctness, security, and edge cases, adding review coverage without running full spec or design drift checks ([#86](https://github.com/rpamis/comet/pull/86)).
+- **Lightweight verification review**: Lightweight verification now requires a scoped Superpowers `requesting-code-review` review focused on correctness, security, and edge cases, adding review coverage without running full spec or design drift checks ([#86](https://github.com/jianghuife/SpecPilot/pull/86)).
 
 ### Fixed
 
-- **Pi slash command discovery**: `comet init` and `comet update` now generate a Pi extension that registers all shipped `/comet*` workflows as native slash commands forwarding to `/skill:*`. Pi settings are merged non-destructively with skill commands enabled, global resources now use Pi's documented `~/.pi/agent/` directory, legacy `~/.pi/skills/` installs are detected for update and cleanup, and `comet uninstall` removes only Comet-managed assets while preserving shared settings and unrelated extensions ([#89](https://github.com/rpamis/comet/issues/89)).
-- **OpenCode plugin-installed Superpowers detection**: `comet init` now correctly detects Superpowers already installed via the OpenCode plugin system (configured in `opencode.json`), preventing duplicate re-installation. Previously, only skills placed directly under `~/.config/opencode/skills/` were detected, missing the plugin source directory at `~/.config/opencode/superpowers/skills/` and the `plugin` array in `opencode.json`. Added `hasOpenCodePluginSuperpowers()` fallback detection similar to the existing Claude Code plugin cache check ([#105](https://github.com/rpamis/comet/issues/105)).
+- **Pi slash command discovery**: `specpilot init` and `specpilot update` now generate a Pi extension that registers all shipped `/comet*` workflows as native slash commands forwarding to `/skill:*`. Pi settings are merged non-destructively with skill commands enabled, global resources now use Pi's documented `~/.pi/agent/` directory, legacy `~/.pi/skills/` installs are detected for update and cleanup, and `specpilot uninstall` removes only SpecPilot-managed assets while preserving shared settings and unrelated extensions ([#89](https://github.com/jianghuife/SpecPilot/issues/89)).
+- **OpenCode plugin-installed Superpowers detection**: `specpilot init` now correctly detects Superpowers already installed via the OpenCode plugin system (configured in `opencode.json`), preventing duplicate re-installation. Previously, only skills placed directly under `~/.config/opencode/skills/` were detected, missing the plugin source directory at `~/.config/opencode/superpowers/skills/` and the `plugin` array in `opencode.json`. Added `hasOpenCodePluginSuperpowers()` fallback detection similar to the existing Claude Code plugin cache check ([#105](https://github.com/jianghuife/SpecPilot/issues/105)).
 - **Lightweight verification consistency**: Hotfix documentation now describes the 6-item lightweight verification path, and verification failure handling treats CRITICAL and IMPORTANT findings as blocking so review pass criteria and failure decisions remain consistent.
-- **Hook configuration merging during init and update**: Shared hook configuration files for Claude Code, Codex, Amazon Q, Qwen, Qoder, Gemini, and Windsurf now preserve user-defined hooks when Comet installs or updates a hook for the same matcher or event. Existing Comet commands are identified by their manifest script path and replaced in place, preventing stale install paths, duplicate matcher groups, and repeated hook accumulation while leaving unrelated settings untouched.
-- **Subagent-driven task isolation and continuity**: `comet-build` now loads the mature Superpowers `subagent-driven-development` loop and applies a stricter Comet extension that requires one fresh background implementer per task, fresh background reviewers and fix agents, coordinator-only source execution, and automatic continuation between tasks without progress summaries or "continue?" prompts. TDD mode requires each implementer/fix agent to load the TDD skill and return auditable RED/GREEN evidence before review. A durable per-task checkpoint preserves implementation commits, review stages, feedback, and the three-round retry budget across context compression; task checkoff remains blocked until both reviews pass ([#94](https://github.com/rpamis/comet/issues/94), [#96](https://github.com/rpamis/comet/issues/96), [#97](https://github.com/rpamis/comet/issues/97)).
-- **npm shebang line ending issue on macOS**: When npm packed the project on Windows, `bin/comet.js` shebang line got CRLF line endings, causing macOS to interpret `#!/usr/bin/env node\r` instead of `#!/usr/bin/env node`, resulting in "command not found" after `npm install -g @rpamis/comet`. Added explicit `eol=lf` rules for all text file extensions (`.js`, `.mjs`, `.ts`, `.json`, `.md`, `.yaml`, `.yml`) and binary markers for image files in `.gitattributes` ([#82](https://github.com/rpamis/comet/issues/82)).
-- **CodeGraph Codex CLI skip on project scope**: `comet init` with project scope passed `--target` and `--location=local` to `codegraph install`, which caused Codex CLI (no project-local config) to be skipped with a confusing message. Simplified to `codegraph install --yes` without `--target` or `--location` flags, letting CodeGraph auto-detect and configure all installed agents. Removed `filterSupportedPlatforms` and `CODEGRAPH_SUPPORTED_TARGETS` ([#98](https://github.com/rpamis/comet/issues/98)).
-- **OpenSpec CLI upgrade and --profile fallback**: `ensureOpenSpecCli` now always installs/upgrades openspec to the latest version, even if an older version is already present, ensuring users get `--profile` support and other improvements. Added fallback logic: if `openspec init` fails with "unknown option --profile" in stderr, retries without the flag for edge cases where the upgrade fails but an older openspec remains ([#84](https://github.com/rpamis/comet/issues/84)).
-- **Symlink resolution for skill file copies**: When skill directories are symlinks (e.g. `~/.claude/skills/comet -> ~/.agents/skills/comet`), `copyFile` and `ensureDir` wrote to the literal path instead of following the symlink target. Broken symlinks caused silent copy failures. Added `resolveSymlinkPath()` to `file-system.ts` that walks up the path tree and follows `readlink` targets for broken symlinks. Applied to `ensureDir`, `copyFile`, and `writeFile` ([#85](https://github.com/rpamis/comet/issues/85)).
+- **Hook configuration merging during init and update**: Shared hook configuration files for Claude Code, Codex, Amazon Q, Qwen, Qoder, Gemini, and Windsurf now preserve user-defined hooks when SpecPilot installs or updates a hook for the same matcher or event. Existing SpecPilot commands are identified by their manifest script path and replaced in place, preventing stale install paths, duplicate matcher groups, and repeated hook accumulation while leaving unrelated settings untouched.
+- **Subagent-driven task isolation and continuity**: `comet-build` now loads the mature Superpowers `subagent-driven-development` loop and applies a stricter SpecPilot extension that requires one fresh background implementer per task, fresh background reviewers and fix agents, coordinator-only source execution, and automatic continuation between tasks without progress summaries or "continue?" prompts. TDD mode requires each implementer/fix agent to load the TDD skill and return auditable RED/GREEN evidence before review. A durable per-task checkpoint preserves implementation commits, review stages, feedback, and the three-round retry budget across context compression; task checkoff remains blocked until both reviews pass ([#94](https://github.com/jianghuife/SpecPilot/issues/94), [#96](https://github.com/jianghuife/SpecPilot/issues/96), [#97](https://github.com/jianghuife/SpecPilot/issues/97)).
+- **npm shebang line ending issue on macOS**: When npm packed the project on Windows, `bin/comet.js` shebang line got CRLF line endings, causing macOS to interpret `#!/usr/bin/env node\r` instead of `#!/usr/bin/env node`, resulting in "command not found" after `npm install -g specpilot`. Added explicit `eol=lf` rules for all text file extensions (`.js`, `.mjs`, `.ts`, `.json`, `.md`, `.yaml`, `.yml`) and binary markers for image files in `.gitattributes` ([#82](https://github.com/jianghuife/SpecPilot/issues/82)).
+- **CodeGraph Codex CLI skip on project scope**: `specpilot init` with project scope passed `--target` and `--location=local` to `codegraph install`, which caused Codex CLI (no project-local config) to be skipped with a confusing message. Simplified to `codegraph install --yes` without `--target` or `--location` flags, letting CodeGraph auto-detect and configure all installed agents. Removed `filterSupportedPlatforms` and `CODEGRAPH_SUPPORTED_TARGETS` ([#98](https://github.com/jianghuife/SpecPilot/issues/98)).
+- **OpenSpec CLI upgrade and --profile fallback**: `ensureOpenSpecCli` now always installs/upgrades openspec to the latest version, even if an older version is already present, ensuring users get `--profile` support and other improvements. Added fallback logic: if `openspec init` fails with "unknown option --profile" in stderr, retries without the flag for edge cases where the upgrade fails but an older openspec remains ([#84](https://github.com/jianghuife/SpecPilot/issues/84)).
+- **Symlink resolution for skill file copies**: When skill directories are symlinks (e.g. `~/.claude/skills/comet -> ~/.agents/skills/comet`), `copyFile` and `ensureDir` wrote to the literal path instead of following the symlink target. Broken symlinks caused silent copy failures. Added `resolveSymlinkPath()` to `file-system.ts` that walks up the path tree and follows `readlink` targets for broken symlinks. Applied to `ensureDir`, `copyFile`, and `writeFile` ([#85](https://github.com/jianghuife/SpecPilot/issues/85)).
 - **comet-tweak missing debug handling**: `comet-tweak/SKILL.md` was missing the systematic-debugging requirement that `comet-hotfix` already had — when tests or builds fail during tweak execution, the skill now explicitly requires loading the `systematic-debugging` skill before proposing source fixes, matching hotfix behavior.
-- **OpenSpec per-artifact instructions compliance**: Chinese and English `comet-open` now apply OpenSpec per-artifact instructions (`openspec instructions proposal/design/tasks --change "<name>" --json`) for each standard artifact, loading `context`, `rules`, `template`, `instruction`, `resolvedOutputPath`, and `dependencies` from the JSON payload instead of hard-coded artifact prose. Stops artifact generation on instruction failure rather than silently bypassing project rules ([#66](https://github.com/rpamis/comet/issues/66)).
+- **OpenSpec per-artifact instructions compliance**: Chinese and English `comet-open` now apply OpenSpec per-artifact instructions (`openspec instructions proposal/design/tasks --change "<name>" --json`) for each standard artifact, loading `context`, `rules`, `template`, `instruction`, `resolvedOutputPath`, and `dependencies` from the JSON payload instead of hard-coded artifact prose. Stops artifact generation on instruction failure rather than silently bypassing project rules ([#66](https://github.com/jianghuife/SpecPilot/issues/66)).
 - **CI Windows path escaping in skill verification**: The `init-e2e` workflow's Pi settings verification step interpolated a Windows `$RUNNER_TEMP` path (containing backslashes) directly into a `node -e "require('...')"` JS string literal, where `\a`/`\_` were parsed as escape characters and mangled the path (`D:\a\_temp` → `D:a_temp`), failing the `init-e2e (windows-latest)` runners on Node 20 and 22. The path is now passed via an environment variable (`process.env`) so it never enters a JS string literal; Linux/macOS were unaffected.
 - **OpenSpec source formatting**: Re-formatted `src/core/openspec.ts` (long-line wrapping) to satisfy `prettier --check`, unblocking the `format:check` CI step.
-- **Symlink-safe removal during uninstall**: `removeFile`/`removeDir` no longer resolve symlinks before deleting. A symlinked skill, rules, or hooks directory previously had its *resolved target* recursively deleted by `comet uninstall`; symlinked directories are now unlinked directly. `isDirEmpty` also no longer reports unreadable directories as empty, so cleanup never deletes a directory it could not inspect.
-- **`comet update --json` output corruption**: npm's inherited stdio previously interleaved into the JSON document; npm stdout/stderr are now discarded in JSON mode so machine-readable output stays parseable.
-- **`comet update --json` no-targets shape**: the early-return JSON emitted when no installed targets exist now includes `codegraph: 'skipped'`, matching the normal output shape so consumers need not special-case the empty path.
-- **JSON-mode version-check latency**: `comet init` and `comet update` now skip the npm-registry version check in JSON mode, emitting output without a network round-trip.
+- **Symlink-safe removal during uninstall**: `removeFile`/`removeDir` no longer resolve symlinks before deleting. A symlinked skill, rules, or hooks directory previously had its *resolved target* recursively deleted by `specpilot uninstall`; symlinked directories are now unlinked directly. `isDirEmpty` also no longer reports unreadable directories as empty, so cleanup never deletes a directory it could not inspect.
+- **`specpilot update --json` output corruption**: npm's inherited stdio previously interleaved into the JSON document; npm stdout/stderr are now discarded in JSON mode so machine-readable output stays parseable.
+- **`specpilot update --json` no-targets shape**: the early-return JSON emitted when no installed targets exist now includes `codegraph: 'skipped'`, matching the normal output shape so consumers need not special-case the empty path.
+- **JSON-mode version-check latency**: `specpilot init` and `specpilot update` now skip the npm-registry version check in JSON mode, emitting output without a network round-trip.
 - **Malformed hook settings resilience**: hand-edited settings files storing a hook group as a non-array value no longer throw during init/update hook merging; malformed groups are coerced to empty.
 - **Markdown code-fence language tags**: added `text` language tags to fenced code blocks in `file-structure.md` and `subagent-dispatch.md` (Chinese and English) to satisfy MD040 linting, consistent with the existing OpenSpec formatting CI fix.
 - **Skills manifest version drift**: bumped `assets/manifest.json` version `0.3.3` → `0.3.8` to match `package.json`.
@@ -72,8 +74,8 @@ All notable changes to @rpamis/comet will be documented in this file.
 - **Kimi Code platform coverage**: Added detection, project/global installation, OpenSpec tool mapping, Superpowers agent mapping, CI platform-count, and documentation regression coverage for Kimi Code.
 - **Lightweight verification review regression**: Added bilingual workflow safeguards for the lightweight code-review requirement, blocking severities, scoped review criteria, and hotfix documentation consistency.
 - **Pi command extension lifecycle coverage**: Added project/global init, manifest-driven command generation, argument forwarding, settings preservation, invalid-settings protection, deterministic overwrite, and selective uninstall regression coverage, plus CI assertions for Pi's project and global extension locations.
-- **Hook merge regression coverage**: Added real-file tests for Claude-style, Qwen/Qoder, Gemini, and Windsurf hook formats covering same-matcher user hook preservation, stale Comet command replacement, unrelated configuration retention, and idempotent repeated installation.
-- **Subagent dispatch contract coverage**: Added Chinese and English skill-content regression coverage for Superpowers/Comet composition, coordinator-only source execution with tracking-file exceptions, one fresh background agent per task and role, prompt/status/reviewer evidence contracts, durable recovery checkpoints, TDD ownership, dual-review checkoff, bounded stop conditions, continuous task execution, Comet-specific final handoff, and the absence of a Stop hook.
+- **Hook merge regression coverage**: Added real-file tests for Claude-style, Qwen/Qoder, Gemini, and Windsurf hook formats covering same-matcher user hook preservation, stale SpecPilot command replacement, unrelated configuration retention, and idempotent repeated installation.
+- **Subagent dispatch contract coverage**: Added Chinese and English skill-content regression coverage for Superpowers/SpecPilot composition, coordinator-only source execution with tracking-file exceptions, one fresh background agent per task and role, prompt/status/reviewer evidence contracts, durable recovery checkpoints, TDD ownership, dual-review checkoff, bounded stop conditions, SpecPilot-specific final handoff, and the absence of a Stop hook.
 - **Reference doc assertions**: Added assertions verifying all skill files that reference `decision-point.md` and `debug-gate.md` include the correct protocol path, and that the shipped reference docs contain the expected core rules and fallback behavior.
 - **OpenSpec artifact contract coverage**: Added bilingual contract assertions verifying `comet-open` skills contain explicit JSON instruction commands for `proposal`, `design`, and `tasks`; require applying `context`, `rules`, `template`, `instruction`, `resolvedOutputPath`, and `dependencies`; prohibit copying context/rules into artifacts; refresh status between artifacts; and stop instead of falling back when OpenSpec instructions fail.
 
@@ -81,9 +83,9 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 ### Added
 
-- **Auto-transition config**: Added `auto_transition` (`true`|`false`) to `.comet.yaml` and the `.comet/config.yaml` project default so teams can choose whether Comet automatically advances to the next phase skill or pauses for a manual transition. When `auto_transition: false`, build/design/open/verify skills stop after meeting exit conditions and print the next manual step instead of invoking the next skill. Includes state-machine whitelist, enum validation, and schema (`comet-yaml-validate.sh`) coverage ([#74](https://github.com/rpamis/comet/pull/74)).
+- **Auto-transition config**: Added `auto_transition` (`true`|`false`) to `.comet.yaml` and the `.comet/config.yaml` project default so teams can choose whether SpecPilot automatically advances to the next phase skill or pauses for a manual transition. When `auto_transition: false`, build/design/open/verify skills stop after meeting exit conditions and print the next manual step instead of invoking the next skill. Includes state-machine whitelist, enum validation, and schema (`comet-yaml-validate.sh`) coverage ([#74](https://github.com/jianghuife/SpecPilot/pull/74)).
 - **Deterministic next-step resolver**: Added `comet-state next <change-name>` to resolve post-guard routing from `.comet.yaml` (`phase`, `workflow`, `auto_transition`) with structured output: `NEXT: auto|manual|done`, `SKILL: <skill-name>`, and `HINT` (manual mode). This centralizes next-skill routing logic in scripts instead of duplicating it across skill prose.
-- **Workflow output language**: Comet workflows now propagate the triggering user request language into OpenSpec and Superpowers steps via an explicit Output Language Rule, keeping generated proposals, designs, plans, verification reports, and archive notes readable in the user's language. Resuming an existing change preserves the dominant artifact language unless the user explicitly asks to switch ([#53](https://github.com/rpamis/comet/pull/53), [#37](https://github.com/rpamis/comet/issues/37)).
+- **Workflow output language**: SpecPilot workflows now propagate the triggering user request language into OpenSpec and Superpowers steps via an explicit Output Language Rule, keeping generated proposals, designs, plans, verification reports, and archive notes readable in the user's language. Resuming an existing change preserves the dominant artifact language unless the user explicitly asks to switch ([#53](https://github.com/jianghuife/SpecPilot/pull/53), [#37](https://github.com/jianghuife/SpecPilot/issues/37)).
 - **Execution benchmark (Claude Code)**: Added `benchmark:execution`, a benchmark harness with three test phases: L1 (design doc generation from handoff context), L2 (build a note-board module from handoff context + run tests), and L3 (full workflow — implement a dictionary module from spec, run 10 vitest tests). Invokes Claude Code (`claude -p`) and measures actual test pass rate, token usage, retry count, duration, and cost. Compares `off` vs `beta` context compression modes across small/medium/large tiers. Supports `--phase l1|l2|l3|both|all` and `--dry-run` for deterministic verification. Extracted shared utilities (`spawnCapture`, `parseClaudeJson`, `buildClaudeArgs`, etc.) to `scripts/benchmark-utils.mjs`.
 
 - **Token optimization: TDD skill single load**: Build skill now loads `test-driven-development` skill once before the first task (instead of per-task), reducing ~44K tokens per 10-task workflow. Includes compaction recovery guidance to reload once on resume.
@@ -95,20 +97,20 @@ All notable changes to @rpamis/comet will be documented in this file.
 - **Token optimization: tasks.md incremental scan**: Build skill uses `grep` to find unchecked tasks instead of re-reading the entire `tasks.md` file after each task completion.
 - **Token optimization: hash on-demand read in verify**: Verify skill checks `handoff_hash` before re-reading OpenSpec artifacts. When hash matches, only `tasks.md` is skipped (proposal.md and design.md are still read for comparison checks). Uses new `comet-handoff.sh --hash-only` flag.
 - **`--hash-only` flag for comet-handoff.sh**: New backward-compatible flag outputs the context hash without generating handoff files, used by verify phase for hash comparison. Validates required files exist before computing hash.
-- **CodeGraph integration in comet init**: `comet init` now offers an optional step to install and configure CodeGraph (`@colbymchenry/codegraph`) for semantic code intelligence. It auto-detects supported platforms (Claude Code, Cursor, Codex, OpenCode, Gemini, Kiro, Antigravity), installs the CLI if missing, runs `codegraph install` for agent wiring, and initializes the project index. Skips gracefully under `--json` mode.
+- **CodeGraph integration in specpilot init**: `specpilot init` now offers an optional step to install and configure CodeGraph (`@colbymchenry/codegraph`) for semantic code intelligence. It auto-detects supported platforms (Claude Code, Cursor, Codex, OpenCode, Gemini, Kiro, Antigravity), installs the CLI if missing, runs `codegraph install` for agent wiring, and initializes the project index. Skips gracefully under `--json` mode.
 - **Stale PR automation**: Added a scheduled and manually runnable GitHub Actions workflow that marks inactive pull requests stale after 90 days and closes them after another 30 days, helping keep long-idle review queues manageable.
-- **TDD mode field**: Added `tdd_mode` (`tdd`|`direct`) to `.comet.yaml` state machine so users choose whether to enforce TDD during build. When `tdd_mode: tdd`, subagent dispatches inject an explicit TDD hard constraint, bypassing implementer-prompt.md's conditional trigger. Addresses [#67](https://github.com/rpamis/comet/issues/67).
+- **TDD mode field**: Added `tdd_mode` (`tdd`|`direct`) to `.comet.yaml` state machine so users choose whether to enforce TDD during build. When `tdd_mode: tdd`, subagent dispatches inject an explicit TDD hard constraint, bypassing implementer-prompt.md's conditional trigger. Addresses [#67](https://github.com/jianghuife/SpecPilot/issues/67).
 - **subagent_dispatch field**: Added `subagent_dispatch` (`null`|`confirmed`) to `.comet.yaml` state machine, ensuring `build_mode: subagent-driven-development` can only leave the build phase after the platform's real background dispatch capability is confirmed.
 - **Verify retry limit**: Verify skill now enforces a mandatory user decision after 3 consecutive verify-fail cycles, preventing indefinite automated retry loops.
 - **Manual verify_mode override**: Users can override automatic verification scale assessment via `comet-state set <name> verify_mode <light|full>` when the auto-detected mode doesn't fit.
-- **Local context compression benchmark**: Added `benchmark:context`, a local Codex benchmark harness that creates matched `context_compression: off` and `beta` Comet fixtures, runs `codex exec` against each mode, and reports token savings, spec drift rate, task completion rate, parse success, and timing. Use `--dry-run` for deterministic non-Codex verification.
+- **Local context compression benchmark**: Added `benchmark:context`, a local Codex benchmark harness that creates matched `context_compression: off` and `beta` SpecPilot fixtures, runs `codex exec` against each mode, and reports token savings, spec drift rate, task completion rate, parse success, and timing. Use `--dry-run` for deterministic non-Codex verification.
 - **Beta-gated context compression switch**: Project installs now create `.comet/config.yaml` with `context_compression: off`, allowing teams to opt new changes into beta spec projection by setting `context_compression: beta`. This switch controls only the OpenSpec handoff projection path (`spec-context.*`); the workflow token optimizations above are default-on and do not require beta mode.
 - **Beta spec projection handoff**: `/comet-design` can now use beta context compression to generate `spec-context.json` and `spec-context.md`, preserving OpenSpec requirement and scenario headings with source hashes so compact design handoffs reduce token load without weakening acceptance coverage.
 
 ### Changed
 
-- **executing-plans review gate**: When `build_mode` is `executing-plans`, the build phase now requires loading the Superpowers `requesting-code-review` skill and requesting code review at least once before the build→verify phase guard. CRITICAL findings must be fixed before verify; accepted non-CRITICAL findings must record acceptance rationale in a durable artifact. The build-exit checklist enforces this gate ([#76](https://github.com/rpamis/comet/pull/76), [#41](https://github.com/rpamis/comet/issues/41)).
-- **Phase advancement vs handoff wording**: Chinese and English Comet skills now consistently distinguish guard-driven phase advancement (`--apply`, always updates `phase`) from next-skill invocation control (`auto_transition`). Open/design/build/verify/hotfix/tweak guidance now routes through `comet-state next` for auto/manual handoff.
+- **executing-plans review gate**: When `build_mode` is `executing-plans`, the build phase now requires loading the Superpowers `requesting-code-review` skill and requesting code review at least once before the build→verify phase guard. CRITICAL findings must be fixed before verify; accepted non-CRITICAL findings must record acceptance rationale in a durable artifact. The build-exit checklist enforces this gate ([#76](https://github.com/jianghuife/SpecPilot/pull/76), [#41](https://github.com/jianghuife/SpecPilot/issues/41)).
+- **Phase advancement vs handoff wording**: Chinese and English SpecPilot skills now consistently distinguish guard-driven phase advancement (`--apply`, always updates `phase`) from next-skill invocation control (`auto_transition`). Open/design/build/verify/hotfix/tweak guidance now routes through `comet-state next` for auto/manual handoff.
 - **Preset continuity wording**: Hotfix and tweak guidance now explicitly documents the `auto_transition: false` exception in continuous execution mode, removing contradictory wording around "always continue" behavior.
 - **Verify hash-skip scoped to tasks.md only**: Full verification always reads `proposal.md` and `design.md` even when hash matches, ensuring goal-satisfaction and design-consistency checks have complete context.
 - **Design Doc creation stays in main session**: Design Doc is created inline (not offloaded to subagent) to preserve full brainstorming conversation context and prevent information loss for complex requirements.
@@ -117,20 +119,20 @@ All notable changes to @rpamis/comet will be documented in this file.
 - **JSON structural validation**: `comet-guard.sh` now validates `spec-context.json` structure (required fields: `change`, `phase`, `mode`, `files`, `context_hash`) and source file reference coverage, replacing the previous English-heading-based markdown check. Guard catches corrupted or incomplete JSON before phase transition.
 - **JSON file roles**: `spec-context.json` `files` array now includes a `role` field (`spec` for spec files, `supporting` for proposal/design/tasks), removing the language-dependent `projection` array entirely.
 - **--full warning in beta mode**: Running `comet-handoff.sh` with `--full` in beta mode now emits an explicit warning instead of silently ignoring the flag.
-- **CodeGraph step in comet update**: `comet update` now prompts to install/update CodeGraph alongside skill file updates, using the same platform detection and CLI installation flow.
-- **Rules and hooks distribution in comet update**: `comet update` now distributes anti-drift phase guard rules and hooks to all installed platforms alongside skill files, keeping rules and hooks in sync after a Comet upgrade.
+- **CodeGraph step in specpilot update**: `specpilot update` now prompts to install/update CodeGraph alongside skill file updates, using the same platform detection and CLI installation flow.
+- **Rules and hooks distribution in specpilot update**: `specpilot update` now distributes anti-drift phase guard rules and hooks to all installed platforms alongside skill files, keeping rules and hooks in sync after a SpecPilot upgrade.
 - **Archive confirmation gate**: Chinese `/comet-archive` now pauses for explicit user confirmation before running the archive script, giving users a final chance to adjust or re-run verification before main spec merge and change archival.
-- **English archive confirmation parity**: English Comet skills now match the confirmed Chinese archive-confirmation workflow, including `/comet-archive`, `/comet-verify`, `/comet`, hotfix, and tweak guidance.
+- **English archive confirmation parity**: English SpecPilot skills now match the confirmed Chinese archive-confirmation workflow, including `/comet-archive`, `/comet-verify`, `specpilot`, hotfix, and tweak guidance.
 - **Archive reopen transition**: Added `comet-state transition <change-name> archive-reopen` so users who decline final archive confirmation can return from `phase: archive` to `phase: verify` for adjustment or re-verification without manually editing `.comet.yaml`.
 - **OpenSpec clarification gate**: Chinese and English `/comet-open` now require a confirmed requirements clarification summary before proposal, design, or tasks artifacts are created, preventing one Q&A turn from immediately generating a full OpenSpec change.
-- **PRD split preflight**: Chinese and English `/comet-open` now triage large PRDs before creating OpenSpec artifacts, allowing users to split independent capabilities into multiple Comet changes while keeping each accepted split on the `/comet-open` state-machine path. Addresses [#62](https://github.com/rpamis/comet/issues/62).
+- **PRD split preflight**: Chinese and English `/comet-open` now triage large PRDs before creating OpenSpec artifacts, allowing users to split independent capabilities into multiple SpecPilot changes while keeping each accepted split on the `/comet-open` state-machine path. Addresses [#62](https://github.com/jianghuife/SpecPilot/issues/62).
 - **Skill invocation wording guidance**: Added repository guidance in `CLAUDE.md` requiring new skill-trigger descriptions to use the existing "use the Skill tool to load..." wording and place context details after the skill loads.
-- **Anti-drift phase guard rule**: Added `.claude/rules/comet-phase-guard.md` that re-injects Comet phase awareness, skill invocation requirements, script execution requirements, user confirmation gates, and context compaction recovery instructions every conversation turn, preventing long-context attention drift from breaking the 5-phase workflow. Works on all platforms as a soft reminder.
-- **Anti-drift phase guard hook**: Added `comet-hook-guard.sh` PreToolUse hook (configured in `.claude/settings.local.json`) that hard-blocks file writes when the active Comet change is in `open`, `design`, or `archive` phase, providing a platform-specific hard enforcement layer that the model cannot bypass. Whitelists `openspec/*`, `docs/superpowers/*`, `.claude/*`, and `.comet/*` paths.
-- **Platform rules/hooks distribution in comet init**: `comet init` now distributes the anti-drift phase guard rule and hook-guard script to all supported platforms during initialization. Platform definitions were corrected: Cline uses `.clinerules/` at project root (not `.cline/rules/`), GitHub Copilot uses `.github/instructions/*.instructions.md` with `applyTo` frontmatter, Kiro uses `.kiro/steering/`, and Gemini CLI has no rules directory (uses GEMINI.md files). Added `rulesDir`/`rulesFormat` to 8 platforms that were missing it, and `supportsHooks`/`hookFormat` to 7 platforms. Hook installation supports 7 format variants: Claude Code, Gemini, Windsurf, Copilot, Qwen, Kiro, and Qoder.
+- **Anti-drift phase guard rule**: Added `.claude/rules/comet-phase-guard.md` that re-injects SpecPilot phase awareness, skill invocation requirements, script execution requirements, user confirmation gates, and context compaction recovery instructions every conversation turn, preventing long-context attention drift from breaking the 5-phase workflow. Works on all platforms as a soft reminder.
+- **Anti-drift phase guard hook**: Added `comet-hook-guard.sh` PreToolUse hook (configured in `.claude/settings.local.json`) that hard-blocks file writes when the active SpecPilot change is in `open`, `design`, or `archive` phase, providing a platform-specific hard enforcement layer that the model cannot bypass. Whitelists `openspec/*`, `docs/superpowers/*`, `.claude/*`, and `.comet/*` paths.
+- **Platform rules/hooks distribution in specpilot init**: `specpilot init` now distributes the anti-drift phase guard rule and hook-guard script to all supported platforms during initialization. Platform definitions were corrected: Cline uses `.clinerules/` at project root (not `.cline/rules/`), GitHub Copilot uses `.github/instructions/*.instructions.md` with `applyTo` frontmatter, Kiro uses `.kiro/steering/`, and Gemini CLI has no rules directory (uses GEMINI.md files). Added `rulesDir`/`rulesFormat` to 8 platforms that were missing it, and `supportsHooks`/`hookFormat` to 7 platforms. Hook installation supports 7 format variants: Claude Code, Gemini, Windsurf, Copilot, Qwen, Kiro, and Qoder.
 - **Systematic debugging gate**: Chinese and English build and hotfix skills now require loading Superpowers `systematic-debugging` when implementation-time crashes, unexpected behavior, test failures, or build failures appear, ensuring root-cause investigation and in-change regression tests happen before source fixes.
 - **Verification-before-completion gate**: Chinese and English `/comet-verify` now require loading Superpowers `verification-before-completion` before executing lightweight or full verification checks, enforcing evidence-based confirmation before any completion claims.
-- **Platform-neutral confirmation gates**: Chinese and English Comet skills and recovery messages now refer to the current platform's user input/confirmation mechanism instead of hard-coding `AskUserQuestion`, preventing Codex users from being directed to a tool that may not exist while preserving blocking user decisions.
+- **Platform-neutral confirmation gates**: Chinese and English SpecPilot skills and recovery messages now refer to the current platform's user input/confirmation mechanism instead of hard-coding `AskUserQuestion`, preventing Codex users from being directed to a tool that may not exist while preserving blocking user decisions.
 - **Preset upgrade path**: Hotfix and tweak skills now include `set <name> phase design` step when upgrading to full workflow, preventing comet-design entry check failure after workflow switch.
 - **Build-complete conditional field reset**: `build-complete` transition preserves `verification_report` and `branch_status` when the previous verify_result was `fail`, enabling verify-fail→build→build-complete re-verify cycles without data loss.
 - **Open phase recovery granularity**: Open phase recovery now distinguishes three states (all artifacts done / none done / partial) with specific recovery actions per state.
@@ -143,17 +145,17 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 ### Fixed
 
-- **Subagent task persistence**: `/comet-build` now requires every subagent dispatch prompt to persist completed task checks in the Superpowers plan and, when mapped, the corresponding OpenSpec `tasks.md` item before committing. Build guard blocks unchecked Superpowers plan tasks, and build recovery reports both OpenSpec and plan progress before inspecting recent git history/diff or dispatching more work, preventing resume after interruption or context compression from re-running already completed subagent work ([#79](https://github.com/rpamis/comet/issues/79)).
+- **Subagent task persistence**: `/comet-build` now requires every subagent dispatch prompt to persist completed task checks in the Superpowers plan and, when mapped, the corresponding OpenSpec `tasks.md` item before committing. Build guard blocks unchecked Superpowers plan tasks, and build recovery reports both OpenSpec and plan progress before inspecting recent git history/diff or dispatching more work, preventing resume after interruption or context compression from re-running already completed subagent work ([#79](https://github.com/jianghuife/SpecPilot/issues/79)).
 
-- **skip-all skipping uninstalled components**: `comet init` no longer treats a previously skipped component as already installed. Choosing skip-all now only skips components that are actually present, so uninstalled OpenSpec, Superpowers, Comet, or CodeGraph components are still offered for installation instead of being silently bypassed ([#73](https://github.com/rpamis/comet/pull/73)).
+- **skip-all skipping uninstalled components**: `specpilot init` no longer treats a previously skipped component as already installed. Choosing skip-all now only skips components that are actually present, so uninstalled OpenSpec, Superpowers, SpecPilot, or CodeGraph components are still offered for installation instead of being silently bypassed ([#73](https://github.com/jianghuife/SpecPilot/pull/73)).
 
-- **Update JSON output for rules/hooks**: `comet update --json` now includes rules and hooks distribution results alongside skill update results, with per-target error isolation so a single platform failure doesn't break the entire update output.
+- **Update JSON output for rules/hooks**: `specpilot update --json` now includes rules and hooks distribution results alongside skill update results, with per-target error isolation so a single platform failure doesn't break the entire update output.
 
-- **Duplicate YAML fields**: `replace_yaml_field` in `comet-state.sh` now deduplicates all fields after replacement, keeping only the last occurrence of each key. Previously, multiple `cmd_set` calls for the same field (e.g., during verify-fail → re-verify cycles) could leave duplicate lines in `.comet.yaml`, confusing downstream parsers. Fixes [#77](https://github.com/rpamis/comet/issues/77).
+- **Duplicate YAML fields**: `replace_yaml_field` in `comet-state.sh` now deduplicates all fields after replacement, keeping only the last occurrence of each key. Previously, multiple `cmd_set` calls for the same field (e.g., during verify-fail → re-verify cycles) could leave duplicate lines in `.comet.yaml`, confusing downstream parsers. Fixes [#77](https://github.com/jianghuife/SpecPilot/issues/77).
 
 - **Hook config format**: `installClaudeCodeHooks` and `.claude/settings.local.json` now use the correct `matcher` + `hooks: [{ type, command }]` array format instead of the flat `{ matcher, command, description }` format, fixing the `/doctor` schema validation error.
 
-- **Archive delta merge**: `comet-archive.sh` now delegates archive spec updates to OpenSpec's delta merge semantics instead of copying change specs over main specs, preventing `ADDED/MODIFIED/REMOVED/RENAMED` section headings from leaking into stable specs. Addresses [#69](https://github.com/rpamis/comet/issues/69).
+- **Archive delta merge**: `comet-archive.sh` now delegates archive spec updates to OpenSpec's delta merge semantics instead of copying change specs over main specs, preventing `ADDED/MODIFIED/REMOVED/RENAMED` section headings from leaking into stable specs. Addresses [#69](https://github.com/jianghuife/SpecPilot/issues/69).
 - **Brainstorming depth**: Chinese and English `/comet-design` no longer tell Superpowers `brainstorming` to skip context exploration, so unclear goals, scope, non-goals, acceptance scenarios, or constraints must be clarified before a Design Doc is created.
 - **Command injection prevention**: `run_command_string()` in `comet-guard.sh` now rejects build/verify commands containing shell metacharacters (`;`, `|`, `&`, `$`, backtick), preventing command injection through `.comet.yaml` command fields.
 - **Path traversal prevention**: `comet-state.sh cmd_set` now validates path fields (design_doc, plan, verification_report, handoff_context, handoff_hash) for `..` traversal sequences before writing.
@@ -167,19 +169,19 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 ### Tests
 
-- **Auto-transition regression**: Added state-machine and skill coverage for `auto_transition` init defaults, enum validation, `.comet/config.yaml` project default propagation, schema validation, and the manual-transition vs auto-advance branching in build/design/open/verify skills ([#74](https://github.com/rpamis/comet/pull/74)).
+- **Auto-transition regression**: Added state-machine and skill coverage for `auto_transition` init defaults, enum validation, `.comet/config.yaml` project default propagation, schema validation, and the manual-transition vs auto-advance branching in build/design/open/verify skills ([#74](https://github.com/jianghuife/SpecPilot/pull/74)).
 - **`comet-state next` regression**: Added shell-script coverage for next-step resolution across full/hotfix/tweak workflows, manual-handoff mode, archived completion (`NEXT: done`), and missing `.comet.yaml` failure behavior.
 - **Skill handoff wording regression update**: Updated skill-content assertions to validate next-driven handoff wording (`NEXT: auto|manual|done`) and synchronized Chinese/English expectation checks.
-- **Output language regression**: Added skill coverage that Comet propagates the triggering user request language into OpenSpec and Superpowers steps across the open, design, build, verify, hotfix, tweak, and archive skills ([#53](https://github.com/rpamis/comet/pull/53)).
-- **Review gate regression**: Added skill coverage that `executing-plans` build mode requires the `requesting-code-review` gate before the build→verify transition, plus updated init-e2e expectations ([#76](https://github.com/rpamis/comet/pull/76)).
-- **skip-all regression**: Added `comet init` coverage that skip-all only skips installed components and still offers uninstalled OpenSpec/Superpowers/Comet/CodeGraph components ([#73](https://github.com/rpamis/comet/pull/73)).
+- **Output language regression**: Added skill coverage that SpecPilot propagates the triggering user request language into OpenSpec and Superpowers steps across the open, design, build, verify, hotfix, tweak, and archive skills ([#53](https://github.com/jianghuife/SpecPilot/pull/53)).
+- **Review gate regression**: Added skill coverage that `executing-plans` build mode requires the `requesting-code-review` gate before the build→verify transition, plus updated init-e2e expectations ([#76](https://github.com/jianghuife/SpecPilot/pull/76)).
+- **skip-all regression**: Added `specpilot init` coverage that skip-all only skips installed components and still offers uninstalled OpenSpec/Superpowers/SpecPilot/CodeGraph components ([#73](https://github.com/jianghuife/SpecPilot/pull/73)).
 - **`--hash-only` flag coverage**: New tests verify correct hash output, change-directory validation, required-file validation, and no handoff file regeneration.
 - **Context benchmark runner coverage**: New tests verify benchmark token-savings math, Codex JSONL usage/verdict parsing, and dry-run report generation without invoking Codex.
 - **Flaky test timeout fix**: Design guard test without design_doc now has explicit 20s timeout to prevent Windows bash startup flakiness.
 - **Chinese spec coverage**: Beta handoff test uses Chinese spec content to verify verbatim projection of all content (headings, descriptions, non-keyword steps) regardless of language.
 - **JSON corruption detection**: New test verifies guard blocks design exit when `spec-context.json` is structurally invalid.
 - **--full beta warning**: New test verifies the warning message and confirms beta files are still generated when `--full` is passed.
-- **Doctor CodeGraph check**: `comet doctor` now reports CodeGraph CLI availability and project initialization status (`.codegraph/` presence).
+- **Doctor CodeGraph check**: `specpilot doctor` now reports CodeGraph CLI availability and project initialization status (`.codegraph/` presence).
 - **Archive confirmation regression**: Added Chinese skill coverage that `/comet-archive` requires a final confirmation gate before executing the archive script.
 - **English archive confirmation regression**: Added English skill coverage for final archive confirmation, archive reopen guidance, and hotfix/tweak preset blocking points.
 - **Phase write guard hook coverage**: 10 new tests for `comet-hook-guard.sh` covering phase-based write blocking (open/design/archive block, build/verify allow), whitelist paths (openspec, docs/superpowers, .claude), archived change bypass, and no-active-change passthrough.
@@ -198,25 +200,25 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 ### Added
 
-- **Plan-ready build pause state**: Added `build_pause` as a dedicated build-phase pause marker so Comet can stop after plan generation without confusing the pause with the actual execution method.
+- **Plan-ready build pause state**: Added `build_pause` as a dedicated build-phase pause marker so SpecPilot can stop after plan generation without confusing the pause with the actual execution method.
 - **Plan-ready pause design**: Added a design record for the model-switching pause workflow, covering recovery behavior, stale pause handling, and plan-missing remediation.
 
 ### Changed
 
-- **Build recovery routing**: `/comet` and `/comet-build` now recognize `build_pause: plan-ready`, reuse the existing plan, and resume at workspace isolation and execution-method selection instead of regenerating the plan.
-- **Bilingual workflow documentation**: Chinese and English Comet skills now describe the plan-ready pause point, clarify that `build_pause` is not `build_mode`, and document the same state field in both README files.
+- **Build recovery routing**: `specpilot` and `/comet-build` now recognize `build_pause: plan-ready`, reuse the existing plan, and resume at workspace isolation and execution-method selection instead of regenerating the plan.
+- **Bilingual workflow documentation**: Chinese and English SpecPilot skills now describe the plan-ready pause point, clarify that `build_pause` is not `build_mode`, and document the same state field in both README files.
 
 ### Fixed
 
-- **GitHub Copilot Superpowers skill names**: Comet skills now invoke the bare Superpowers skill names installed by the GitHub Copilot skills path, avoiding blocked workflows caused by unresolved `superpowers:*` aliases.
-- **Windows bash resolution**: Comet now resolves a usable bash executable through `COMET_BASH`, rejects the Windows WSL launcher path, and uses the resolved executable for nested script calls so guard, handoff, and archive flows do not fall back to a broken PATH `bash`.
+- **GitHub Copilot Superpowers skill names**: SpecPilot skills now invoke the bare Superpowers skill names installed by the GitHub Copilot skills path, avoiding blocked workflows caused by unresolved `superpowers:*` aliases.
+- **Windows bash resolution**: SpecPilot now resolves a usable bash executable through `COMET_BASH`, rejects the Windows WSL launcher path, and uses the resolved executable for nested script calls so guard, handoff, and archive flows do not fall back to a broken PATH `bash`.
 - **Shell test runner bash resolution**: `run-bats.js` now resolves a usable bash through `COMET_TEST_BASH`, `COMET_BASH`, PATH, or Git Bash defaults, avoiding the broken Windows WSL launcher when running shell tests from Node.
 - **Schema validation fatal output**: Guard validation now preserves the final fatal schema-validation message after printing validator diagnostics, making invalid `.comet.yaml` failures easier to recognize.
 
 ### Tests
 
-- **Superpowers skill invocation regression**: Added coverage that shipped Comet skill prose does not reference plugin-prefixed Superpowers aliases.
-- **Comet bash execution regression**: Added coverage for nested script calls, shipped command examples, and the shell test runner so Comet uses resolved bash paths instead of raw PATH `bash`.
+- **Superpowers skill invocation regression**: Added coverage that shipped SpecPilot skill prose does not reference plugin-prefixed Superpowers aliases.
+- **SpecPilot bash execution regression**: Added coverage for nested script calls, shipped command examples, and the shell test runner so SpecPilot uses resolved bash paths instead of raw PATH `bash`.
 - **Plan-ready pause regression**: Added shell-script coverage for `build_pause` initialization, schema validation, state updates, and build recovery output.
 - **README state-field regression**: Added README coverage to ensure `build_pause` appears in examples and field descriptions for both English and Chinese documentation.
 
@@ -257,9 +259,9 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 ### Fixed
 
-- **OpenSpec global install path for OpenCode**: `comet init --scope global` now migrates OpenSpec skills from the hardcoded `~/.opencode/` directory to `~/.config/opencode/` where OpenCode actually reads them, with a self-deletion guard when source and destination paths coincide (#46, @gleami)
+- **OpenSpec global install path for OpenCode**: `specpilot init --scope global` now migrates OpenSpec skills from the hardcoded `~/.opencode/` directory to `~/.config/opencode/` where OpenCode actually reads them, with a self-deletion guard when source and destination paths coincide (#46, @gleami)
 - **Windows command execution**: Added `shell` option to `execFileSync` calls on Windows so command shims (.cmd) resolve correctly
-- **Doctor `.comet.yaml` validation**: `comet doctor` now validates top-level keys instead of silently accepting unknown keys, and `readDir` errors other than ENOENT are no longer swallowed (@felamin)
+- **Doctor `.comet.yaml` validation**: `specpilot doctor` now validates top-level keys instead of silently accepting unknown keys, and `readDir` errors other than ENOENT are no longer swallowed (@felamin)
 - **CI JSON parsing**: CI workflow parses command output by finding the first `{` character, preventing non-JSON prefix lines from breaking JSON extraction (@yicochen)
 - **CI warning output**: CI now only counts and prints warnings when a step actually fails, reducing noise in successful runs (@yicochen)
 - **Spawn stdio noise**: Changed `inherit` to `ignore` for non-interactive spawn stdio so OpenSpec/Superpowers installers don't print unrelated progress to the console (@yicochen)
@@ -287,7 +289,7 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 ### Fixed
 
-- **OpenSpec all-workflows installation**: `comet init` now writes the all-workflows config directly to the platform-specific default config path (`%APPDATA%\openspec\` on Windows, `$XDG_CONFIG_HOME/openspec/` on macOS/Linux when set, otherwise `~/.config/openspec/`) in addition to the isolated `XDG_CONFIG_HOME` env override, ensuring all 11 OpenSpec workflows are always installed regardless of the user's previous OpenSpec config state.
+- **OpenSpec all-workflows installation**: `specpilot init` now writes the all-workflows config directly to the platform-specific default config path (`%APPDATA%\openspec\` on Windows, `$XDG_CONFIG_HOME/openspec/` on macOS/Linux when set, otherwise `~/.config/openspec/`) in addition to the isolated `XDG_CONFIG_HOME` env override, ensuring all 11 OpenSpec workflows are always installed regardless of the user's previous OpenSpec config state.
 
 ## What's Changed [0.3.2] - 2026-05-27
 
@@ -301,13 +303,13 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 - **Build decision-point wording**: Strengthened the build skill's workspace-isolation and execution-method selection wording so agents cannot choose on behalf of the user based on recommendation rules.
 - **Hotfix/Tweak upgrade wording**: Reworded upgrade-condition and verification-failure pause requirements in hotfix and tweak skills for clearer blocking semantics.
-- **Comet user decision numbering**: Fixed out-of-sequence numbering in the Chinese comet skill's user decision point list.
+- **SpecPilot user decision numbering**: Fixed out-of-sequence numbering in the Chinese comet skill's user decision point list.
 
 ### Fixed
 
-- **OpenSpec workflow installation**: `comet init` now runs OpenSpec with `--profile custom` and a temporary config that enables all workflows (`propose`, `explore`, `new`, `continue`, `apply`, `ff`, `sync`, `archive`, `bulk-archive`, `verify`, `onboard`), ensuring Comet installs more than the default core workflow set.
-- **OpenCode slash commands**: `comet init` now generates OpenCode command files (`commands/*.md`) that keep the `/comet*` command names while embedding the corresponding Comet workflow content, so OpenCode users can invoke `/comet`, `/comet-open`, etc. directly.
-- **Lingma Superpowers path**: `comet init` now keeps Lingma out of the unsupported `skills --agent lingma` path and copies staged Superpowers skills into `.lingma/skills`, preventing the whole external installer batch from failing while preserving Lingma's expected directory layout.
+- **OpenSpec workflow installation**: `specpilot init` now runs OpenSpec with `--profile custom` and a temporary config that enables all workflows (`propose`, `explore`, `new`, `continue`, `apply`, `ff`, `sync`, `archive`, `bulk-archive`, `verify`, `onboard`), ensuring SpecPilot installs more than the default core workflow set.
+- **OpenCode slash commands**: `specpilot init` now generates OpenCode command files (`commands/*.md`) that keep the `/comet*` command names while embedding the corresponding SpecPilot workflow content, so OpenCode users can invoke `/comet`, `/comet-open`, etc. directly.
+- **Lingma Superpowers path**: `specpilot init` now keeps Lingma out of the unsupported `skills --agent lingma` path and copies staged Superpowers skills into `.lingma/skills`, preventing the whole external installer batch from failing while preserving Lingma's expected directory layout.
 - **Lingma global directory**: Lingma's global skills directory is explicitly `.lingma`, matching `~/.lingma/skills/{skill-name}/SKILL.md` for user-level installs and `.lingma/skills/{skill-name}/SKILL.md` for project installs.
 - **Script discovery safety**: `comet-env.sh` no longer changes caller shell options when sourced, returns failure when bundled scripts are missing, and avoids ShellCheck unreachable-command diagnostics.
 - **comet-state.sh field whitelist**: Added `created_at` and `base_ref` to the `cmd_set` allowed fields list, aligning validation with fields already written during `.comet.yaml` initialization.
@@ -316,13 +318,13 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 - **Script discovery coverage**: Added tests verifying `comet-env.sh` exports all bundled script paths and that no skill file inlines `COMET_SEARCH_ROOTS`.
 - **Script discovery safety**: Added regression coverage for sourced shell option preservation and expandable `$HOME` skill-directory globs.
-- **OpenCode Comet detection**: Added tests for OpenCode requiring both skill directories and matching command files before reporting Comet as installed.
+- **OpenCode SpecPilot detection**: Added tests for OpenCode requiring both skill directories and matching command files before reporting SpecPilot as installed.
 - **OpenCode E2E init**: Added end-to-end tests for OpenCode project and global scope installs, including command file generation.
-- **OpenCode command content**: Added tests that OpenCode command files preserve Comet command names and include full selected-language workflow content instead of a thin skill-delegation stub.
+- **OpenCode command content**: Added tests that OpenCode command files preserve SpecPilot command names and include full selected-language workflow content instead of a thin skill-delegation stub.
 - **English workflow safeguards**: Added parity tests matching the existing Chinese workflow decision-point requirements.
 - **OpenSpec profile and diagnostics**: Added tests for custom profile creation, `--profile custom` flag, and stderr/stdout detail printing on install failures.
 - **Lingma Superpowers fallback**: Added regression coverage that Lingma is excluded from the unsupported skills CLI agent list and uses a staging install before copying skills to `.lingma`.
-- **Lingma global install path**: Added regression coverage for `comet init --scope global` installing Lingma Comet skills under the user `.lingma/skills` directory.
+- **Lingma global install path**: Added regression coverage for `specpilot init --scope global` installing Lingma SpecPilot skills under the user `.lingma/skills` directory.
 
 ## What's Changed [0.3.1] - 2026-05-26
 
@@ -332,20 +334,20 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 ### Changed
 
-- **Comet decision points**: Clarified Chinese and English workflow skills so design confirmation, build configuration, verification failures, spec drift, branch handling, and preset upgrades pause for explicit user choice instead of relying on defaults or recommendations.
+- **SpecPilot decision points**: Clarified Chinese and English workflow skills so design confirmation, build configuration, verification failures, spec drift, branch handling, and preset upgrades pause for explicit user choice instead of relying on defaults or recommendations.
 - **Build workflow selection**: Combined workspace isolation and execution-method selection into one build configuration step, reducing repeated pauses while still requiring `isolation` and `build_mode` before implementation can continue.
 - **Hotfix verification flow**: Moved root-cause elimination before the build guard and requires preset upgrades to switch `workflow` to `full`, keeping failed hotfix checks in the build phase and full-flow upgrades in a consistent state.
 - **Verification scale assessment**: Scale checks now fall back to `.comet.yaml` `base_ref` and use a four-file threshold for full verification, making committed build changes less likely to be undercounted.
-- **English skill parity**: Synced English Comet skills with the Chinese workflow rules, including handoff generation, dirty-worktree handling, spec drift decisions, and verification failure blocking.
+- **English skill parity**: Synced English SpecPilot skills with the Chinese workflow rules, including handoff generation, dirty-worktree handling, spec drift decisions, and verification failure blocking.
 
 ### Fixed
 
-- **Windows npm update**: `comet update` now spawns npm through the shell so the package update path works reliably with Windows command shims.
+- **Windows npm update**: `specpilot update` now spawns npm through the shell so the package update path works reliably with Windows command shims.
 - **Superpowers install diagnostics**: Failed Superpowers installs now print cleaned stderr details, making network or GitHub access failures visible instead of hiding the actionable cause.
 
 ### Tests
 
-- **Workflow safeguard coverage**: Added regression coverage for Chinese Comet decision-point requirements and Superpowers install failure diagnostics.
+- **Workflow safeguard coverage**: Added regression coverage for Chinese SpecPilot decision-point requirements and Superpowers install failure diagnostics.
 
 ## What's Changed [0.3.0] - 2026-05-25
 
@@ -355,11 +357,11 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 ### Changed
 
-- **Comet resume behavior**: Updated `/comet`, build, verify, hotfix, and tweak skills so manual code edits made during interruptions are treated as code evidence, not automatic state transitions; agents must attribute dirty worktree changes before continuing or advancing guards
+- **SpecPilot resume behavior**: Updated `specpilot`, build, verify, hotfix, and tweak skills so manual code edits made during interruptions are treated as code evidence, not automatic state transitions; agents must attribute dirty worktree changes before continuing or advancing guards
 
 ### Fixed
 
-- **Reference skill installation**: Added the dirty worktree reference file to the Comet manifest so installed English and Chinese skill sets can resolve `comet/reference/dirty-worktree.md`
+- **Reference skill installation**: Added the dirty worktree reference file to the SpecPilot manifest so installed English and Chinese skill sets can resolve `comet/reference/dirty-worktree.md`
 
 ## What's Changed [0.2.9] - 2026-05-24
 
@@ -367,12 +369,12 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 - **Antigravity skill paths**: Updated platform handling so project-scope installs use `.agents/skills` while global installs use Antigravity's `.gemini/antigravity/skills` location, keeping `init`, `doctor`, and `update` aligned with Antigravity's directory model
 - **README information architecture**: Reworked English and Chinese README sections so command details, platform lists, skill tables, script tables, `.comet.yaml` fields, and reliability notes are available in collapsible reference panels
-- **Spec lifecycle documentation**: Expanded the README explanation of Comet's Spec lifecycle management, including OpenSpec/Superpowers artifact linking, automated handoff, state updates, validation, and archive sync
-- **Security guidance location**: Moved repository maintenance security notes from README into `CONTRIBUTING.md`, keeping the README focused on user-facing Comet concepts and setup
+- **Spec lifecycle documentation**: Expanded the README explanation of SpecPilot's Spec lifecycle management, including OpenSpec/Superpowers artifact linking, automated handoff, state updates, validation, and archive sync
+- **Security guidance location**: Moved repository maintenance security notes from README into `CONTRIBUTING.md`, keeping the README focused on user-facing SpecPilot concepts and setup
 
 ### Fixed
 
-- **Antigravity global installs**: Fixed `comet init --scope global` and related health checks so Antigravity no longer installs or searches global skills under the project-style `.agents` directory
+- **Antigravity global installs**: Fixed `specpilot init --scope global` and related health checks so Antigravity no longer installs or searches global skills under the project-style `.agents` directory
 - **Missing skills directories**: Added explicit existence checks before scanning project and global skills directories, keeping detection and update logic robust when platform directories exist without `skills/`
 
 ### Tests
@@ -387,8 +389,8 @@ All notable changes to @rpamis/comet will be documented in this file.
 - **Design handoff script**: New `comet-handoff.sh` generates deterministic, source-traceable context packages (compact or full mode) from OpenSpec artifacts into `.comet/handoff/`, recording `handoff_context` and `handoff_hash` in `.comet.yaml`
 - **Handoff guard checks**: Design phase guard now validates handoff context existence, hash freshness (detects post-handoff OpenSpec mutations), markdown traceability markers, and design doc frontmatter fields (`comet_change`, `role: technical-design`, `canonical_spec: openspec`)
 - **`handoff_context` and `handoff_hash` fields**: New `.comet.yaml` fields for tracking script-generated handoff packages, with schema validation (path existence, sha256 hex digest format)
-- **`comet init --scope`**: New `--scope <global|project>` CLI flag for non-interactive scope selection
-- **CI init E2E job**: GitHub Actions now runs real `comet init` on Ubuntu, macOS, and Windows, verifying Comet skills, Superpowers, OpenSpec, and working directories land in correct filesystem locations for both project and global scope
+- **`specpilot init --scope`**: New `--scope <global|project>` CLI flag for non-interactive scope selection
+- **CI init E2E job**: GitHub Actions now runs real `specpilot init` on Ubuntu, macOS, and Windows, verifying SpecPilot skills, Superpowers, OpenSpec, and working directories land in correct filesystem locations for both project and global scope
 
 ### Changed
 
@@ -399,8 +401,8 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 ### Fixed
 
-- **YAML and frontmatter parsing**: Comet scripts now ignore unquoted trailing comments in `.comet.yaml` field values and accept Design Doc frontmatter after a UTF-8 BOM or leading blank lines, preventing false guard and handoff failures
-- **Init E2E install checks**: CI now verifies Comet-owned skill artifacts in every supported platform directory and checks OpenSpec/Superpowers installer status from `comet init --json` for both project and global installs, avoiding false failures from external CLI-specific directory layouts
+- **YAML and frontmatter parsing**: SpecPilot scripts now ignore unquoted trailing comments in `.comet.yaml` field values and accept Design Doc frontmatter after a UTF-8 BOM or leading blank lines, preventing false guard and handoff failures
+- **Init E2E install checks**: CI now verifies SpecPilot-owned skill artifacts in every supported platform directory and checks OpenSpec/Superpowers installer status from `specpilot init --json` for both project and global installs, avoiding false failures from external CLI-specific directory layouts
 - **Windows global init E2E home directory**: CI now sets `USERPROFILE` alongside `HOME` for global-scope init checks on Windows, matching Node's `os.homedir()` resolution and preventing false missing-skill failures
 - **README state documentation**: README examples now show accurate `.comet.yaml` build-state defaults, verification evidence timing, handoff fields, and project-only working directory creation
 - **Windows Superpowers init timeout**: Superpowers external installer timeout increased to tolerate slower Windows `npx skills add` runs, reducing flaky init E2E failures
@@ -408,9 +410,9 @@ All notable changes to @rpamis/comet will be documented in this file.
 ### Tests
 
 - Added coverage for `--full` handoff mode, missing OpenSpec artifacts rejection, post-handoff hash mismatch detection, and design doc frontmatter validation
-- Added `comet init` E2E tests covering project scope install, global scope install, skip-existing with `--yes`, overwrite with `--overwrite`, and multi-platform detection
+- Added `specpilot init` E2E tests covering project scope install, global scope install, skip-existing with `--yes`, overwrite with `--overwrite`, and multi-platform detection
 - Added regression coverage for `.comet.yaml` trailing comments and Design Doc frontmatter with a UTF-8 BOM or leading blank lines
-- Added CI workflow regression coverage for project and global installation checks across Comet-owned files and external OpenSpec/Superpowers installer statuses
+- Added CI workflow regression coverage for project and global installation checks across SpecPilot-owned files and external OpenSpec/Superpowers installer statuses
 - Added CI workflow regression coverage for Windows global init using the temporary `USERPROFILE` home directory
 - Added regression coverage for the longer Superpowers installer timeout used by init
 
@@ -418,11 +420,11 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 ### Fixed
 
-- **OpenSpec global init**: `comet init` global scope now passes the home directory as OpenSpec's init target instead of using the unsupported `openspec init --global` flag
+- **OpenSpec global init**: `specpilot init` global scope now passes the home directory as OpenSpec's init target instead of using the unsupported `openspec init --global` flag
 - **Cross-platform path quoting**: OpenSpec init targets are shell-quoted for Windows, macOS, and Linux paths, including home directories with spaces
 - **Installer argument quoting**: OpenSpec `--tools` values and Superpowers `--agent` values are now shell-quoted, and Windows OpenSpec paths preserve trailing backslashes before the closing quote
 - **Superpowers multi-platform install**: Superpowers installation now passes repeated `--agent` flags instead of a comma-separated agent list, matching the `skills` CLI behavior
-- **Superpowers agent mappings**: Updated Comet platform mappings to valid `skills` CLI agent IDs, with unsupported platform-specific IDs falling back to `universal`
+- **Superpowers agent mappings**: Updated SpecPilot platform mappings to valid `skills` CLI agent IDs, with unsupported platform-specific IDs falling back to `universal`
 
 ### Tests
 
@@ -437,9 +439,9 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 - **Build decision enforcement**: Build guard and `comet-state.sh transition build-complete` now require `isolation` and `build_mode` before moving from build to verify
 - **Direct mode override**: Full workflows must set `direct_override: true` before using `build_mode: direct`; hotfix/tweak remain allowed by default
-- **Configurable guard commands**: Guard scripts now read `build_command` and `verify_command` from the change `.comet.yaml` or repo-root Comet config before falling back to auto-detected build commands
+- **Configurable guard commands**: Guard scripts now read `build_command` and `verify_command` from the change `.comet.yaml` or repo-root SpecPilot config before falling back to auto-detected build commands
 - **Archive diff preview**: Archive sync prints a unified diff before overwriting an existing main spec when it differs from the delta spec
-- **Cross-platform script smoke CI**: Added Ubuntu, macOS, and Windows smoke coverage for Comet shell scripts and portable shell tests
+- **Cross-platform script smoke CI**: Added Ubuntu, macOS, and Windows smoke coverage for SpecPilot shell scripts and portable shell tests
 - **Shell line-ending policy**: Added `.gitattributes` rules to keep shell and Bats scripts on LF endings
 
 ### Changed
@@ -447,7 +449,7 @@ All notable changes to @rpamis/comet will be documented in this file.
 - **Guard failure output**: Guard checks now preserve and print command failure output, plus actionable `Next:` hints for missing build decisions and unfinished tasks
 - **Command handling**: Project commands run through `bash -lc`, Maven uses `mvnw` or `mvn.cmd` where appropriate, and Windows Git Bash paths are handled in shell test helpers
 - **Archive step counting**: Dry-run, delta sync, annotation, move, and archive status steps now count real executed steps without double-counting repeated operations
-- **English docs and skills**: Synced the English README and Comet skill text with the Chinese build-decision, command-config, and archive behavior descriptions
+- **English docs and skills**: Synced the English README and SpecPilot skill text with the Chinese build-decision, command-config, and archive behavior descriptions
 
 ### Fixed
 
@@ -466,25 +468,25 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 ### Added
 
-- **PR title lint workflow**: Added GitHub Actions validation for semantic PR titles with Comet-specific scopes (`cli`, `commands`, `core`, `skills`, `assets`, `scripts`, `docs`, `ci`, `deps`, `release`)
-- **Structured JSON output**: `comet init --json` and `comet update --json` now emit machine-readable results instead of mixed human logs
-- **`doctor --scope`**: `comet doctor` can diagnose `auto`, `project`, or `global` scope, with `auto` checking both project and global installs
-- **Next-step status hint**: `comet status` now reports the next workflow command (`/comet-open`, `/comet-design`, `/comet-build`, `/comet-verify`, `/comet-archive`) in text and JSON output
+- **PR title lint workflow**: Added GitHub Actions validation for semantic PR titles with SpecPilot-specific scopes (`cli`, `commands`, `core`, `skills`, `assets`, `scripts`, `docs`, `ci`, `deps`, `release`)
+- **Structured JSON output**: `specpilot init --json` and `specpilot update --json` now emit machine-readable results instead of mixed human logs
+- **`doctor --scope`**: `specpilot doctor` can diagnose `auto`, `project`, or `global` scope, with `auto` checking both project and global installs
+- **Next-step status hint**: `specpilot status` now reports the next workflow command (`/comet-open`, `/comet-design`, `/comet-build`, `/comet-verify`, `/comet-archive`) in text and JSON output
 - **README asset guard**: Added tests and prepublish validation to keep README images on npm-friendly absolute URLs
 
 ### Changed
 
-- **`comet update` preserves installed context**: Update now detects existing Comet skill targets across project/global scopes, preserves installed scope, detects Chinese vs English skills, and updates only platforms where Comet skills are already installed
-- **`comet update` self-updates npm package**: Update now prints and runs the matching npm update command for the detected package scope before refreshing installed skills
+- **`specpilot update` preserves installed context**: Update now detects existing SpecPilot skill targets across project/global scopes, preserves installed scope, detects Chinese vs English skills, and updates only platforms where SpecPilot skills are already installed
+- **`specpilot update` self-updates npm package**: Update now prints and runs the matching npm update command for the detected package scope before refreshing installed skills
 - **Friendlier update output**: Update logs the npm command, per-target skill copy command, final npm status, updated target count, scope, and language summary
-- **Init overwrite flow**: Interactive `comet init` now offers a bulk overwrite/skip choice when multiple existing components are detected on the same platform
+- **Init overwrite flow**: Interactive `specpilot init` now offers a bulk overwrite/skip choice when multiple existing components are detected on the same platform
 - **CLI option validation**: `update --language`, `update --scope`, and `doctor --scope` now validate accepted values through Commander choices
 - **README CLI docs**: Updated English and Chinese README command sections to document JSON output, doctor scope, update behavior, status next-step hints, and init overwrite behavior
 - **CONTRIBUTING link**: Added contribution guide references to both English and Chinese README development sections
 
 ### Fixed
 
-- **Doctor false positives**: `comet doctor` now recognizes current `.comet.yaml` fields including `verification_report` and `branch_status`
+- **Doctor false positives**: `specpilot doctor` now recognizes current `.comet.yaml` fields including `verification_report` and `branch_status`
 - **npm README images**: README images now use absolute GitHub URLs so package pages can render them
 
 ### Tests
@@ -527,9 +529,9 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 ### Added
 
-- **"Why Comet" section**: README now explains the rationale behind Comet — how it combines OpenSpec's WHAT management with Superpowers' HOW execution into a unified 5-phase pipeline
+- **"Why SpecPilot" section**: README now explains the rationale behind SpecPilot — how it combines OpenSpec's WHAT management with Superpowers' HOW execution into a unified 5-phase pipeline
 - **"Screenshots" section**: Added three screenshots demonstrating platform selection, initialization, and skill execution in action
-- **"What You'll Learn" section**: New section showcasing Comet as a reference for stable nested skill triggering and multi-phase auto-flow patterns
+- **"What You'll Learn" section**: New section showcasing SpecPilot as a reference for stable nested skill triggering and multi-phase auto-flow patterns
 - **State Management YAML example**: Extended documentation with complete `.comet.yaml` field example showing all key configuration values
 
 ### Changed
@@ -541,8 +543,8 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 ### Fixed
 
-- **Ctrl+Z/Ctrl+C crash during `comet init`**: Wrapped inquirer prompts in try/catch to handle `ExitPromptError`, showing `Cancelled.` and exiting cleanly instead of printing a raw stack trace
-- **Duplicate Superpowers installation**: `comet init` now detects Superpowers installed via Claude Code plugin system (`~/.claude/plugins/cache/`), skipping redundant `npx skills add` when Superpowers plugin is already present
+- **Ctrl+Z/Ctrl+C crash during `specpilot init`**: Wrapped inquirer prompts in try/catch to handle `ExitPromptError`, showing `Cancelled.` and exiting cleanly instead of printing a raw stack trace
+- **Duplicate Superpowers installation**: `specpilot init` now detects Superpowers installed via Claude Code plugin system (`~/.claude/plugins/cache/`), skipping redundant `npx skills add` when Superpowers plugin is already present
 
 ## What's Changed [0.2.1] - 2026-05-18
 
@@ -554,7 +556,7 @@ All notable changes to @rpamis/comet will be documented in this file.
 
 ## What's Changed [0.2.0] - 2026-05-18
 
-Comet 0.2.0 is a comprehensive optimization release: skill reliability, CLI completeness, and engineering quality.
+SpecPilot 0.2.0 is a comprehensive optimization release: skill reliability, CLI completeness, and engineering quality.
 
 ### Skill Reliability
 
@@ -566,9 +568,9 @@ Comet 0.2.0 is a comprehensive optimization release: skill reliability, CLI comp
 
 ### CLI Commands
 
-- **`comet status`**: Show active changes with phase, task progress, workflow mode, design doc, and plan (`--json` supported)
-- **`comet doctor`**: Diagnose installation health — OpenSpec CLI, working directories, skill completeness per platform, script presence, `.comet.yaml` validity (`--json` supported)
-- **`comet update`**: Update comet skill files to latest version from npm package (`--language`, `--scope` supported)
+- **`specpilot status`**: Show active changes with phase, task progress, workflow mode, design doc, and plan (`--json` supported)
+- **`specpilot doctor`**: Diagnose installation health — OpenSpec CLI, working directories, skill completeness per platform, script presence, `.comet.yaml` validity (`--json` supported)
+- **`specpilot update`**: Update comet skill files to latest version from npm package (`--language`, `--scope` supported)
 - **`--json` on all commands**: `init`, `status`, `doctor`, `update` all accept structured output
 
 ### Engineering
@@ -635,13 +637,13 @@ Comet 0.2.0 is a comprehensive optimization release: skill reliability, CLI comp
 
 ### Added
 
-- **Bilingual Comet skills**: `comet init` now prompts for language selection (English / 中文) and deploys the corresponding SKILL.md files
+- **Bilingual SpecPilot skills**: `specpilot init` now prompts for language selection (English / 中文) and deploys the corresponding SKILL.md files
 - **Language-aware asset structure**: English skills in `assets/skills/`, Chinese skills in `assets/skills-zh/`
 - **`languages` field in manifest.json**: Maps language IDs to asset directories for future extensibility
 
 ### Changed
 
-- All 8 Comet SKILL.md files in `assets/skills/` are now English (Chinese originals preserved in `assets/skills-zh/`)
+- All 8 SpecPilot SKILL.md files in `assets/skills/` are now English (Chinese originals preserved in `assets/skills-zh/`)
 - `copyCometSkillsForPlatform` accepts `languageSkillsDir` parameter; script files always sourced from default `skills/` directory
 - `--yes` mode defaults to English language selection
 
@@ -649,8 +651,8 @@ Comet 0.2.0 is a comprehensive optimization release: skill reliability, CLI comp
 
 ### Fixed
 
-- **Superpowers redundant project-level install**: `comet init` now checks the global directories (`~/{platform}/skills/`) of all user-selected platforms before installing Superpowers. If Superpowers is already installed globally for any selected platform, the project-level install is skipped
-- **Unwanted `.agents/` directory creation**: `comet init` now passes `--agent` flag to `skills add`, targeting only the platforms the user selected. This prevents the skills CLI from auto-detecting and installing to all platforms, which previously created an unnecessary `.agents/` directory
+- **Superpowers redundant project-level install**: `specpilot init` now checks the global directories (`~/{platform}/skills/`) of all user-selected platforms before installing Superpowers. If Superpowers is already installed globally for any selected platform, the project-level install is skipped
+- **Unwanted `.agents/` directory creation**: `specpilot init` now passes `--agent` flag to `skills add`, targeting only the platforms the user selected. This prevents the skills CLI from auto-detecting and installing to all platforms, which previously created an unnecessary `.agents/` directory
 - **OpenSpec global detection**: Same global-directory fallback logic applied to OpenSpec detection, avoiding redundant OpenSpec installs when already present globally for selected platforms
 
 ### Changed
@@ -662,7 +664,7 @@ Comet 0.2.0 is a comprehensive optimization release: skill reliability, CLI comp
 
 ### Added
 
-- **State File Separation**: Comet workflow state now stored in independent `.comet.yaml` file instead of `.openspec.yaml` subtree
+- **State File Separation**: SpecPilot workflow state now stored in independent `.comet.yaml` file instead of `.openspec.yaml` subtree
 - **Three-Layer Reliability Defense**:
   - Entry verification for all phases with `[HARD STOP]` diagnostics
   - Write-then-verify pattern for all state mutations
@@ -672,7 +674,7 @@ Comet 0.2.0 is a comprehensive optimization release: skill reliability, CLI comp
 
 ### Changed
 
-- Updated all 9 Comet skills to use `.comet.yaml` instead of `.openspec.yaml` comet: subtree
+- Updated all 9 SpecPilot skills to use `.comet.yaml` instead of `.openspec.yaml` comet: subtree
 - Improved error messages with specific field values instead of generic placeholders
 - Enhanced project structure documentation
 

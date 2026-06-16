@@ -1,43 +1,38 @@
 <p align="center">
-  <a href="https://github.com/rpamis/comet/blob/master/img/title-log.png">
+  <a href="https://github.com/jianghuife/SpecPilot/blob/master/img/title-log.png">
     <picture>
-      <source srcset="https://github.com/rpamis/comet/blob/master/img/title-log.png">
-      <img src="https://github.com/rpamis/comet/blob/master/img/title-log.png" alt="Comet logo">
+      <source srcset="https://github.com/jianghuife/SpecPilot/blob/master/img/title-log.png">
+      <img src="https://github.com/jianghuife/SpecPilot/blob/master/img/title-log.png" alt="SpecPilot logo">
     </picture>
   </a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/rpamis/comet/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/rpamis/comet/ci.yml?branch=master&style=flat-square&label=CI" /></a>
-  <a href="https://deepwiki.com/rpamis/comet"><img alt="DeepWiki" src="https://img.shields.io/badge/DeepWiki-rpamis%2Fcomet-blue?style=flat-square" /></a>
-  <a href="https://www.npmjs.com/package/@rpamis/comet"><img alt="npm version" src="https://img.shields.io/npm/v/@rpamis/comet?style=flat-square" /></a>
-  <a href="https://www.npmjs.com/package/@rpamis/comet"><img alt="npm download count" src="https://img.shields.io/npm/dm/@rpamis/comet?style=flat-square&label=Downloads/mo" /></a>
-  <a href="https://www.npmjs.com/package/@rpamis/comet"><img alt="npm weekly download count" src="https://img.shields.io/npm/dw/@rpamis/comet?style=flat-square&label=Downloads/wk" /></a>
+  <a href="https://github.com/jianghuife/SpecPilot/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/jianghuife/SpecPilot/ci.yml?branch=master&style=flat-square&label=CI" /></a>
+  <a href="https://deepwiki.com/jianghuife/SpecPilot"><img alt="DeepWiki" src="https://img.shields.io/badge/DeepWiki-jianghuife%2FSpecPilot-blue?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/specpilot"><img alt="npm version" src="https://img.shields.io/npm/v/specpilot?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/specpilot"><img alt="npm download count" src="https://img.shields.io/npm/dm/specpilot?style=flat-square&label=Downloads/mo" /></a>
+  <a href="https://www.npmjs.com/package/specpilot"><img alt="npm weekly download count" src="https://img.shields.io/npm/dw/specpilot?style=flat-square&label=Downloads/wk" /></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" /></a>
 </p>
 
-# @rpamis/comet
+# SpecPilot
 
 ```
- ██████╗ ██████╗ ███╗   ███╗███████╗████████╗
-██╔════╝██╔═══██╗████╗ ████║██╔════╝╚══██╔══╝
-██║     ██║   ██║██╔████╔██║█████╗     ██║
-██║     ██║   ██║██║╚██╔╝██║██╔══╝     ██║
-╚██████╗╚██████╔╝██║ ╚═╝ ██║███████╗   ██║
- ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚══════╝   ╚═╝
+Spec-driven workflow automation for AI coding agents.
 ```
 
 > 中文版：[README-zh.md](README-zh.md)
 > [Bilibili video](https://www.bilibili.com/video/BV1y4Gi6CEo1/?spm_id_from=333.1387.homepage.video_card.click&vd_source=d22726fe6b108647dbebf1c5d8817377)
-> [DouYin](https://www.douyin.com/search/comet?aid=cd8fcc82-498b-4d59-8860-617deb719412&modal_id=7646429015808936293&type=general)
+> [DouYin](https://www.douyin.com/search/SpecPilot?aid=cd8fcc82-498b-4d59-8860-617deb719412&modal_id=7646429015808936293&type=general)
 
-**OpenSpec + Superpowers dual-star development workflow** — one command from idea to archive.
+**Spec-driven workflow automation for AI coding agents** — one command from idea to archive.
 
 OpenSpec handles **WHAT** (outlines, proposals, spec lifecycle, archiving).
 
 Superpowers handles **HOW** (technical design, planning, execution, wrap-up).
 
-Comet chains both into a five-phase automated pipeline.
+SpecPilot chains both into a five-phase automated pipeline.
 
 > [!IMPORTANT]
 > **0.3.7 Highlights** — One-step [CodeGraph](https://github.com/colbymchenry/codegraph) semantic code indexing (official: cost **↓16%**, tool calls **↓58%**); 
@@ -50,7 +45,7 @@ Comet chains both into a five-phase automated pipeline.
 >
 > See [NEWS.md](NEWS.md) for details.
 
-## Why Comet
+## Why SpecPilot
 
 OpenSpec excels at managing requirements, creating proposals, managing Spec lifecycles, and archiving, but its proposals
 and tasks lack the detail of Superpowers brainstorming.
@@ -59,13 +54,13 @@ Superpowers generates Spec documents after brainstorming, but these documents ty
 completing requirements, Specs only have tasks checked off in the document, and Agents even forget to check them off.
 This causes the Agent to re-examine documents and project code to verify on resumption, wasting many tokens.
 
-**Comet combines the strengths of both**, integrating the core workflow into 5 phases
+**SpecPilot combines the strengths of both**, integrating the core workflow into 5 phases
 
-The main entry `/comet` supports current Spec state detection, suitable for long tasks — after closing your AI coding
-session midway, just `/comet` and Comet will automatically read the active Spec (lists multiple for selection),
+The installed workflow entry `/comet` supports current Spec state detection, suitable for long tasks — after closing your AI coding
+session midway, just invoke `/comet` in your AI coding agent and SpecPilot will automatically read the active Spec (lists multiple for selection),
 dynamically identify which phase is currently executing, and continue.
 
-At the same time, Comet provides full Spec lifecycle management. During execution, it links OpenSpec change/spec
+At the same time, SpecPilot provides full Spec lifecycle management. During execution, it links OpenSpec change/spec
 artifacts with Superpowers design and planning documents, then automates handoff, state updates, validation, and archive
 sync so users do not have to repeatedly remind the Agent to keep documents synchronized and connected.
 
@@ -76,36 +71,36 @@ only like some features. For example, when using both OpenSpec and Superpowers, 
 management capabilities, but prefer Superpowers' TDD-driven approach for coding.
 
 Long-term Skill users know these capabilities can be freely combined, but exactly how to do so still requires real
-practice. The Comet project can serve as a reference:
+practice. The SpecPilot project can serve as a reference:
 
 - **How to reliably trigger nested Skills** — Not letting the Agent rely on document descriptions to perform "look-alike
   Skill trigger" operations (like writing files based on Skill descriptions), but truly triggering Skills (key feature:
-  Skill trigger prints on CC). Comet triggers many capabilities from OpenSpec and Superpowers. How is this Prompt
+  Skill trigger prints on CC). SpecPilot triggers many capabilities from OpenSpec and Superpowers. How is this Prompt
   written?
 
-- **How to make combined Skills flow automatically across phases** — Not relying on manual intervention. Comet's 5-phase
+- **How to make combined Skills flow automatically across phases** — Not relying on manual intervention. SpecPilot's 5-phase
   flow can automatically trigger Skills for the core process except for necessary user choices, while the state machine
   also protects state transition reliability.
 
-- **How to turn the Spec lifecycle into a resumable workflow** — Comet links OpenSpec change/spec artifacts with
+- **How to turn the Spec lifecycle into a resumable workflow** — SpecPilot links OpenSpec change/spec artifacts with
   Superpowers design and planning documents, then records phase, execution mode, verification results, and archive
   status in `.comet.yaml`, so the Agent can resume after interruption instead of rereading documents and guessing
   progress.
 
-- **How to turn document synchronization from "user reminders" into automation** — Comet puts handoff, state updates,
+- **How to turn document synchronization from "user reminders" into automation** — SpecPilot puts handoff, state updates,
   validation, and archive sync into scripted flows, reducing repeated prompts like "remember to update the design
   doc", "remember to sync the spec", and "remember to archive the change".
 
-- **How to design guard conditions that Agents can execute** — Comet does not simply trust the Agent saying "done" at
+- **How to design guard conditions that Agents can execute** — SpecPilot does not simply trust the Agent saying "done" at
   phase exits. Scripts such as `comet-guard.sh`, `comet-yaml-validate.sh`, and `comet-state.sh` check tasks, state
   fields, verification evidence, and archive conditions before allowing the workflow to advance.
 
-- **How to distribute and install Skills across platforms** — Comet supports multiple AI coding platforms,
+- **How to distribute and install Skills across platforms** — SpecPilot supports multiple AI coding platforms,
   project/global installation, Chinese/English Skill choices, and platform-specific directory differences such as
   Antigravity using different project-level and global paths. It can be a reference for CLI installers and Skill package
   structure.
 
-- **How to turn shell scripts into Agent workflow infrastructure** — Comet's scripts need to work across macOS, Linux,
+- **How to turn shell scripts into Agent workflow infrastructure** — SpecPilot's scripts need to work across macOS, Linux,
   and Windows Git Bash while handling hashes, YAML fields, state machines, and archive flows. It shows how to move
   fragile workflow control out of scattered Prompt text and into testable, reusable tools.
 
@@ -119,43 +114,43 @@ Requirements:
 - Bash-compatible shell for workflow scripts (Windows users should use Git Bash or an equivalent bash environment)
 
 ```bash
-npm install -g @rpamis/comet
+npm install -g specpilot
 ```
 
 ## Quick Start
 
 ```bash
 cd your-project
-comet init
+specpilot init
 ```
 
-`comet init` will:
+`specpilot init` will:
 
 1. Prompt you to select AI platforms (auto-detects existing configs)
 2. Choose install scope: project-level (current directory) or global (home directory)
-3. Select language for Comet skills: English or 中文
+3. Select language for SpecPilot skills: English or 中文
 4. Install [OpenSpec](https://github.com/Fission-AI/OpenSpec) skills
 5. Install [Superpowers](https://github.com/obra/superpowers) skills
-6. Deploy Comet skills (in your chosen language) to selected platforms
+6. Deploy SpecPilot skills (in your chosen language) to selected platforms
 7. Create `docs/superpowers/specs/` and `docs/superpowers/plans/` working directories for project-scope installs
 
 > [!TIP]
 > update version
 >
-> `comet update` or `npm install -g @rpamis/comet@latest` to get the latest features and fixes.
+> `specpilot update` or `npm install -g specpilot@latest` to get the latest features and fixes.
 
 ## Support for OpenClaw and Hermes, and other AI platforms
 
-For platforms that use the generic `skills` CLI directly, you can install the Comet skill package with:
+For platforms that use the generic `skills` CLI directly, you can install the SpecPilot skill package with:
 
 ```bash
-npx skills add rpamis/comet
+npx skills add jianghuife/SpecPilot
 ```
 
 ## Screenshots
 
 <p align="center">
-  <img src="https://github.com/rpamis/comet/blob/master/img/runner.png" alt="runner">
+  <img src="https://github.com/jianghuife/SpecPilot/blob/master/img/runner.png" alt="runner">
 </p>
 
 <p align="center">Auto-install OpenSpec & Superpowers, one-click dev environment setup</p>
@@ -164,9 +159,9 @@ npx skills add rpamis/comet
 ## Commands
 
 <details>
-<summary><code>comet init [path]</code> — Initialize Comet workflow</summary>
+<summary><code>specpilot init [path]</code> — Initialize SpecPilot workflow</summary>
 
-Initializes OpenSpec, Superpowers, and Comet skills for selected AI coding platforms.
+Initializes OpenSpec, Superpowers, and SpecPilot skills for selected AI coding platforms.
 
 | Option            | Description                                                                    |
 |-------------------|--------------------------------------------------------------------------------|
@@ -182,9 +177,9 @@ all, skip all, or choose per component.
 </details>
 
 <details>
-<summary><code>comet status [path]</code> — Show active changes and next workflow command</summary>
+<summary><code>specpilot status [path]</code> — Show active changes and next workflow command</summary>
 
-Displays active changes, task progress, and the recommended next Comet workflow command.
+Displays active changes, task progress, and the recommended next SpecPilot workflow command.
 
 | Option   | Description                              |
 |----------|------------------------------------------|
@@ -193,9 +188,9 @@ Displays active changes, task progress, and the recommended next Comet workflow 
 </details>
 
 <details>
-<summary><code>comet doctor [path]</code> — Diagnose Comet installation health</summary>
+<summary><code>specpilot doctor [path]</code> — Diagnose SpecPilot installation health</summary>
 
-Checks project/global installation health, working directories, installed skills, scripts, and Comet state files.
+Checks project/global installation health, working directories, installed skills, scripts, and SpecPilot state files.
 
 | Option            | Description                                                     |
 |-------------------|-----------------------------------------------------------------|
@@ -205,9 +200,9 @@ Checks project/global installation health, working directories, installed skills
 </details>
 
 <details>
-<summary><code>comet update [path]</code> — Update Comet package and skills</summary>
+<summary><code>specpilot update [path]</code> — Update SpecPilot package and skills</summary>
 
-Updates the npm package and refreshes installed Comet skills in detected project/global targets.
+Updates the npm package and refreshes installed SpecPilot skills in detected project/global targets.
 
 | Option              | Description                                   |
 |---------------------|-----------------------------------------------|
@@ -218,9 +213,9 @@ Updates the npm package and refreshes installed Comet skills in detected project
 </details>
 
 <details>
-<summary><code>comet uninstall [path]</code> — Remove Comet skills, rules, and hooks</summary>
+<summary><code>specpilot uninstall [path]</code> — Remove SpecPilot skills, rules, and hooks</summary>
 
-Safely removes Comet-distributed skills, rules, and hooks from all detected platforms. Preserves user-defined hooks and non-Comet configuration.
+Safely removes SpecPilot-distributed skills, rules, and hooks from all detected platforms. Preserves user-defined hooks and non-SpecPilot configuration.
 
 | Option            | Description                                    |
 |-------------------|------------------------------------------------|
@@ -229,21 +224,21 @@ Safely removes Comet-distributed skills, rules, and hooks from all detected plat
 | `--json`          | Output removal results as JSON                 |
 
 ```bash
-comet uninstall              # Interactive — shows targets, asks for confirmation
-comet uninstall --force      # Non-interactive — removes everything immediately
-comet uninstall --scope project  # Only remove project-level installations
+specpilot uninstall              # Interactive — shows targets, asks for confirmation
+specpilot uninstall --force      # Non-interactive — removes everything immediately
+specpilot uninstall --scope project  # Only remove project-level installations
 ```
 
 </details>
 
 | Command           | Description  |
 |-------------------|--------------|
-| `comet --help`    | Show help    |
-| `comet --version` | Show version |
+| `specpilot --help`    | Show help    |
+| `specpilot --version` | Show version |
 
 ## Supported Platforms
 
-`comet init` supports 29 AI coding platforms:
+`specpilot init` supports 29 AI coding platforms:
 
 <details>
 <summary>View full platform list</summary>
@@ -273,12 +268,15 @@ Some platforms use different project and global directories. For example, OpenCo
 
 ## Skills
 
-After `comet init`, three groups of skills are installed to the selected platform's `skills/` directory:
+After `specpilot init`, three groups of skills are installed to the selected platform's `skills/` directory:
 
-### Comet Skills
+### SpecPilot Skills
+
+SpecPilot currently keeps the installed workflow skill prefix as `/comet*` for compatibility with existing state files,
+scripts, and platform integrations. The package and CLI are branded as `specpilot`.
 
 <details>
-<summary>View Comet skills</summary>
+<summary>View SpecPilot skills</summary>
 
 | Skill            | Description                                                    |
 |------------------|----------------------------------------------------------------|
@@ -353,17 +351,17 @@ Development methodology: brainstorming, TDD, subagent-driven development, code r
 
 ### State Management
 
-Comet uses a decoupled state architecture with separate YAML files:
+SpecPilot uses a decoupled state architecture with separate YAML files:
 
 | File             | Owner    | Purpose                                             |
 |------------------|----------|-----------------------------------------------------|
 | `.openspec.yaml` | OpenSpec | Spec lifecycle, change metadata                     |
-| `.comet.yaml`    | Comet    | Workflow phase, execution mode, verification status |
+| `.comet.yaml`    | SpecPilot    | Workflow phase, execution mode, verification status |
 
 All states and execution phases are updated via scripts, and each phase verifies that tasks are truly complete before
-advancing. Compared to storing complex state rules only in Skill text, this script-backed state machine gives Comet more
+advancing. Compared to storing complex state rules only in Skill text, this script-backed state machine gives SpecPilot more
 reliable phase transitions, correct YAML, and easier breakpoint recovery; agents can read the current Spec situation
-through Comet's built-in commands.
+through SpecPilot's built-in commands.
 
 <details>
 <summary>View key .comet.yaml fields</summary>
@@ -409,7 +407,7 @@ output.
 
 ### Reliability Features
 
-Comet ensures agent execution reliability through automated state transitions:
+SpecPilot ensures agent execution reliability through automated state transitions:
 
 <details>
 <summary>View reliability features</summary>
@@ -456,7 +454,7 @@ Comet ensures agent execution reliability through automated state transitions:
 your-project/
 ├── .comet/
 │   └── config.yaml              # Project-level global config (context_compression, auto_transition, etc.)
-├── .claude/skills/              # Platform skills dir (Comet + OpenSpec + Superpowers)
+├── .claude/skills/              # Platform skills dir (SpecPilot + OpenSpec + Superpowers)
 │   ├── comet/SKILL.md
 │   │   └── scripts/
 │   │       ├── comet-guard.sh       # Phase transition guard (--apply auto-updates state)
@@ -474,7 +472,7 @@ your-project/
 │   └── changes/
 │       └── <name>/
 │           ├── .openspec.yaml       # OpenSpec state
-│           ├── .comet.yaml          # Comet workflow state (decoupled)
+│           ├── .comet.yaml          # SpecPilot workflow state (decoupled)
 │           ├── proposal.md
 │           ├── design.md
 │           ├── specs/<capability>/spec.md
@@ -487,7 +485,7 @@ your-project/
 <details>
 <summary>Context Compression (Beta)</summary>
 
-Comet supports context compression at the Design → Build handoff. When enabled, `comet-handoff.sh` generates a compact
+SpecPilot supports context compression at the Design → Build handoff. When enabled, `comet-handoff.sh` generates a compact
 context package that reduces Build-phase input tokens by **25–30%** without affecting implementation correctness.
 
 | Mode   | Behavior                                 | Token Savings |
@@ -511,7 +509,7 @@ reproduction steps.
 <details>
 <summary>Auto Transition</summary>
 
-`auto_transition` controls whether Comet automatically invokes the next skill after a phase completes, or pauses for
+`auto_transition` controls whether SpecPilot automatically invokes the next skill after a phase completes, or pauses for
 manual handoff. Phase advancement itself always happens — this setting only affects skill invocation.
 
 | Value  | Behavior |
@@ -535,16 +533,16 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 
 ## Roadmap
 
-Track our development progress and upcoming features on the [Comet Roadmap](https://github.com/orgs/rpamis/projects/1).
+Track development progress and upcoming features on the [SpecPilot repository](https://github.com/jianghuife/SpecPilot).
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=rpamis/comet&type=Date)](https://star-history.com/#rpamis/comet&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=jianghuife/SpecPilot&type=Date)](https://star-history.com/#jianghuife/SpecPilot&Date)
 
 ## Contributors
 
-<a href="https://github.com/rpamis/comet/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=rpamis/comet&columns=12&anon=1" />
+<a href="https://github.com/jianghuife/SpecPilot/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=jianghuife/SpecPilot&columns=12&anon=1" />
 </a>
 
 ## License
@@ -556,15 +554,15 @@ Track our development progress and upcoming features on the [Comet Roadmap](http
 <table align="center">
   <tr>
     <td align="center" width="180">
-      <img src="https://github.com/rpamis/comet/blob/master/img/douyin.png" width="120" height="120"><br>
+      <img src="https://github.com/jianghuife/SpecPilot/blob/master/img/douyin.png" width="120" height="120"><br>
       <b>DouYin (Recommended)</b>
     </td>
     <td align="center" width="180">
-      <img src="https://github.com/rpamis/comet/blob/master/img/wechat.jpg" width="120" height="120"><br>
+      <img src="https://github.com/jianghuife/SpecPilot/blob/master/img/wechat.jpg" width="120" height="120"><br>
       <b>WeChat</b>
     </td>
     <td align="center" width="180">
-      <img src="https://github.com/rpamis/comet/blob/master/img/qq.jpg" width="120" height="120"><br>
+      <img src="https://github.com/jianghuife/SpecPilot/blob/master/img/qq.jpg" width="120" height="120"><br>
       <b>QQ</b>
     </td>
   </tr>
