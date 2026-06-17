@@ -202,6 +202,22 @@ describe('skills', () => {
       expect(allContent).toContain('Effect Events are not stable dependency values');
       expect(allContent).toContain('hidden Activity subtrees still receive lower-priority updates');
     });
+
+    it('keeps optional skills free of consuming-project-specific guidance', async () => {
+      const assetsDir = getAssetsDir();
+      const optionalSkillsDir = path.join(assetsDir, 'optional_skills');
+      const files = await collectMarkdownFiles(optionalSkillsDir);
+      const forbiddenProjectSpecificTerms =
+        /\b(?:this project|this repository)\b|ai-rules\.md|infro-workspace|src\/copy\.ts|@tanstack\/react-query|useCurrentUser\(\)/i;
+
+      for (const file of files) {
+        const content = await fs.readFile(file, 'utf-8');
+        expect(
+          content,
+          `${path.relative(optionalSkillsDir, file)} should not include consuming-project-specific guidance`,
+        ).not.toMatch(forbiddenProjectSpecificTerms);
+      }
+    });
   });
 
   describe('createWorkingDirs', () => {

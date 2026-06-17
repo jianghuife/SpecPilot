@@ -13,9 +13,9 @@ Use this skill for Zustand state design, store implementation, selectors, middle
 
 - Use Zustand only for shared cross-component, cross-route, or non-React state. Keep component-local state in React.
 - Prefer typed `create<State>()((set, get) => ({ ... }))`.
-- Keep store actions as setters only in this repository.
+- Prefer simple setter actions unless domain behavior needs a richer action.
 - Put API calls and business orchestration in hooks or services, then call store setters.
-- Never import antd UI APIs or React components into stores.
+- Never import UI framework APIs or React components into stores.
 - Keep state updates immutable. `set` shallow-merges only one level.
 - For object, array, Map, or Set updates, create new references.
 - Use narrow selectors. Primitives, and stored object/array references, don't need `useShallow`.

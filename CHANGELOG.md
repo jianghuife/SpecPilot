@@ -2,6 +2,16 @@
 
 All notable changes to specpilot-ai will be documented in this file.
 
+## What's Changed [0.3.12] - 2026-06-17
+
+### Changed
+
+- **Optional skill distribution**: Removed consuming-project-specific assumptions from the bundled Zustand optional skill so shared installs no longer inherit local data-layer, UI-library, or test-runner conventions.
+
+### Tests
+
+- **Optional skill distribution coverage**: Added cross-skill regression coverage that rejects project-specific guidance in distributable optional skill files.
+
 ## What's Changed [0.3.11] - 2026-06-17
 
 ### Changed
