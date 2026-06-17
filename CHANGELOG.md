@@ -4,6 +4,12 @@ All notable changes to specpilot-ai will be documented in this file.
 
 ## What's Changed [0.3.12] - 2026-06-17
 
+### Added
+
+- **Redux Toolkit optional skill**: Added Redux Toolkit as a selectable optional skill with official Redux and Redux Toolkit guidance for store setup, TypeScript hooks, slices, async logic, RTK Query, entity adapters, and Next.js App Router store handling.
+- **TanStack Query optional skill**: Added TanStack Query as a selectable optional skill with official guidance for stable query clients, query keys, query functions, query options, dependent queries, mutation invalidation, optimistic updates, server rendering, and test isolation.
+- **VitePlus optional skill**: Added VitePlus as a selectable optional skill with official Vite+ workflow guidance for project creation, migration, package management, runtime management, static checks, tests, builds, task execution, monorepos, and CI.
+
 ### Changed
 
 - **Optional skill distribution**: Removed consuming-project-specific assumptions from the bundled Zustand optional skill so shared installs no longer inherit local data-layer, UI-library, or test-runner conventions.
@@ -11,6 +17,9 @@ All notable changes to specpilot-ai will be documented in this file.
 ### Tests
 
 - **Optional skill distribution coverage**: Added cross-skill regression coverage that rejects project-specific guidance in distributable optional skill files.
+- **Redux Toolkit optional skill coverage**: Added regression coverage for Redux optional skill installation and official Redux Toolkit decision points.
+- **TanStack Query optional skill coverage**: Added regression coverage for TanStack Query optional skill installation and official TanStack Query decision points.
+- **VitePlus optional skill coverage**: Added regression coverage for VitePlus optional skill installation and official Vite+ workflow decision points.
 
 ## What's Changed [0.3.11] - 2026-06-17
 

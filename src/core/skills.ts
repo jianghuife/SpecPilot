@@ -28,7 +28,14 @@ type Manifest = {
   languages?: LanguageConfig[];
 };
 
-type OptionalSkillId = 'antd' | 'typescript' | 'react' | 'zustand';
+type OptionalSkillId =
+  | 'antd'
+  | 'typescript'
+  | 'react'
+  | 'zustand'
+  | 'redux'
+  | 'tanstack-query'
+  | 'viteplus';
 
 type OptionalSkill = {
   id: OptionalSkillId;
@@ -52,6 +59,21 @@ const OPTIONAL_SKILLS: OptionalSkill[] = [
     id: 'zustand',
     label: 'Zustand best practices',
     directory: 'zustand-best-practices',
+  },
+  {
+    id: 'redux',
+    label: 'Redux Toolkit best practices',
+    directory: 'redux-toolkit',
+  },
+  {
+    id: 'tanstack-query',
+    label: 'TanStack Query best practices',
+    directory: 'tanstack-query',
+  },
+  {
+    id: 'viteplus',
+    label: 'Vite+ workflow best practices',
+    directory: 'viteplus',
   },
 ];
 
