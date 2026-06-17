@@ -2,7 +2,7 @@ import { execFileSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { PLATFORMS } from './platforms.js';
+import { PLATFORMS, getPlatformSkillsDir } from './platforms.js';
 import { printCommandErrorDetails } from './command-error.js';
 
 import type { InstallScope } from './types.js';
@@ -162,8 +162,8 @@ async function ensureOpenSpecCli(scope: InstallScope, projectPath: string): Prom
   try {
     const npmArgs =
       scope === 'global'
-        ? ['install', '-g', '@fission-ai/openspec@latest']
-        : ['install', '@fission-ai/openspec@latest'];
+        ? ['install', '-g', '@fission-ai/openspec@latest', '--legacy-peer-deps']
+        : ['install', '@fission-ai/openspec@latest', '--legacy-peer-deps'];
     execFileSync(getNpmExecutable(), npmArgs, {
       cwd: projectPath,
       stdio: 'inherit',
@@ -233,6 +233,36 @@ function migrateOpenCodeOpenSpecPaths(homeDir: string): void {
   }
 }
 
+function migrateAntigravityOpenSpecPaths(baseDir: string, scope: InstallScope): void {
+  const antigravity = PLATFORMS.find((p) => p.id === 'antigravity');
+  if (!antigravity) return;
+
+  // OpenSpec hardcodes skillsDir as '.agent' (singular) for Antigravity, so it
+  // writes its skills/workflows to .agent/. Antigravity actually reads from
+  // .agents/ (Comet's skillsDir). Without this, an init leaves a confusing split
+  // between Comet's .agents/ and OpenSpec's .agent/. Consolidate into the dir
+  // Antigravity reads.
+  const wrongDir = path.join(baseDir, '.agent');
+  const correctDir = path.join(baseDir, getPlatformSkillsDir(antigravity, scope));
+  if (wrongDir === correctDir) return;
+  if (!fs.existsSync(wrongDir)) return;
+
+  try {
+    const entries = fs.readdirSync(wrongDir);
+    for (const entry of entries) {
+      const srcPath = path.join(wrongDir, entry);
+      const destPath = path.join(correctDir, entry);
+      fs.mkdirSync(path.dirname(destPath), { recursive: true });
+      fs.cpSync(srcPath, destPath, { recursive: true, force: true });
+    }
+    fs.rmSync(wrongDir, { recursive: true, force: true });
+  } catch (error) {
+    console.error(
+      `    Warning: failed to consolidate OpenSpec Antigravity files from ${wrongDir} to ${correctDir}: ${(error as Error).message}`,
+    );
+  }
+}
+
 async function installOpenSpec(
   projectPath: string,
   toolIds: string[],
@@ -241,7 +271,7 @@ async function installOpenSpec(
   const cliReady = await ensureOpenSpecCli(scope, projectPath);
   if (!cliReady) {
     console.error(
-      `    OpenSpec CLI not available. Install manually: npm install -g @fission-ai/openspec@latest`,
+      `    OpenSpec CLI not available. Install manually: npm install -g @fission-ai/openspec@latest --legacy-peer-deps`,
     );
     return 'failed';
   }
@@ -295,6 +325,10 @@ async function installOpenSpec(
       migrateOpenCodeOpenSpecPaths(os.homedir());
     }
 
+    if (toolIds.includes('antigravity')) {
+      migrateAntigravityOpenSpecPaths(scope === 'global' ? os.homedir() : projectPath, scope);
+    }
+
     return 'installed';
   } catch (error) {
     console.error(`    OpenSpec init failed: ${(error as Error).message}`);
@@ -314,4 +348,5 @@ export {
   buildOpenSpecInitInvocation,
   getNpmExecutable,
   migrateOpenCodeOpenSpecPaths,
+  migrateAntigravityOpenSpecPaths,
 };

@@ -15,6 +15,7 @@ import {
 } from '../core/skills.js';
 import { installOpenSpec } from '../core/openspec.js';
 import { installSuperpowersForPlatforms } from '../core/superpowers.js';
+import { canonicalizePlatformSkills } from '../core/canonical-skills.js';
 import { installCodegraph } from '../core/codegraph.js';
 import { installUnderstandAnythingForPlatforms } from '../core/understand-anything.js';
 import { printVersionInfo } from '../core/version.js';
@@ -468,6 +469,18 @@ export async function initCommand(targetPath: string, options: InitOptions = {})
     }
   } else {
     log('\n  Understand Anything: skipped');
+  }
+
+  // Consolidate every platform's skills into the canonical `.agents/skills` store
+  // and replace per-skill entries with symlinks. Runs after all installers
+  // (OpenSpec, Superpowers, Comet/optional copies, Understand) have written.
+  let totalLinked = 0;
+  for (const platform of selectedPlatforms) {
+    const { linked } = await canonicalizePlatformSkills(baseDir, platform, scope);
+    totalLinked += linked;
+  }
+  if (totalLinked > 0) {
+    log(`\n  Canonical skills: ${totalLinked} skill(s) linked into ${baseDir}/.agents/skills/`);
   }
 
   if (scope === 'project') {
