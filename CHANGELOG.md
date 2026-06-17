@@ -2,6 +2,16 @@
 
 All notable changes to specpilot-ai will be documented in this file.
 
+## What's Changed [0.3.11] - 2026-06-17
+
+### Changed
+
+- **React best practices skill**: Removed packaged project-specific overrides from the optional React skill so shared installs no longer inherit assumptions from a single consuming project.
+
+### Tests
+
+- **React best practices skill coverage**: Added regression coverage ensuring the optional React skill stays distributable, omits project override files, and preserves Vite script-tag guidance for manually authored scripts.
+
 ## What's Changed [0.3.10] - 2026-06-16
 
 ### Added
@@ -83,7 +93,7 @@ All notable changes to specpilot-ai will be documented in this file.
 - **OpenSpec per-artifact instructions compliance**: Chinese and English `comet-open` now apply OpenSpec per-artifact instructions (`openspec instructions proposal/design/tasks --change "<name>" --json`) for each standard artifact, loading `context`, `rules`, `template`, `instruction`, `resolvedOutputPath`, and `dependencies` from the JSON payload instead of hard-coded artifact prose. Stops artifact generation on instruction failure rather than silently bypassing project rules ([#66](https://github.com/jianghuife/SpecPilot/issues/66)).
 - **CI Windows path escaping in skill verification**: The `init-e2e` workflow's Pi settings verification step interpolated a Windows `$RUNNER_TEMP` path (containing backslashes) directly into a `node -e "require('...')"` JS string literal, where `\a`/`\_` were parsed as escape characters and mangled the path (`D:\a\_temp` → `D:a_temp`), failing the `init-e2e (windows-latest)` runners on Node 20 and 22. The path is now passed via an environment variable (`process.env`) so it never enters a JS string literal; Linux/macOS were unaffected.
 - **OpenSpec source formatting**: Re-formatted `src/core/openspec.ts` (long-line wrapping) to satisfy `prettier --check`, unblocking the `format:check` CI step.
-- **Symlink-safe removal during uninstall**: `removeFile`/`removeDir` no longer resolve symlinks before deleting. A symlinked skill, rules, or hooks directory previously had its *resolved target* recursively deleted by `specpilot uninstall`; symlinked directories are now unlinked directly. `isDirEmpty` also no longer reports unreadable directories as empty, so cleanup never deletes a directory it could not inspect.
+- **Symlink-safe removal during uninstall**: `removeFile`/`removeDir` no longer resolve symlinks before deleting. A symlinked skill, rules, or hooks directory previously had its _resolved target_ recursively deleted by `specpilot uninstall`; symlinked directories are now unlinked directly. `isDirEmpty` also no longer reports unreadable directories as empty, so cleanup never deletes a directory it could not inspect.
 - **`specpilot update --json` output corruption**: npm's inherited stdio previously interleaved into the JSON document; npm stdout/stderr are now discarded in JSON mode so machine-readable output stays parseable.
 - **`specpilot update --json` no-targets shape**: the early-return JSON emitted when no installed targets exist now includes `codegraph: 'skipped'`, matching the normal output shape so consumers need not special-case the empty path.
 - **JSON-mode version-check latency**: `specpilot init` and `specpilot update` now skip the npm-registry version check in JSON mode, emitting output without a network round-trip.
@@ -301,11 +311,11 @@ All notable changes to specpilot-ai will be documented in this file.
 
 ### New Contributors
 
-* @felanny made their first contribution in #38
-* @Joechan11 made their first contribution in #44
-* @bevishe made their first contribution in #47
-* @kathy32 made their first contribution in #39
-* @gleami made their first contribution in #46
+- @felanny made their first contribution in #38
+- @Joechan11 made their first contribution in #44
+- @bevishe made their first contribution in #47
+- @kathy32 made their first contribution in #39
+- @gleami made their first contribution in #46
 
 ## What's Changed [0.3.3] - 2026-05-27
 

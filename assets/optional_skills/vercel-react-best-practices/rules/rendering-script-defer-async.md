@@ -16,6 +16,10 @@ Script tags without `defer` or `async` block HTML parsing while the script downl
 
 Use `defer` for scripts that depend on DOM or other scripts. Use `async` for independent scripts like analytics.
 
+In Vite SPAs, generated module scripts are handled by Vite. Still apply this rule
+to any manually authored third-party or local `<script>` tags in `index.html` or
+other HTML that the app injects.
+
 **Incorrect (blocks rendering in `index.html`):**
 
 ```html

@@ -10,8 +10,6 @@ consume the same source.
 - `SKILL.md` — Claude Code entry. Loaded by the `Skill` tool.
 - `AGENTS.md` — Codex entry. The full compiled rule set in one guide.
 - `rules/<area>-<topic>.md` — Individual rules, grouped by area prefix.
-- `project-overrides.md` — Local exceptions for **infro-workspace**. Read this
-  before applying any rule.
 
 ## Areas
 
@@ -56,9 +54,9 @@ Reference: ...
 - Reviewing code for performance issues
 - Refactoring existing React SPA code
 
-Always cross-check `project-overrides.md` first — this project uses **antd 6**,
-**Less (no Tailwind)**, **React Router v6**, and Vite SPA conventions. Some
-upstream rules do not apply or need adjustment.
+Apply these rules together with the consuming project's own agent instructions,
+framework choices, styling conventions, and dependency policies. Project-specific
+exceptions should live in that project, not in this distributable skill.
 
 ## Provenance
 
