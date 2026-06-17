@@ -99,7 +99,7 @@ describe('openspec', () => {
         throw new Error('not found');
       });
       const error = new Error(
-        'Command failed: npm install @fission-ai/openspec@latest',
+        'Command failed: npm install @fission-ai/openspec@latest --legacy-peer-deps',
       ) as Error & {
         stderr?: Buffer;
         stdout?: Buffer;
@@ -521,6 +521,45 @@ describe('openspec', () => {
       expect(result).toBe('installed');
 
       homedirSpy.mockRestore();
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it('consolidates OpenSpec .agent/ into Antigravity .agents/ for project scope', async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'comet-antigravity-test-'));
+      const wrongDir = path.join(tmpDir, '.agent');
+      const correctDir = path.join(tmpDir, '.agents');
+
+      // Comet already wrote its own skills into .agents/
+      fs.mkdirSync(path.join(correctDir, 'skills', 'comet'), { recursive: true });
+      fs.writeFileSync(path.join(correctDir, 'skills', 'comet', 'SKILL.md'), 'comet skill');
+
+      // OpenSpec wrote its workflows/skills into the singular .agent/
+      fs.mkdirSync(path.join(wrongDir, 'workflows'), { recursive: true });
+      fs.writeFileSync(path.join(wrongDir, 'workflows', 'opsx-propose.md'), 'propose workflow');
+
+      const { migrateAntigravityOpenSpecPaths } = await import('../../src/core/openspec.js');
+      migrateAntigravityOpenSpecPaths(tmpDir, 'project');
+
+      // Comet's existing skills are preserved, OpenSpec's files are merged in,
+      // and the confusing singular .agent/ is removed.
+      expect(fs.readFileSync(path.join(correctDir, 'skills', 'comet', 'SKILL.md'), 'utf-8')).toBe(
+        'comet skill',
+      );
+      expect(
+        fs.readFileSync(path.join(correctDir, 'workflows', 'opsx-propose.md'), 'utf-8'),
+      ).toBe('propose workflow');
+      expect(fs.existsSync(wrongDir)).toBe(false);
+
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it('is a no-op when no .agent/ directory exists', async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'comet-antigravity-test-'));
+
+      const { migrateAntigravityOpenSpecPaths } = await import('../../src/core/openspec.js');
+      expect(() => migrateAntigravityOpenSpecPaths(tmpDir, 'project')).not.toThrow();
+      expect(fs.existsSync(path.join(tmpDir, '.agents'))).toBe(false);
+
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
   });
