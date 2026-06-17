@@ -33,20 +33,22 @@ Use the language of the user request that triggered this workflow as the default
 **Step 0: Active Change Discovery and Intent Detection**
 
 1. Detect presets first; if hotfix/tweak matches, invoke the corresponding preset skill directly and do not enter the normal open branch
-2. When no preset matches, run `openspec list --json` to get all active changes
+2. When no preset matches, run `resolve` — it discovers active changes and reconciles state in one read-only step (do not hand-derive from `openspec list`):
+
+```bash
+"$COMET_BASH" "$COMET_STATE" resolve            # discovery: 0 / 1 / many active changes
+"$COMET_BASH" "$COMET_STATE" resolve <change>   # resolve a specific change
+```
+
+Follow the `ACTION` it prints:
+- `dispatch` → invoke the named `SKILL` (e.g. `/comet-open` when there is no active change).
+- `resolve` → a change is selected; continue to Step 1/Step 2 for that `CHANGE` and invoke the reported `SKILL`. If a `CONFLICT` line is present, run the `SUGGESTED` repair first, then re-run `resolve`. Honor any `NOTE` (e.g. when the user's input describes a NEW change, ask continue-vs-new).
+- `needs_choice` → multiple active changes; ask the user (`PROMPT` + `CHOICES`) via the current platform's user-input mechanism, then `resolve <chosen>`; for a new change, invoke `/comet-open`.
+- `done` → workflow complete.
 
 **Preset detection has highest priority**:
 - User explicitly describes a bug fix / hotfix + meets hotfix conditions → directly invoke `/comet-hotfix`
 - User explicitly describes copy/config/docs/prompt small adjustment + meets tweak conditions → directly invoke `/comet-tweak`
-- No preset match → follow the table below
-
-| Active changes | User input | Behavior |
-|----------------|------------|----------|
-| None | non-preset input | → Invoke `/comet-open` |
-| Exactly 1 | `/comet <description>` | → **Ask**: continue this change or create a new change |
-| Multiple | `/comet <description>` | → **Ask**: continue existing or create new; if continuing, list changes for selection |
-| Exactly 1 | `/comet` with no description | → Auto-select, enter Step 1 |
-| Multiple | `/comet` with no description | → List changes for user selection |
 
 <IMPORTANT>
 When the user chooses "create a new change", **must invoke `/comet-open`**. Do not call `/opsx:new` directly.
@@ -73,18 +75,15 @@ Prefer reading `openspec/changes/<name>/.comet.yaml`. If not available, fall bac
 - If `phase: open` but proposal/design/tasks are complete, first run `"$COMET_BASH" "$COMET_GUARD" <change-name> open --apply` to repair state, then continue detection
 - If `phase: archive`, only invoke `/comet-archive`; `/comet-archive` must first wait for final archive confirmation. After archive succeeds, the change moves to the archive directory, so do not run guard against the old active directory
 
-**Step 2: Phase Determination** (check in order, first match wins)
+**Step 2: Phase Determination**
+
+`resolve` returns the entry `PHASE` and `SKILL` for the selected change (it ports the routing for verify / build / design / open, workflow-aware). Invoke the `SKILL` it reports. The decision-bearing cases below still apply on top of that:
 
 1. `archived: true` or change moved to archive → Workflow complete
 2. `verify_result: pass` and `archived` is not `true` → Invoke `/comet-archive` (first perform final archive confirmation)
 3. `verify_result: fail` → Enter verification failure decision blocking point (pause and ask fix or accept deviation; only after user chooses fix, run `verify-fail` then `/comet-build`)
-4. `phase: verify` or tasks.md all checked → Invoke `/comet-verify`
-5. `phase: build` or has Design Doc but plan/execution incomplete → Route by workflow: `hotfix` → `/comet-hotfix`, `tweak` → `/comet-tweak`, `full` → `/comet-build`
-6. `phase: design` or has change but no Design Doc → Invoke `/comet-design`
-7. `phase: open` or active change exists but `.comet.yaml` is missing → Invoke `/comet-open`
-8. No active change → Invoke `/comet-open`
 
-If metadata conflicts with file state, use verifiable file state as source of truth and correct `.comet.yaml` before continuing.
+If metadata conflicts with file state, `resolve` emits `CONFLICT` + `SUGGESTED`; run the suggested (validated) repair, then re-run `resolve`. The verifiable file state remains the source of truth.
 
 ### Preset Upgrade Criteria
 

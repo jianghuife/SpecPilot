@@ -212,3 +212,110 @@ teardown() {
   run bash "$SCRIPT_PATH" scale
   [ "$status" -ne 0 ]
 }
+
+# --- resolve subcommand ---
+
+@test "resolve dispatches to comet-open when no active change" {
+  run bash "$SCRIPT_PATH" resolve
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ACTION: dispatch"* ]]
+  [[ "$output" == *"SKILL: comet-open"* ]]
+}
+
+@test "resolve discovers a single active change and notes the new-change ambiguity" {
+  bash "$SCRIPT_PATH" init feat-a full
+  run bash "$SCRIPT_PATH" resolve
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ACTION: resolve"* ]]
+  [[ "$output" == *"CHANGE: feat-a"* ]]
+  [[ "$output" == *"NOTE: single active change"* ]]
+}
+
+@test "resolve with explicit change does not emit the discovery note" {
+  bash "$SCRIPT_PATH" init feat-a full
+  run bash "$SCRIPT_PATH" resolve feat-a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ACTION: resolve"* ]]
+  [[ "$output" != *"NOTE: single active change"* ]]
+}
+
+@test "resolve maps phase=build to comet-build for full workflow" {
+  bash "$SCRIPT_PATH" init feat-a full
+  bash "$SCRIPT_PATH" set feat-a phase build
+  run bash "$SCRIPT_PATH" resolve feat-a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PHASE: build"* ]]
+  [[ "$output" == *"SKILL: comet-build"* ]]
+}
+
+@test "resolve maps phase=build to comet-hotfix for hotfix workflow" {
+  bash "$SCRIPT_PATH" init fix-1 hotfix
+  bash "$SCRIPT_PATH" set fix-1 phase build
+  run bash "$SCRIPT_PATH" resolve fix-1
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"SKILL: comet-hotfix"* ]]
+}
+
+@test "resolve routes to comet-verify when all tasks are checked" {
+  bash "$SCRIPT_PATH" init feat-a full
+  bash "$SCRIPT_PATH" set feat-a phase build
+  printf -- '- [x] task one\n- [x] task two\n' > openspec/changes/feat-a/tasks.md
+  run bash "$SCRIPT_PATH" resolve feat-a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"PHASE: verify"* ]]
+  [[ "$output" == *"SKILL: comet-verify"* ]]
+}
+
+@test "resolve routes to comet-archive when verify_result is pass" {
+  bash "$SCRIPT_PATH" init feat-a full
+  bash "$SCRIPT_PATH" set feat-a verify_result pass
+  run bash "$SCRIPT_PATH" resolve feat-a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"SKILL: comet-archive"* ]]
+}
+
+@test "resolve flags the verify-fail decision point" {
+  bash "$SCRIPT_PATH" init feat-a full
+  bash "$SCRIPT_PATH" set feat-a verify_result fail
+  run bash "$SCRIPT_PATH" resolve feat-a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"SKILL: comet-build"* ]]
+  [[ "$output" == *"verify-fail decision point"* ]]
+}
+
+@test "resolve emits CONFLICT and SUGGESTED when open phase but artifacts complete" {
+  bash "$SCRIPT_PATH" init feat-a full
+  printf 'x' > openspec/changes/feat-a/proposal.md
+  printf 'x' > openspec/changes/feat-a/design.md
+  printf 'x' > openspec/changes/feat-a/tasks.md
+  run bash "$SCRIPT_PATH" resolve feat-a
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"CONFLICT: phase=open but open-phase artifacts already complete"* ]]
+  [[ "$output" == *"SUGGESTED: comet-guard.sh feat-a open --apply"* ]]
+}
+
+@test "resolve reports done for an archived change" {
+  mkdir -p openspec/changes/archive/feat-old
+  run bash "$SCRIPT_PATH" resolve feat-old
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ACTION: done"* ]]
+}
+
+@test "resolve bubbles up needs_choice for multiple active changes" {
+  bash "$SCRIPT_PATH" init feat-a full
+  bash "$SCRIPT_PATH" init feat-b full
+  run bash "$SCRIPT_PATH" resolve
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ACTION: needs_choice"* ]]
+  [[ "$output" == *"CHOICES: "* ]]
+  [[ "$output" == *"feat-a"* ]]
+  [[ "$output" == *"feat-b"* ]]
+}
+
+@test "resolve sends an active change without .comet.yaml back to comet-open" {
+  mkdir -p openspec/changes/feat-c
+  run bash "$SCRIPT_PATH" resolve feat-c
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"SKILL: comet-open"* ]]
+  [[ "$output" == *"without .comet.yaml"* ]]
+}
