@@ -11,6 +11,7 @@
 #   check <change-name> <phase> --recover — Output structured recovery context for compaction resume
 #   scale <change-name>             — Assess and set verification mode based on metrics
 #   task-checkoff <file> <task-text> — Verify one unique task is checked
+#   resolve [change-name]           — Entry-point phase detection / dispatch (read-only)
 #
 # Workflows: full, hotfix, tweak
 # Phases for check: open, design, build, verify, archive
@@ -1153,6 +1154,165 @@ cmd_next() {
   fi
 }
 
+# --- resolve: entry-point phase detection (read-only) ---
+
+# Map the (current) phase + workflow to the skill that owns the build phase.
+skill_for_build() {
+  case "$1" in
+    hotfix) echo "comet-hotfix" ;;
+    tweak) echo "comet-tweak" ;;
+    *) echo "comet-build" ;;
+  esac
+}
+
+# List active change names: subdirectories of openspec/changes/ excluding archive/.
+# Filesystem-based (no openspec list / jq dependency). Skips invalid names.
+list_active_changes() {
+  local base="openspec/changes"
+  [ -d "$base" ] || return 0
+  local d name
+  for d in "$base"/*/; do
+    [ -d "$d" ] || continue
+    name=$(basename "$d")
+    [ "$name" = "archive" ] && continue
+    case "$name" in
+      *[!a-zA-Z0-9_-]*) continue ;;
+    esac
+    echo "$name"
+  done
+}
+
+# Resolve a single change to PHASE + SKILL (read-only). Ports SKILL.md Step 2
+# ordered determination (first match wins). Emits CONFLICT + SUGGESTED when
+# .comet.yaml disagrees with file-state, instead of rewriting (keeps state-machine
+# validation in transition/guard).
+resolve_single() {
+  local change_name="$1"
+  local discovery_note="${2:-}"
+
+  validate_change_name "$change_name"
+
+  # Archived: directory moved under archive/ → workflow complete.
+  if [ -d "openspec/changes/archive/$change_name" ]; then
+    echo "ACTION: done"
+    echo "CHANGE: $change_name"
+    echo "REASON: change is archived"
+    return 0
+  fi
+
+  local change_dir="openspec/changes/$change_name"
+  local yaml_file="$change_dir/.comet.yaml"
+
+  # Active change without .comet.yaml → (re)initialize via comet-open.
+  if [ ! -f "$yaml_file" ]; then
+    echo "ACTION: resolve"
+    echo "CHANGE: $change_name"
+    echo "PHASE: open"
+    echo "SKILL: comet-open"
+    echo "REASON: active change without .comet.yaml; (re)initialize"
+    [ -n "$discovery_note" ] && echo "NOTE: single active change; if the user described a NEW change, ask continue-vs-new"
+    return 0
+  fi
+
+  local phase workflow archived verify_result
+  phase=$(cmd_get "$change_name" "phase" 2>/dev/null || true)
+  workflow=$(cmd_get "$change_name" "workflow" 2>/dev/null || true)
+  archived=$(cmd_get "$change_name" "archived" 2>/dev/null || true)
+  verify_result=$(cmd_get "$change_name" "verify_result" 2>/dev/null || true)
+
+  if [ "$archived" = "true" ]; then
+    echo "ACTION: done"
+    echo "CHANGE: $change_name"
+    echo "REASON: archived"
+    return 0
+  fi
+
+  # File-derived signals for reconciliation.
+  local proposal="$change_dir/proposal.md"
+  local design="$change_dir/design.md"
+  local tasks="$change_dir/tasks.md"
+  local tasks_total tasks_done tasks_all_checked=0
+  tasks_total=$(grep -c '^[[:space:]]*- \[' "$tasks" 2>/dev/null || true)
+  tasks_done=$(grep -c '^[[:space:]]*- \[[xX]\]' "$tasks" 2>/dev/null || true)
+  tasks_total=${tasks_total:-0}
+  tasks_done=${tasks_done:-0}
+  if [ "$tasks_total" -gt 0 ] && [ "$tasks_total" -eq "$tasks_done" ]; then
+    tasks_all_checked=1
+  fi
+
+  local rphase="" skill="" reason="" conflict="" suggested=""
+  if [ "$verify_result" = "pass" ]; then
+    rphase="archive"; skill="comet-archive"
+    reason="verify_result=pass; final archive confirmation required"
+  elif [ "$verify_result" = "fail" ]; then
+    rphase="build"; skill=$(skill_for_build "$workflow")
+    reason="verify_result=fail; verify-fail decision point (ask fix or accept) before resuming build"
+  elif [ "$phase" = "verify" ] || [ "$tasks_all_checked" = "1" ]; then
+    rphase="verify"; skill="comet-verify"
+    reason="phase=verify or all tasks checked"
+  elif [ "$phase" = "archive" ]; then
+    rphase="archive"; skill="comet-archive"
+    reason="phase=archive"
+  elif [ "$phase" = "build" ]; then
+    rphase="build"; skill=$(skill_for_build "$workflow")
+    reason="phase=build"
+  elif [ "$phase" = "design" ]; then
+    rphase="design"; skill="comet-design"
+    reason="phase=design"
+  elif [ "$phase" = "open" ]; then
+    rphase="open"; skill="comet-open"; reason="phase=open"
+    # Conflict: open phase but open artifacts already complete → suggest repair.
+    if file_nonempty "$proposal" && { [ "$workflow" != "full" ] || file_nonempty "$design"; } && file_nonempty "$tasks"; then
+      conflict="phase=open but open-phase artifacts already complete"
+      suggested="comet-guard.sh $change_name open --apply"
+    fi
+  else
+    rphase="open"; skill="comet-open"
+    reason="unrecognized phase '${phase:-null}'; restart from open"
+  fi
+
+  echo "ACTION: resolve"
+  echo "CHANGE: $change_name"
+  echo "PHASE: $rphase"
+  echo "SKILL: $skill"
+  echo "REASON: $reason"
+  [ -n "$conflict" ] && echo "CONFLICT: $conflict"
+  [ -n "$suggested" ] && echo "SUGGESTED: $suggested"
+  [ -n "$discovery_note" ] && echo "NOTE: single active change; if the user described a NEW change, ask continue-vs-new"
+  return 0
+}
+
+# Entry-point resolver. With no change arg, discovers active changes and either
+# dispatches (0), resolves the single one (1), or bubbles up a choice (>=2).
+cmd_resolve() {
+  if [ $# -ge 1 ] && [ -n "${1:-}" ]; then
+    resolve_single "$1"
+    return 0
+  fi
+
+  local active=()
+  local c
+  while IFS= read -r c; do
+    [ -n "$c" ] && active+=("$c")
+  done < <(list_active_changes)
+
+  local count=${#active[@]}
+  if [ "$count" -eq 0 ]; then
+    echo "ACTION: dispatch"
+    echo "SKILL: comet-open"
+    echo "REASON: no active change"
+  elif [ "$count" -eq 1 ]; then
+    resolve_single "${active[0]}" "discovery"
+  else
+    local joined
+    joined=$(IFS=,; echo "${active[*]}")
+    echo "ACTION: needs_choice"
+    echo "CHOICES: $joined"
+    echo "PROMPT: multiple active changes — continue one or create a new change"
+  fi
+  return 0
+}
+
 # --- Main ---
 
 SUBCOMMAND="${1:-}"
@@ -1223,6 +1383,9 @@ case "$SUBCOMMAND" in
     fi
     cmd_next "$@"
     ;;
+  resolve)
+    cmd_resolve "$@"
+    ;;
   *)
     red "Unknown subcommand: $SUBCOMMAND" >&2
     echo "" >&2
@@ -1237,6 +1400,7 @@ case "$SUBCOMMAND" in
     echo "  scale <change-name>             — Assess and set verification mode based on metrics" >&2
     echo "  task-checkoff <file> <task-text> — Verify one unique task is checked" >&2
     echo "  next <change-name>              — Resolve the next workflow step (auto/manual/done)" >&2
+    echo "  resolve [change-name]           — Entry-point phase detection / dispatch (read-only)" >&2
     echo "" >&2
     echo "Workflows: full, hotfix, tweak" >&2
     echo "Phases for check: open, design, build, verify, archive" >&2

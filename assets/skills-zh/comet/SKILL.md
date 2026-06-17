@@ -33,20 +33,22 @@ agent 做决策只需读本节，参考附录按需查阅。
 **Step 0: 活跃 Change 发现与意图判定**
 
 1. 先做 Preset 检测；命中 hotfix/tweak 时直接调用对应 preset skill，不进入普通 open 分支
-2. 未命中 preset 时，运行 `openspec list --json` 获取所有活跃 change
+2. 未命中 preset 时，运行 `resolve` —— 它一步完成活跃 change 发现与状态调和（只读，不要再手动从 `openspec list` 推导）：
+
+```bash
+"$COMET_BASH" "$COMET_STATE" resolve            # 发现：0 / 1 / 多个活跃 change
+"$COMET_BASH" "$COMET_STATE" resolve <change>   # 解析指定 change
+```
+
+按它输出的 `ACTION` 执行：
+- `dispatch` → 调用输出的 `SKILL`（无活跃 change 时即 `/comet-open`）。
+- `resolve` → 已选定 change；按其 `CHANGE` 进入 Step 1/Step 2 并调用输出的 `SKILL`。若有 `CONFLICT` 行，先运行 `SUGGESTED` 修复命令再重跑 `resolve`。遵守 `NOTE`（如用户输入描述的是新变更，先询问继续还是新建）。
+- `needs_choice` → 存在多个活跃 change；用当前平台的用户输入机制询问用户（`PROMPT` + `CHOICES`），再 `resolve <选中>`；若创建新变更则调用 `/comet-open`。
+- `done` → 流程已完成。
 
 **Preset 检测优先级最高**：
 - 用户明确描述为 bug fix / 热修复 + 满足 hotfix 条件 → 直接 `/comet-hotfix`
 - 用户明确描述为文案/配置/文档/prompt 小调整 + 满足 tweak 条件 → 直接 `/comet-tweak`
-- 未命中 preset → 按下表处理
-
-| 活跃 change | 用户输入 | 行为 |
-|-------------|---------|------|
-| 无 | 非 preset 输入 | → 调用 `/comet-open` |
-| 恰好 1 个 | `/comet <描述>` | → **询问**：继续该变更 or 创建新变更 |
-| 多个 | `/comet <描述>` | → **询问**：继续现有变更 or 创建新变更；若选继续 → 列出清单让用户选择 |
-| 恰好 1 个 | `/comet`（无描述） | → 自动选中，进入 Step 1 |
-| 多个 | `/comet`（无描述） | → 列出清单让用户选择 |
 
 <IMPORTANT>
 当用户选择「创建新变更」时，**必须调用 `/comet-open`**（禁止直接调用 `/opsx:new`）。
@@ -73,18 +75,15 @@ agent 做决策只需读本节，参考附录按需查阅。
 - 若 `phase: open` 但 proposal/design/tasks 已完整，先运行 `"$COMET_BASH" "$COMET_GUARD" <change-name> open --apply` 修正状态，再继续判定
 - 若 `phase: archive`，只允许调用 `/comet-archive`；`/comet-archive` 必须先等待归档前最终确认，归档成功后 change 会移动到 archive 目录，不再对原活跃目录运行 guard
 
-**Step 2: 阶段判定**（按顺序，命中即停）
+**Step 2: 阶段判定**
+
+`resolve` 已返回选定 change 的入口 `PHASE` 和 `SKILL`（按 workflow 移植了 verify / build / design / open 的路由）。调用它输出的 `SKILL` 即可。下列决策性情形在此之上仍然适用：
 
 1. `archived: true` 或 change 已移入 archive → 流程已完成
 2. `verify_result: pass` 且 `archived` 不是 `true` → `/comet-archive`（先进行归档前最终确认）
 3. `verify_result: fail` → 进入验证失败决策阻塞点（暂停询问修复或接受偏差；用户选择修复后才 `verify-fail` 并 `/comet-build`）
-4. `phase: verify` 或 tasks.md 全部勾选 → `/comet-verify`
-5. `phase: build` 或已有 Design Doc 但计划/执行未完成 → 优先按 workflow 路由：`hotfix` → `/comet-hotfix`，`tweak` → `/comet-tweak`，`full` → `/comet-build`
-6. `phase: design` 或有 change 但无 Design Doc → `/comet-design`
-7. `phase: open` 或有活跃 change 但 `.comet.yaml` 缺失 → `/comet-open`
-8. 无活跃 change → `/comet-open`
 
-如果元数据与文件状态冲突，以文件状态为准，修正 `.comet.yaml` 后继续。
+如果元数据与文件状态冲突，`resolve` 会输出 `CONFLICT` + `SUGGESTED`；先运行建议的（经校验的）修复命令再重跑 `resolve`。文件状态仍是事实源。
 
 ### 预设升级条件
 
