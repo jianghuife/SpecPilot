@@ -2,7 +2,7 @@
 
 All notable changes to specpilot-ai will be documented in this file.
 
-## What's Changed [0.3.13] - 2026-06-17
+## What's Changed [0.4.0] - 2026-06-17
 
 ### Added
 
