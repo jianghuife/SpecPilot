@@ -9,6 +9,7 @@ import {
   createWorkingDirs,
   copyCometSkillsForPlatform,
   installCometHooksForPlatform,
+  OPTIONAL_SKILLS,
 } from '../../src/core/skills.js';
 import type { Platform } from '../../src/core/platforms.js';
 
@@ -206,17 +207,95 @@ describe('skills', () => {
     it('keeps optional skills free of consuming-project-specific guidance', async () => {
       const assetsDir = getAssetsDir();
       const optionalSkillsDir = path.join(assetsDir, 'optional_skills');
-      const files = await collectMarkdownFiles(optionalSkillsDir);
       const forbiddenProjectSpecificTerms =
-        /\b(?:this project|this repository)\b|ai-rules\.md|infro-workspace|src\/copy\.ts|@tanstack\/react-query|useCurrentUser\(\)/i;
+        /\b(?:this project|this repository)\b|ai-rules\.md|infro-workspace|src\/copy\.ts|useCurrentUser\(\)/i;
 
-      for (const file of files) {
-        const content = await fs.readFile(file, 'utf-8');
-        expect(
-          content,
-          `${path.relative(optionalSkillsDir, file)} should not include consuming-project-specific guidance`,
-        ).not.toMatch(forbiddenProjectSpecificTerms);
+      for (const skill of OPTIONAL_SKILLS) {
+        const files = await collectMarkdownFiles(path.join(optionalSkillsDir, skill.directory));
+        for (const file of files) {
+          const content = await fs.readFile(file, 'utf-8');
+          expect(
+            content,
+            `${path.relative(optionalSkillsDir, file)} should not include consuming-project-specific guidance`,
+          ).not.toMatch(forbiddenProjectSpecificTerms);
+        }
       }
+    });
+
+    it('documents official Redux Toolkit best-practice decision points', async () => {
+      const assetsDir = getAssetsDir();
+      const content = await fs.readFile(
+        path.join(assetsDir, 'optional_skills', 'redux-toolkit', 'SKILL.md'),
+        'utf-8',
+      );
+
+      expect(content).toContain('https://redux.js.org/style-guide');
+      expect(content).toContain('https://redux-toolkit.js.org/usage/usage-with-typescript');
+      expect(content).toContain('configureStore');
+      expect(content).toContain('useDispatch.withTypes<AppDispatch>()');
+      expect(content).toContain('Reducers must stay pure');
+      expect(content).toContain('Do not put non-serializable values in state or actions');
+      expect(content).toContain('Use RTK Query for server-state fetching and caching');
+      expect(content).toContain('Use `createAsyncThunk` for one-shot request workflows');
+      expect(content).toContain('Use listener middleware for reactive logic');
+      expect(content).toContain('Use `createEntityAdapter` for normalized collections');
+      expect(content).toContain('Next.js App Router: create a store per request');
+      expect(content).not.toContain('Adhere to SOLID principles');
+    });
+
+    it('documents official TanStack Query best-practice decision points', async () => {
+      const assetsDir = getAssetsDir();
+      const content = await fs.readFile(
+        path.join(assetsDir, 'optional_skills', 'tanstack-query', 'SKILL.md'),
+        'utf-8',
+      );
+
+      expect(content).toContain(
+        'https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults',
+      );
+      expect(content).toContain(
+        'https://tanstack.com/query/latest/docs/framework/react/guides/query-keys',
+      );
+      expect(content).toContain(
+        'https://tanstack.com/query/latest/docs/framework/react/guides/query-functions',
+      );
+      expect(content).toContain('Create one stable `QueryClient`');
+      expect(content).toContain('Query keys must be top-level arrays');
+      expect(content).toContain('Query functions must return data or throw');
+      expect(content).toContain('Prefer `queryOptions`');
+      expect(content).toContain('Use `enabled` for dependent queries');
+      expect(content).toContain('Invalidate related queries after successful mutations');
+      expect(content).toContain('Use `onMutate` for cache-level optimistic updates');
+      expect(content).toContain('Prefetch, dehydrate, and hydrate for server rendering');
+      expect(content).toContain('Use an isolated `QueryClient` per test');
+      expect(content).not.toContain('Always include React Query DevTools');
+    });
+
+    it('documents official VitePlus workflow decision points', async () => {
+      const assetsDir = getAssetsDir();
+      const content = await fs.readFile(
+        path.join(assetsDir, 'optional_skills', 'viteplus', 'SKILL.md'),
+        'utf-8',
+      );
+
+      expect(content).toContain('https://viteplus.dev/guide/');
+      expect(content).toContain('https://viteplus.dev/guide/create');
+      expect(content).toContain('https://viteplus.dev/guide/migrate');
+      expect(content).toContain('https://viteplus.dev/guide/run');
+      expect(content).toContain('https://viteplus.dev/guide/ci');
+      expect(content).toContain('Vite+ ships in two parts: `vp` and `vite-plus`');
+      expect(content).toContain(
+        'Use `vp create` for new apps, libraries, monorepos, and generators',
+      );
+      expect(content).toContain('Use `vp migrate` for existing projects');
+      expect(content).toContain('Use `vp install`, `vp add`, `vp remove`, and `vp update`');
+      expect(content).toContain('Use `vp env pin` to pin project Node.js');
+      expect(content).toContain('Use `vp check` as the default static verification command');
+      expect(content).toContain('Put test configuration in the `test` block in `vite.config.ts`');
+      expect(content).toContain('Use `vp run <script>` when a package.json script should run');
+      expect(content).toContain('Tasks defined in `vite.config.ts` are cached by default');
+      expect(content).toContain('Use `voidzero-dev/setup-vp` in GitHub Actions');
+      expect(content).not.toContain('Always replace existing scripts');
     });
   });
 
