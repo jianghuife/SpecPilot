@@ -176,6 +176,7 @@ describe('skills', () => {
         })),
       );
       const allContent = contents.map(({ content }) => content).join('\n');
+      const relativeFiles = files.map((file) => path.relative(reactSkillDir, file));
 
       const forbiddenServerTerms =
         /\b(?:SSR|Next\.js|nextjs|Server Components?|React Server|RSC|server actions?|use server|app router|pages router|server bundles?)\b/i;
@@ -192,6 +193,11 @@ describe('skills', () => {
         ).not.toMatch(forbiddenFrameworkComponents);
       }
 
+      expect(relativeFiles).not.toContain('project-overrides.md');
+      expect(allContent).not.toContain('infro-workspace');
+      expect(allContent).not.toContain('ai-rules.md');
+      expect(allContent).not.toContain('src/copy.ts');
+      expect(allContent).toContain('manually authored third-party or local `<script>` tags');
       expect(allContent).toContain('wrap state updates after an awaited async request');
       expect(allContent).toContain('Effect Events are not stable dependency values');
       expect(allContent).toContain('hidden Activity subtrees still receive lower-priority updates');
