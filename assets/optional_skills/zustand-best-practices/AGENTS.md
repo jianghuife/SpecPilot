@@ -2,19 +2,25 @@
 
 **Version 1.0.0**
 Source: Zustand official docs, read on 2026-05-22
-Scope: React + TypeScript Zustand usage for this repository
+Scope: React + TypeScript Zustand usage in SPA projects
 
 ## Positioning
 
-This is the repository's source of truth for Zustand-specific implementation patterns. `ai-rules.md` keeps only architecture-level placement rules.
+Use this guide for Zustand-specific implementation patterns. When a consuming
+project has its own architecture or state-management rules, follow those
+project-local instructions first.
 
 ## When To Use Zustand
 
 Use Zustand for **client-owned** state that is genuinely shared across routes/components or needed outside React. Do not move local UI state into a store just because a store exists.
 
-### Server data belongs to React Query, not Zustand
+### Server data belongs to a server-state cache, not Zustand
 
-This project's data layer is `@tanstack/react-query` (see `ai-rules.md` §2.5). Anything the backend owns and can re-fetch — current user, account info, tenant info, billing, MFA status, preferences fetched from an API — lives in React Query, **not** Zustand. Don't mirror server state into a store. Concretely, even though "user profile visible in multiple routes" sounds like a Zustand fit, it isn't here — `useCurrentUser()` (a `useQuery` hook) already handles it.
+Anything the backend owns and can re-fetch — current user, account info, tenant
+info, billing, MFA status, preferences fetched from an API — belongs in a
+server-state cache such as React Query, SWR, or the consuming app's data layer,
+**not** Zustand. Don't mirror server state into a store just because multiple
+routes need it.
 
 Zustand is for state that has **no server source of truth to refetch from**.
 
@@ -28,14 +34,15 @@ Good fits:
 Poor fits:
 
 - A single modal's open state → component-local `useState`
-- One form's temporary field state → antd `Form`
+- One form's temporary field state → the form library or component-local state
 - Derived values that can be calculated during render → compute it inline
-- API loading state used by one route only → React Query
-- Any data that has a `queryKey` and can be invalidated → React Query
+- API loading state used by one route only → the app's data-fetching layer
+- Any data that can be invalidated and re-fetched → the app's data-fetching layer
 
 ## Store Shape
 
-Use explicit TypeScript state and actions. In this project, actions are simple setters.
+Use explicit TypeScript state and actions. Prefer simple setter actions unless
+domain behavior needs a richer action.
 
 ```ts
 import { create } from "zustand";
@@ -91,7 +98,7 @@ Rules:
 - Keep store files in `src/stores/`.
 - Keep API calls and business orchestration in hooks or services, then call store setters.
 - Do not import UI libraries, route components, or API clients into stores.
-- Never import `message`, `notification`, `Modal`, or other antd UI APIs into stores.
+- Never import notification, modal, toast, or other UI framework APIs into stores.
 - Tiny local persistence for UI preferences is allowed when it stays scoped to that store.
 - Keep `initialState` outside the creator so `reset` can reuse it.
 - Avoid calling `get()` while constructing the initial state. During synchronous initialization it may not contain the finished store.
@@ -273,7 +280,9 @@ Use middleware deliberately, not by default.
 
 ### `persist`
 
-Use for client-side state that must survive reloads. Persist only necessary fields. Prefer `nuqs` for URL state.
+Use for client-side state that must survive reloads. Persist only necessary
+fields. Prefer router search params or a URL-state helper for state that belongs
+in the URL.
 
 ```ts
 import { persist } from "zustand/middleware";
@@ -327,7 +336,7 @@ import { useStore } from "zustand";
 const value = useStore(exampleStore, (state) => state.value);
 ```
 
-For most app-level shared state in this project, prefer the normal hook returned by `create`.
+For most app-level shared state, prefer the normal hook returned by `create`.
 
 ## Testing
 
@@ -343,7 +352,7 @@ For component tests:
 
 - Seed the store before render when needed.
 - Reset stores after each test to prevent leakage.
-- Use the repository's Vitest + happy-dom setup.
+- Use the consuming project's test runner and DOM environment.
 
 ## Review Checklist
 
@@ -351,7 +360,7 @@ When reviewing Zustand code, check:
 
 - Is Zustand the right state tool for this data?
 - Is the store split by domain?
-- Are actions pure setters in this project?
+- Are simple setter actions sufficient, or does the domain need richer actions?
 - Are API calls kept out of stores?
 - Are updates immutable, including nested objects, arrays, Map, and Set?
 - Are selectors narrow?
