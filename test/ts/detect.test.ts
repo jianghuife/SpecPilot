@@ -98,13 +98,16 @@ describe('detect', () => {
       expect(detected.size).toBe(0);
     });
 
-    it('detects Antigravity from the project skills directory', async () => {
+    it('does not auto-detect Antigravity from the canonical .agents store', async () => {
+      // `.agents/skills` is the shared canonical store created for any platform,
+      // so its existence must NOT auto-select Antigravity (which would otherwise
+      // re-select it on every init — the false-detection loop).
       const antigravity = PLATFORMS.find((platform) => platform.id === 'antigravity');
       expect(antigravity?.skillsDir).toBe('.agents');
 
-      await fs.mkdir(path.join(tmpDir, '.agents'));
+      await fs.mkdir(path.join(tmpDir, '.agents', 'skills'), { recursive: true });
       const detected = await detectPlatforms(tmpDir);
-      expect(detected.has('antigravity')).toBe(true);
+      expect(detected.has('antigravity')).toBe(false);
     });
   });
 
