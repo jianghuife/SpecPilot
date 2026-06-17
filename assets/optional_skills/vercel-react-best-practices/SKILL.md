@@ -86,7 +86,7 @@ Reference these guidelines when:
 
 ### 6. JavaScript Performance (LOW-MEDIUM)
 
-- `js-batch-dom-css` - Group CSS changes via classes or cssText
+- `js-batch-dom-css` - Avoid layout thrashing by batching DOM reads and writes
 - `js-index-maps` - Build Map for repeated lookups
 - `js-cache-property-access` - Cache object properties in loops
 - `js-cache-function-results` - Cache function results in module-level Map

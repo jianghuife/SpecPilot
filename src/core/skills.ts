@@ -35,7 +35,8 @@ type OptionalSkillId =
   | 'zustand'
   | 'redux'
   | 'tanstack-query'
-  | 'viteplus';
+  | 'viteplus'
+  | 'fe-architecture';
 
 type OptionalSkill = {
   id: OptionalSkillId;
@@ -74,6 +75,11 @@ const OPTIONAL_SKILLS: OptionalSkill[] = [
     id: 'viteplus',
     label: 'Vite+ workflow best practices',
     directory: 'viteplus',
+  },
+  {
+    id: 'fe-architecture',
+    label: 'Frontend architecture best practices',
+    directory: 'fe-architecture-best-practices',
   },
 ];
 

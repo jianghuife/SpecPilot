@@ -297,6 +297,83 @@ describe('skills', () => {
       expect(content).toContain('Use `voidzero-dev/setup-vp` in GitHub Actions');
       expect(content).not.toContain('Always replace existing scripts');
     });
+
+    it('documents frontend architecture best-practice decision points', async () => {
+      const assetsDir = getAssetsDir();
+      const skillDir = path.join(assetsDir, 'optional_skills', 'fe-architecture-best-practices');
+      const skillContent = await fs.readFile(path.join(skillDir, 'SKILL.md'), 'utf-8');
+      const referenceFiles = [
+        'adr.md',
+        'boundaries.md',
+        'contracts.md',
+        'composition-and-state.md',
+      ];
+      const references = await Promise.all(
+        referenceFiles.map((file) => fs.readFile(path.join(skillDir, 'references', file), 'utf-8')),
+      );
+      const content = [skillContent, ...references].join('\n');
+      const adrReference = references[0];
+
+      expect(content).toContain('Frontend Architecture');
+      expect(content).toContain('frontend architecture only');
+      expect(content).toContain('Default documentation location: `docs/`');
+      expect(content).toContain('docs/adr/NNNN-short-title.md');
+      expect(skillContent.split('\n').length).toBeLessThan(90);
+      expect(skillContent).toContain('references/adr.md');
+      expect(skillContent).toContain('references/boundaries.md');
+      expect(skillContent).toContain('references/contracts.md');
+      expect(skillContent).toContain('references/composition-and-state.md');
+      expect(content).toContain('Use ADRs for important frontend architecture decisions');
+      expect(content).toContain('Document the why, not just the what');
+      expect(content).toContain('Rejected alternatives');
+      expect(adrReference).toContain('Proposed -> Accepted -> Deprecated -> Superseded');
+      expect(adrReference).toContain('Status');
+      expect(adrReference).toContain('Decision Drivers');
+      expect(adrReference).toContain('Considered Options');
+      expect(adrReference).toContain('Rationale');
+      expect(adrReference).toContain('Related Decisions');
+      expect(adrReference).toContain('ADR index');
+      expect(adrReference).toContain('Do not change accepted ADRs');
+      expect(content).toContain('Boundaries must be explicit');
+      expect(content).toContain('ui / features / domain / application / adapters');
+      expect(content).toContain('Ports and Adapters');
+      expect(content).toContain('Feature Slice');
+      expect(content).toContain('Dependency direction is the rule');
+      expect(content).toContain('Inner frontend layers do not import outer details');
+      expect(content).toContain('Domain stays pure');
+      expect(content).toContain('Application/use-case code orchestrates');
+      expect(content).toContain('Ports describe what the frontend needs');
+      expect(content).toContain('Adapters implement those ports');
+      expect(content).toContain(
+        'React, router, fetch, storage, analytics, and state libraries stay outside domain code',
+      );
+      expect(content).toContain('TypeScript types as contracts');
+      expect(content).toContain('Zod / JSON Schema / OpenAPI / GraphQL');
+      expect(content).toContain('DTOs define frontend inputs and outputs');
+      expect(content).toContain('Small units compose better than large files');
+      expect(content).toContain('State must be explicit');
+      expect(content).toContain('Command + Result');
+      expect(content).toContain('React State Ownership');
+      expect(content).toContain(
+        'Do not introduce a server-state library for a few one-off requests',
+      );
+      expect(content).toContain(
+        'If the project already depends on Redux or Redux Toolkit, use Redux for global client state',
+      );
+      expect(content).toContain(
+        'If the project already depends on Zustand, use Zustand for global client state',
+      );
+      expect(content).toContain(
+        'If both Redux and Zustand are present, follow the existing feature-local convention',
+      );
+      expect(content).toContain(
+        'Context is for providers and low-frequency stable values, not a default store',
+      );
+      expect(content).toContain('Global state must prove global necessity');
+      expect(content).not.toContain('database architecture');
+      expect(content).not.toContain('backend framework');
+      expect(content).not.toContain('server-side authentication implementation');
+    });
   });
 
   describe('createWorkingDirs', () => {

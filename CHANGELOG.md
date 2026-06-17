@@ -2,6 +2,25 @@
 
 All notable changes to specpilot-ai will be documented in this file.
 
+## What's Changed [0.3.13] - 2026-06-17
+
+### Added
+
+- **Frontend architecture optional skill**: Added a frontend-only architecture optional skill covering ADRs, explicit boundaries, typed contracts, small composable units, and explicit state patterns for AI-editable frontend codebases.
+
+### Changed
+
+- **Frontend architecture optional skill**: Expanded the frontend Clean Architecture guidance with dependency-direction rules, pure domain boundaries, application/use-case orchestration, and ports/adapters responsibilities.
+- **Frontend architecture optional skill structure**: Split detailed ADR, boundary, contract, composition, and state guidance into reference files so the main skill stays concise while preserving deeper guidance on demand.
+- **Frontend architecture state guidance**: Added React state ownership guidance that prefers existing project state libraries, keeps one-off requests local, and reserves new server-state or global-store dependencies for justified architectural decisions.
+
+### Tests
+
+- **Frontend architecture optional skill coverage**: Added regression coverage for frontend architecture optional skill installation, default docs placement, frontend-only scope, and core architecture patterns.
+- **Frontend Clean Architecture coverage**: Added regression coverage for frontend-specific dependency direction, pure domain code, use-case orchestration, and ports/adapters rules.
+- **Frontend architecture reference coverage**: Added regression coverage for the architecture reference file structure and frontend ADR lifecycle, template, index, and review guidance.
+- **Frontend state ownership coverage**: Added regression coverage for server-state library selection, Redux/Zustand global-state selection, Context usage, and global-state necessity rules.
+
 ## What's Changed [0.3.12] - 2026-06-17
 
 ### Added

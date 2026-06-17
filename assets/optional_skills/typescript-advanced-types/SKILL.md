@@ -81,6 +81,7 @@ type B = IsString<number>; // false
 **Extracting Return Types:**
 
 ```typescript
+// Note: redefines the built-in `ReturnType`; shown for illustration.
 type ReturnType<T> = T extends (...args: any[]) => infer R ? R : never;
 
 function getUser() {
@@ -126,6 +127,7 @@ type T2 = TypeName<() => void>; // "function"
 **Basic Mapped Type:**
 
 ```typescript
+// Note: redefines the built-in `Readonly`; shown for illustration.
 type Readonly<T> = {
   readonly [P in keyof T]: T[P];
 };
@@ -133,6 +135,8 @@ type Readonly<T> = {
 interface User {
   id: number;
   name: string;
+  email: string;
+  password: string;
 }
 
 type ReadonlyUser = Readonly<User>;
@@ -142,12 +146,13 @@ type ReadonlyUser = Readonly<User>;
 **Optional Properties:**
 
 ```typescript
+// Note: redefines the built-in `Partial`; shown for illustration.
 type Partial<T> = {
   [P in keyof T]?: T[P];
 };
 
 type PartialUser = Partial<User>;
-// Type: { id?: number; name?: string; }
+// Type: { id?: number; name?: string; email?: string; password?: string; }
 ```
 
 **Key Remapping:**
@@ -261,6 +266,27 @@ type T3 = NonNullable<string | null | undefined>; // string
 type PageInfo = Record<"home" | "about", { title: string }>;
 ```
 
+### 6. Const Assertions and `satisfies`
+
+**Purpose:** Preserve literal types and validate a value against a type without widening it.
+
+```typescript
+// `as const` preserves literal types and makes the value deeply readonly.
+const routes = ["home", "about", "contact"] as const;
+type Route = (typeof routes)[number]; // "home" | "about" | "contact"
+
+// `satisfies` checks the value against a type but keeps the narrow inferred type.
+type Config = Record<string, { path: string; auth: boolean }>;
+
+const config = {
+  home: { path: "/", auth: false },
+  admin: { path: "/admin", auth: true },
+} satisfies Config;
+
+config.home.auth; // Type: boolean, and `home`/`admin` keys are still known
+// A typo or wrong value shape is caught at the `satisfies` site.
+```
+
 ## Detailed worked examples and patterns
 
 Detailed sections (starting with `## Advanced Patterns`) live in `references/details.md`. Read that file when the navigation summary above is insufficient.
@@ -292,11 +318,12 @@ type Test1 = AssertEqual<string, string>; // true
 type Test2 = AssertEqual<string, number>; // false
 type Test3 = AssertEqual<string | number, string>; // false
 
-// Expect error helper
-type ExpectError<T extends never> = T;
+// Expect helper: asserts a type test resolves to `true`
+type Expect<T extends true> = T;
 
-// Example usage
-type ShouldError = ExpectError<AssertEqual<string, number>>;
+// Passing case compiles; failing case is a compile error.
+type Pass = Expect<AssertEqual<string, string>>; // OK
+// type Fail = Expect<AssertEqual<string, number>>; // Error: `false` is not assignable to `true`
 ```
 
 ## Common Pitfalls

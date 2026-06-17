@@ -235,7 +235,7 @@ If working in an IDE that supports MCP (Claude Desktop, Cursor, etc.), the CLI c
 }
 ```
 
-This provides 7 tools (`antd_list`, `antd_info`, `antd_doc`, `antd_demo`, `antd_token`, `antd_semantic`, `antd_changelog`) and 2 prompts (`antd-expert`, `antd-page-generator`) via MCP protocol.
+This provides 8 tools (`antd_list`, `antd_info`, `antd_doc`, `antd_demo`, `antd_token`, `antd_semantic`, `antd_changelog`, `antd_design_md`) and 2 prompts (`antd-expert`, `antd-page-generator`) via MCP protocol.
 
 ## Global Flags
 

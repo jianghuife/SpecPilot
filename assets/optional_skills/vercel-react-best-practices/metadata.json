@@ -2,7 +2,7 @@
   "version": "1.0.0",
   "organization": "Vercel Engineering",
   "date": "January 2026",
-  "abstract": "Performance optimization guide for React single-page applications, designed for AI agents and LLMs. Contains 50+ rules across 7 categories, prioritized by impact from critical (eliminating waterfalls, reducing bundle size) to incremental (advanced patterns). Each rule includes detailed explanations, real-world examples comparing incorrect vs. correct implementations, and specific impact metrics to guide automated refactoring and code generation.",
+  "abstract": "Performance optimization guide for React single-page applications, designed for AI agents and LLMs. Contains 52 rules across 7 categories, prioritized by impact from critical (eliminating waterfalls, reducing bundle size) to incremental (advanced patterns). Each rule includes detailed explanations, real-world examples comparing incorrect vs. correct implementations, and specific impact metrics to guide automated refactoring and code generation.",
   "references": [
     "https://react.dev",
     "https://github.com/shuding/better-all",
