@@ -3,6 +3,7 @@ import os from 'os';
 
 import { fileExists, readDir, readJson } from '../utils/file-system.js';
 import { PLATFORMS, getPlatformSkillsDirs, type Platform } from './platforms.js';
+import { isCanonicalStoreSkillsDir } from './canonical-skills.js';
 
 import type { InstallScope } from './types.js';
 
@@ -103,6 +104,10 @@ async function detectPlatforms(projectPath: string): Promise<Set<string>> {
       }
     } else {
       for (const skillsDir of getPlatformSkillsDirs(platform, 'project')) {
+        // `.agents` is the canonical skills store shared by all platforms, not an
+        // Antigravity-specific marker. Its existence must not auto-select the
+        // platform that owns it, or every init would re-select Antigravity.
+        if (isCanonicalStoreSkillsDir(skillsDir)) continue;
         const dirPath = path.join(projectPath, skillsDir);
         if (await fileExists(dirPath)) {
           detected.add(platform.id);

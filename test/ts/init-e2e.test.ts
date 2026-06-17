@@ -252,7 +252,9 @@ describe('comet init E2E', () => {
   it('installs Antigravity Comet skills to the Gemini global skills directory', async () => {
     mockExternalSuccess();
 
-    await fs.mkdir(path.join(tmpDir, '.agents'), { recursive: true });
+    // Antigravity is no longer auto-detected from the shared `.agents` canonical
+    // store, so with nothing detected `--yes` selects all platforms (which still
+    // includes antigravity). We assert the antigravity global path mapping holds.
     const fakeHome = path.join(tmpDir, 'fake-home');
     await fs.mkdir(fakeHome, { recursive: true });
 
@@ -263,10 +265,12 @@ describe('comet init E2E', () => {
       initCommand(tmpDir, { yes: true, scope: 'global', json: true }),
     );
 
-    expect(result.selectedPlatforms).toEqual(['antigravity']);
+    expect(result.selectedPlatforms).toContain('antigravity');
 
     const manifest = await readManifest();
     for (const skillPath of manifest.skills) {
+      // After canonicalization the platform path is a symlink into ~/.agents/skills;
+      // fs.access follows symlinks, so the skill is still reachable here.
       const dest = path.join(fakeHome, '.gemini', 'antigravity', 'skills', skillPath);
       await expect(fs.access(dest)).resolves.toBeUndefined();
     }
