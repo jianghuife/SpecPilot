@@ -44,6 +44,8 @@ emitter.emit("user:created", { id: "1", name: "John" });
 ### Pattern 2: Type-Safe API Client
 
 ```typescript
+type User = { id: string; name: string; email: string };
+
 type HTTPMethod = "GET" | "POST" | "PUT" | "DELETE";
 
 type EndpointConfig = {
@@ -102,34 +104,26 @@ const user = await api.request("/users/:id", "GET", {
 ### Pattern 3: Builder Pattern with Type Safety
 
 ```typescript
-type BuilderState<T> = {
-  [K in keyof T]: T[K] | undefined;
-};
-
 type RequiredKeys<T> = {
   [K in keyof T]-?: {} extends Pick<T, K> ? never : K;
 }[keyof T];
 
-type OptionalKeys<T> = {
-  [K in keyof T]-?: {} extends Pick<T, K> ? K : never;
-}[keyof T];
+type IsComplete<T, S> = RequiredKeys<T> extends keyof S ? true : false;
 
-type IsComplete<T, S> =
-  RequiredKeys<T> extends keyof S
-    ? S[RequiredKeys<T>] extends undefined
-      ? false
-      : true
-    : false;
+// `S` tracks which keys have been set so far. `build` is only callable once
+// `S` covers every required key of `T` (the conditional `this` type enforces it).
+class Builder<T, S extends Partial<T> = {}> {
+  private state: Partial<T> = {};
 
-class Builder<T, S extends BuilderState<T> = {}> {
-  private state: S = {} as S;
-
-  set<K extends keyof T>(key: K, value: T[K]): Builder<T, S & Record<K, T[K]>> {
+  set<K extends keyof T>(
+    key: K,
+    value: T[K],
+  ): Builder<T, S & Record<K, T[K]>> {
     this.state[key] = value;
-    return this as any;
+    return this as unknown as Builder<T, S & Record<K, T[K]>>;
   }
 
-  build(this: IsComplete<T, S> extends true ? this : never): T {
+  build(this: IsComplete<T, S> extends true ? Builder<T, S> : never): T {
     return this.state as T;
   }
 }
@@ -151,7 +145,7 @@ const user = builder
 
 // const incomplete = builder
 //   .set("id", "1")
-//   .build();  // Error: missing required fields
+//   .build();  // Error: missing required fields ('name', 'email')
 ```
 
 ### Pattern 4: Deep Readonly/Partial
@@ -284,7 +278,7 @@ type Success<T> = {
   data: T;
 };
 
-type Error = {
+type Failure = {
   status: "error";
   error: string;
 };
@@ -293,7 +287,7 @@ type Loading = {
   status: "loading";
 };
 
-type AsyncState<T> = Success<T> | Error | Loading;
+type AsyncState<T> = Success<T> | Failure | Loading;
 
 function handleState<T>(state: AsyncState<T>): void {
   switch (state.status) {
@@ -360,6 +354,7 @@ type PromiseType<T> = T extends Promise<infer U> ? U : never;
 type AsyncNum = PromiseType<Promise<number>>; // number
 
 // Extract function parameters
+// Note: redefines the built-in `Parameters`; shown for illustration.
 type Parameters<T> = T extends (...args: infer P) => any ? P : never;
 
 function foo(a: string, b: number) {}

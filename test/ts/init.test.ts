@@ -118,17 +118,18 @@ describe('init command helpers', () => {
         'redux',
         'tanstack-query',
         'viteplus',
+        'fe-architecture',
       ]);
 
       const result = await copyOptionalSkillsForPlatform(
         tmpDir,
         claudePlatform,
-        ['typescript', 'react', 'redux', 'tanstack-query', 'viteplus'],
+        ['typescript', 'react', 'redux', 'tanstack-query', 'viteplus', 'fe-architecture'],
         false,
         'project',
       );
 
-      expect(result).toEqual({ copied: 5, skipped: 0 });
+      expect(result).toEqual({ copied: 6, skipped: 0 });
       await expect(
         fs.readFile(
           path.join(tmpDir, '.claude', 'skills', 'typescript-advanced-types', 'SKILL.md'),
@@ -150,6 +151,12 @@ describe('init command helpers', () => {
       await expect(
         fs.readFile(path.join(tmpDir, '.claude', 'skills', 'viteplus', 'SKILL.md'), 'utf-8'),
       ).resolves.toContain('name: viteplus');
+      await expect(
+        fs.readFile(
+          path.join(tmpDir, '.claude', 'skills', 'fe-architecture-best-practices', 'SKILL.md'),
+          'utf-8',
+        ),
+      ).resolves.toContain('name: fe-architecture-best-practices');
     } finally {
       await fs.rm(tmpDir, { recursive: true, force: true });
     }

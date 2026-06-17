@@ -14,7 +14,7 @@ January 2026
 
 ## Abstract
 
-Performance optimization guide for React single-page applications, designed for AI agents and LLMs. Contains 50+ rules across 7 categories, prioritized by impact from critical (eliminating waterfalls, reducing bundle size) to incremental (advanced patterns). Each rule includes detailed explanations, real-world examples comparing incorrect vs. correct implementations, and specific impact metrics to guide automated refactoring and code generation.
+Performance optimization guide for React single-page applications, designed for AI agents and LLMs. Contains 52 rules across 7 categories, prioritized by impact from critical (eliminating waterfalls, reducing bundle size) to incremental (advanced patterns). Each rule includes detailed explanations, real-world examples comparing incorrect vs. correct implementations, and specific impact metrics to guide automated refactoring and code generation.
 
 ---
 
@@ -1969,8 +1969,6 @@ for (const user of users) {
 
 **Impact: MEDIUM (keeps UI responsive during background tasks)**
 
-**Impact: MEDIUM (keeps UI responsive during background tasks)**
-
 Use `requestIdleCallback()` to schedule non-critical work during browser idle periods. This keeps the main thread free for user interactions and animations, reducing jank and improving perceived performance.
 
 **Incorrect (blocks main thread during user interaction):**
@@ -2199,8 +2197,6 @@ regex.test("foo"); // false, lastIndex = 0
 ```
 
 ### 6.11 Use flatMap to Map and Filter in One Pass
-
-**Impact: LOW-MEDIUM (eliminates intermediate array)**
 
 **Impact: LOW-MEDIUM (eliminates intermediate array)**
 
