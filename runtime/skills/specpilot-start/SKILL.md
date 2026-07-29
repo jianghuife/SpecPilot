@@ -21,31 +21,24 @@ Classify the proposal semantically:
 Preview the classification, artifact paths, spec outline, and tasks. Get explicit approval before
 writing. Multiple changes may remain open; never add a workflow phase.
 
-Write `specs/changes/<change-id>/change.yaml`:
+Scaffold the approved change instead of hand-writing YAML:
 
-```yaml
-schema_version: 1
-id: lowercase-hyphen-id
-title: Human title
-kind: light # or standard
-status: open
-created_at: 2026-01-01T00:00:00.000Z
-spec_approved_at: 2026-01-01T00:00:00.000Z
-```
+1. `specpilot change new <change-id> --title "<Title>" --kind light|standard` creates
+   `change.yaml` plus `spec.md` (and `design.md`/`plan.md` for standard changes).
+2. Fill in `spec.md` with goal, scope/non-goals, behavior, acceptance criteria, and verification.
+   Standard changes also require completed `design.md` and `plan.md`.
+3. `specpilot task add <change-id> <task-id> --title "<Title>" [--execution tdd]
+[--blocked-by <ids...>]` creates each task with validated frontmatter. Use `--execution tdd`
+   only when the user explicitly enables it. Dependencies must be acyclic.
+4. Curate repository-backed context for each task with `specpilot context add`. Add only relevant
+   files from `specs/project/`, `specs/knowledge/`, or the current change, with a concise reason.
+   Use `--purpose work` for implementation inputs and `--purpose review` for review inputs. Never
+   pre-register source files that the task may edit.
+5. After the user approves the spec, run `specpilot change approve <change-id>`. Finish is
+   blocked until `spec_approved_at` is recorded. Editing `spec.md`, `design.md`, or `plan.md`
+   after a review makes that review stale, so repeat approval and review when the spec changes.
+6. Run `specpilot session activate <change-id>` so a later session can recover the approved
+   change before task work begins.
 
-Write `spec.md` with goal, scope/non-goals, behavior, acceptance criteria, and verification.
-Standard changes also require `design.md` and `plan.md`. Create at least one task in `tasks/*.md`:
-
-```yaml
----
-schema_version: 1
-id: task-id
-title: Human title
-status: todo
-blocked_by: []
-execution: standard # use tdd only when the user explicitly enables it
----
-```
-
-Dependencies must be acyclic. Update `.specpilot/local/session.json` with only the active
-change/task pointer and ephemeral notes; never copy raw conversation into durable knowledge.
+Never hand-edit `.specpilot/local/session.json`; `MemoryCatalog` owns that local pointer through
+the CLI. Never copy raw conversation into durable knowledge.

@@ -52,11 +52,15 @@ jobs:
       - run: pnpm run build
 
       - name: Initialize Claude/Codex runtime without CodeGraph
-        run: node bin/specpilot.js init "${{ runner.temp }}/specpilot-smoke" --host all --graph none --yes --json
+        run: node bin/specpilot.js init "${{ runner.temp }}/specpilot-smoke" --host all --graph none --context-injection --yes --json
 
       - name: Exercise status, doctor, evidence, and update
         run: |
           node bin/specpilot.js init knowledge "${{ runner.temp }}/specpilot-smoke" --json
+          node bin/specpilot.js add skill codebase-design --path "${{ runner.temp }}/specpilot-smoke" --json
+          node bin/specpilot.js change new smoke --title "Smoke change" --path "${{ runner.temp }}/specpilot-smoke" --json
+          node bin/specpilot.js task add smoke cli --title "CLI smoke" --path "${{ runner.temp }}/specpilot-smoke" --json
+          node bin/specpilot.js context list smoke cli --purpose work --path "${{ runner.temp }}/specpilot-smoke" --json
           node bin/specpilot.js status "${{ runner.temp }}/specpilot-smoke" --json
           node bin/specpilot.js doctor "${{ runner.temp }}/specpilot-smoke" --json
           node bin/specpilot.js verify run --change smoke --task cli --phase green --path "${{ runner.temp }}/specpilot-smoke" -- node -e "process.exit(0)"

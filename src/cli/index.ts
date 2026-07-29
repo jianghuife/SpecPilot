@@ -1,18 +1,32 @@
 import { spawn } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { confirm, select } from '@inquirer/prompts';
 import { Command, Option } from 'commander';
 import { EvidenceRunner, type EvidencePhase } from '../evidence/evidence-runner.js';
 import { CodeGraphAdapter, graphProvider, type GraphResult } from '../graph/graph-provider.js';
 import { MemoryCatalog } from '../memory/memory-catalog.js';
-import { readProjectConfig } from '../project/config.js';
+import { findProjectRoot, normalizeOptionalSkills, readProjectConfig } from '../project/config.js';
 import { doctorProject } from '../project/doctor.js';
 import { initializeProject } from '../project/initialize.js';
+import {
+  ProjectStore,
+  type ChangeKind,
+  type ContextPurpose,
+  type ReviewAxisStatus,
+  type TaskExecution,
+  type TaskTransition,
+} from '../project/project-store.js';
 import { projectStatus } from '../project/status.js';
-import { RuntimeProjector, uninstallRuntime } from '../runtime/runtime-projector.js';
+import {
+  listBundledOptionalSkills,
+  RuntimeProjector,
+  uninstallRuntime,
+  type RuntimeProjectorOptions,
+} from '../runtime/runtime-projector.js';
 import { SPEC_PILOT_VERSION, type GraphMode, type Host, type ProjectConfig } from '../types.js';
 import { writeJsonAtomic } from '../utils/files.js';
-import { WorkflowHarness } from '../workflow/workflow-harness.js';
+import { WorkflowHarness, type WorkflowStateSnapshot } from '../workflow/workflow-harness.js';
 
 interface CommonOutputOptions {
   json?: boolean;
@@ -97,6 +111,62 @@ function graphText(result: GraphResult): string {
   return `${result.output}${result.output ? '\n\n' : ''}${warning}`;
 }
 
+async function applyManagedRuntime(
+  root: string,
+  overrides: RuntimeProjectorOptions = {},
+): Promise<ProjectConfig> {
+  const config = await readProjectConfig(root);
+  const perTurnState = overrides.perTurnState ?? config.context.per_turn_state;
+  const optionalSkills = overrides.optionalSkills ?? config.optional_skills;
+  await new RuntimeProjector(root, config.hosts, { perTurnState, optionalSkills }).apply(
+    SPEC_PILOT_VERSION,
+  );
+  const updated: ProjectConfig = {
+    ...config,
+    managed_version: SPEC_PILOT_VERSION,
+    context: { per_turn_state: perTurnState },
+    optional_skills: optionalSkills,
+  };
+  await writeJsonAtomic(path.join(root, '.specpilot', 'config.json'), updated);
+  return updated;
+}
+
+async function readHookInput(): Promise<Record<string, unknown>> {
+  let input = '';
+  for await (const chunk of process.stdin) input += chunk.toString();
+  if (input.trim() === '') return {};
+  try {
+    const parsed = JSON.parse(input);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function promptContextText(state: WorkflowStateSnapshot): string {
+  const lines = ['<specpilot-state>'];
+  if (!state.active) {
+    lines.push('Active: none');
+  } else {
+    lines.push(
+      `Active: ${state.active.change ?? 'unknown'}${state.active.task ? `/${state.active.task}` : ''}`,
+    );
+    if (state.active.changeStatus) lines.push(`Change status: ${state.active.changeStatus}`);
+    if (state.active.taskStatus) lines.push(`Task status: ${state.active.taskStatus}`);
+    lines.push(`Pointer stale: ${state.active.stale}`);
+  }
+  lines.push(`Next: ${state.next}`);
+  if (state.context) {
+    lines.push(
+      `Context(${state.context.purpose}): ${state.context.count} references; missing ${state.context.missing.length}`,
+    );
+  }
+  lines.push('</specpilot-state>');
+  return lines.join('\n');
+}
+
 const program = new Command()
   .name('specpilot')
   .description('Repository-backed spec workflow for Claude Code and Codex')
@@ -107,6 +177,7 @@ program
   .description('Initialize the SpecPilot harness or its project knowledge inventory')
   .addOption(new Option('--host <host>').choices(['claude', 'codex', 'all']))
   .addOption(new Option('--graph <provider>').choices(['codegraph', 'none']))
+  .option('--context-injection', 'Enable lightweight per-turn workflow-state injection')
   .option('--dry-run', 'Preview all writes without changing the project')
   .option('--yes', 'Run non-interactively')
   .option('--json', 'Print machine-readable JSON')
@@ -117,6 +188,7 @@ program
       options: {
         host?: string;
         graph?: GraphMode;
+        contextInjection?: boolean;
         dryRun?: boolean;
         yes?: boolean;
         json?: boolean;
@@ -174,6 +246,7 @@ program
         projectPath: root,
         hosts: hostsFromOption(hostChoice),
         graph: graphChoice,
+        perTurnState: options.contextInjection,
         dryRun: options.dryRun,
       };
       const preview = await initializeProject({ ...initOptions, dryRun: true });
@@ -248,6 +321,325 @@ program
     );
     if (!report.healthy) process.exitCode = 1;
   });
+
+const change = program
+  .command('change')
+  .description('Scaffold and approve repository-backed changes');
+change
+  .command('new <id>')
+  .description('Create specs/changes/<id> with a validated change.yaml and document stubs')
+  .requiredOption('--title <title>', 'Human-readable change title')
+  .addOption(new Option('--kind <kind>').choices(['light', 'standard']).default('light'))
+  .option('--path <path>', 'Project path', '.')
+  .option('--json')
+  .action(
+    async (
+      id: string,
+      options: { title: string; kind: ChangeKind; path: string; json?: boolean },
+    ) => {
+      const result = await new ProjectStore(options.path).createChange({
+        id,
+        title: options.title,
+        kind: options.kind,
+      });
+      print(
+        options.json
+          ? result
+          : `Created change ${id}:\n${result.writtenPaths.map((item) => `  ${item}`).join('\n')}\n` +
+              `Next: fill in spec.md, add tasks with \`specpilot task add\`, then run ` +
+              `\`specpilot change approve ${id}\` after the user approves the spec.`,
+        options.json,
+      );
+    },
+  );
+change
+  .command('approve <id>')
+  .description('Record spec approval; finish is blocked until the spec is approved')
+  .option('--path <path>', 'Project path', '.')
+  .option('--json')
+  .action(async (id: string, options: { path: string; json?: boolean }) => {
+    const approved = await new WorkflowHarness(options.path).approveSpec(id);
+    print(
+      options.json ? approved : `Approved spec for ${id} at ${approved.spec_approved_at}.`,
+      options.json,
+    );
+  });
+
+const task = program.command('task').description('Scaffold tasks inside an open change');
+task
+  .command('add <change> <id>')
+  .description('Create tasks/<id>.md with validated frontmatter')
+  .requiredOption('--title <title>', 'Human-readable task title')
+  .addOption(new Option('--execution <execution>').choices(['standard', 'tdd']).default('standard'))
+  .option('--blocked-by <tasks...>', 'Task ids this task depends on')
+  .option('--path <path>', 'Project path', '.')
+  .option('--json')
+  .action(
+    async (
+      changeId: string,
+      id: string,
+      options: {
+        title: string;
+        execution: TaskExecution;
+        blockedBy?: string[];
+        path: string;
+        json?: boolean;
+      },
+    ) => {
+      const filePath = await new ProjectStore(options.path).addTask(changeId, {
+        id,
+        title: options.title,
+        execution: options.execution,
+        blockedBy: options.blockedBy,
+      });
+      print(options.json ? { filePath } : `Created ${filePath}`, options.json);
+    },
+  );
+
+function registerTaskTransition(
+  name: TaskTransition,
+  description: string,
+  requiresReason = false,
+): void {
+  const command = task
+    .command(`${name} <change> <id>`)
+    .description(description)
+    .option('--path <path>', 'Project path', '.')
+    .option('--json');
+  if (requiresReason) {
+    command.requiredOption(
+      '--reason <reason>',
+      `Why the task is ${name === 'block' ? 'blocked' : 'waived'}`,
+    );
+  }
+  command.action(
+    async (
+      changeId: string,
+      taskId: string,
+      options: { path: string; json?: boolean; reason?: string },
+    ) => {
+      const result = await new WorkflowHarness(options.path).transitionTask(
+        changeId,
+        taskId,
+        name,
+        options.reason,
+      );
+      print(result, options.json);
+    },
+  );
+}
+
+registerTaskTransition('start', 'Start an unblocked task and activate its local session pointer');
+registerTaskTransition('complete', 'Complete a doing task after fresh green evidence');
+registerTaskTransition('block', 'Block a todo or doing task with a reason', true);
+registerTaskTransition('waive', 'Waive a todo, doing, or blocked task with a reason', true);
+
+const session = program
+  .command('session')
+  .description('Manage the local active change/task pointer');
+session
+  .command('activate <change> [task]')
+  .option('--path <path>', 'Project path', '.')
+  .option('--json')
+  .action(
+    async (
+      changeId: string,
+      taskId: string | undefined,
+      options: { path: string; json?: boolean },
+    ) => {
+      const active = await new WorkflowHarness(options.path).activateSession(changeId, taskId);
+      print(options.json ? { session: active } : active, options.json);
+    },
+  );
+session
+  .command('show')
+  .option('--path <path>', 'Project path', '.')
+  .option('--json')
+  .action(async (options: { path: string; json?: boolean }) => {
+    const active = await new MemoryCatalog(options.path).readSession();
+    print(
+      options.json ? { session: active ?? null } : (active ?? 'No active session.'),
+      options.json,
+    );
+  });
+session
+  .command('clear')
+  .option('--path <path>', 'Project path', '.')
+  .option('--json')
+  .action(async (options: { path: string; json?: boolean }) => {
+    await new WorkflowHarness(options.path).clearSession();
+    print(options.json ? { cleared: true } : 'Cleared the active session.', options.json);
+  });
+
+const add = program.command('add').description('Add curated optional assets to this project');
+add
+  .command('skill [name]')
+  .description('Select and project a bundled optional Skill')
+  .option('--path <path>', 'Project path', '.')
+  .option('--json')
+  .action(async (name: string | undefined, options: { path: string; json?: boolean }) => {
+    const root = path.resolve(options.path);
+    const config = await readProjectConfig(root);
+    const available = await listBundledOptionalSkills();
+    const selected =
+      name ??
+      (options.json
+        ? undefined
+        : await select({
+            message: 'Optional Skill to add',
+            choices: available.map((skill) => ({ name: skill, value: skill })),
+          }));
+    if (!selected) {
+      throw new Error('skill name is required with --json');
+    }
+    if (!available.includes(selected)) {
+      throw new Error(
+        `unknown bundled optional Skill: ${selected}; available: ${available.join(', ')}`,
+      );
+    }
+    const optionalSkills = normalizeOptionalSkills([...config.optional_skills, selected]);
+    await applyManagedRuntime(root, { optionalSkills });
+    print(
+      options.json
+        ? { added: selected, optionalSkills }
+        : `Added optional Skill ${selected}. Invoke it explicitly with \`$${selected}\` or let the host select it from its description.`,
+      options.json,
+    );
+  });
+
+const review = program.command('review').description('Record validated two-axis change reviews');
+review
+  .command('record <change>')
+  .addOption(
+    new Option('--standards <status>')
+      .choices(['pass', 'pass_with_warnings', 'blocked'])
+      .makeOptionMandatory(),
+  )
+  .addOption(
+    new Option('--spec <status>')
+      .choices(['pass', 'pass_with_warnings', 'blocked'])
+      .makeOptionMandatory(),
+  )
+  .requiredOption('--body-file <path>', 'Markdown review body to record')
+  .option('--path <path>', 'Project path', '.')
+  .option('--json')
+  .action(
+    async (
+      changeId: string,
+      options: {
+        standards: ReviewAxisStatus;
+        spec: ReviewAxisStatus;
+        bodyFile: string;
+        path: string;
+        json?: boolean;
+      },
+    ) => {
+      const body = await readFile(path.resolve(options.bodyFile), 'utf8');
+      const result = await new WorkflowHarness(options.path).recordReview(changeId, {
+        standards: options.standards,
+        spec: options.spec,
+        body,
+      });
+      print(result, options.json);
+    },
+  );
+
+const context = program
+  .command('context')
+  .description('Curate repository-backed context references for task work and review');
+context
+  .command('add <change> <task>')
+  .addOption(new Option('--purpose <purpose>').choices(['work', 'review']).makeOptionMandatory())
+  .requiredOption('--file <path>', 'Repository-relative SpecPilot artifact path')
+  .requiredOption('--reason <reason>', 'Why this context is required')
+  .option('--path <path>', 'Project path', '.')
+  .option('--json')
+  .action(
+    async (
+      changeId: string,
+      taskId: string,
+      options: {
+        purpose: ContextPurpose;
+        file: string;
+        reason: string;
+        path: string;
+        json?: boolean;
+      },
+    ) => {
+      const manifest = await new ProjectStore(options.path).addTaskContext(
+        changeId,
+        taskId,
+        options.purpose,
+        { path: options.file, reason: options.reason },
+      );
+      print(manifest, options.json);
+    },
+  );
+context
+  .command('list <change> <task>')
+  .addOption(new Option('--purpose <purpose>').choices(['work', 'review']).makeOptionMandatory())
+  .option('--path <path>', 'Project path', '.')
+  .option('--json')
+  .action(
+    async (
+      changeId: string,
+      taskId: string,
+      options: { purpose: ContextPurpose; path: string; json?: boolean },
+    ) => {
+      const listing = await new MemoryCatalog(options.path).contextFor(
+        changeId,
+        taskId,
+        options.purpose,
+      );
+      print(listing, options.json);
+      if (listing.missing.length > 0) process.exitCode = 1;
+    },
+  );
+context
+  .command('remove <change> <task>')
+  .addOption(new Option('--purpose <purpose>').choices(['work', 'review']).makeOptionMandatory())
+  .requiredOption('--file <path>', 'Repository-relative SpecPilot artifact path')
+  .option('--path <path>', 'Project path', '.')
+  .option('--json')
+  .action(
+    async (
+      changeId: string,
+      taskId: string,
+      options: { purpose: ContextPurpose; file: string; path: string; json?: boolean },
+    ) => {
+      const manifest = await new ProjectStore(options.path).removeTaskContext(
+        changeId,
+        taskId,
+        options.purpose,
+        options.file,
+      );
+      print(manifest, options.json);
+    },
+  );
+const contextInjection = context
+  .command('injection')
+  .description('Enable or disable lightweight per-turn workflow-state injection');
+
+function registerContextInjection(mode: 'enable' | 'disable'): void {
+  contextInjection
+    .command(mode)
+    .option('--path <path>', 'Project path', '.')
+    .option('--json')
+    .action(async (options: { path: string; json?: boolean }) => {
+      const root = path.resolve(options.path);
+      const enabled = mode === 'enable';
+      await applyManagedRuntime(root, { perTurnState: enabled });
+      print(
+        options.json
+          ? { enabled }
+          : `Per-turn workflow-state injection ${enabled ? 'enabled' : 'disabled'}.`,
+        options.json,
+      );
+    });
+}
+
+registerContextInjection('enable');
+registerContextInjection('disable');
 
 const graph = program.command('graph').description('Provider-neutral code graph operations');
 graph
@@ -330,10 +722,7 @@ program
   .option('--json')
   .action(async (target = '.', options: CommonOutputOptions) => {
     const root = path.resolve(target);
-    const config = await readProjectConfig(root);
-    const updated: ProjectConfig = { ...config, managed_version: SPEC_PILOT_VERSION };
-    await new RuntimeProjector(root, config.hosts).apply(SPEC_PILOT_VERSION);
-    await writeJsonAtomic(path.join(root, '.specpilot', 'config.json'), updated);
+    await applyManagedRuntime(root);
     print(
       options.json
         ? { root, managedVersion: SPEC_PILOT_VERSION, updated: true }
@@ -380,6 +769,31 @@ internal
     });
     print(result, options.json);
     if (result.status === 'blocked') process.exitCode = 1;
+  });
+internal
+  .command('prompt-context')
+  .description('Emit lightweight per-turn state using the host hook protocol')
+  .action(async () => {
+    const input = await readHookInput();
+    const workingDirectory = typeof input.cwd === 'string' ? input.cwd : '.';
+    const root = (await findProjectRoot(workingDirectory)) ?? workingDirectory;
+    // A hook failure would silently break every turn's injection, so contract
+    // or IO errors degrade to a visible note instead of a non-zero exit.
+    let additionalContext: string;
+    try {
+      additionalContext = promptContextText(await new WorkflowHarness(root).currentState());
+    } catch (error) {
+      additionalContext = `<specpilot-state>\nState unavailable: ${(error as Error).message}\nRun \`specpilot doctor\` to diagnose.\n</specpilot-state>`;
+    }
+    print(
+      {
+        hookSpecificOutput: {
+          hookEventName: 'UserPromptSubmit',
+          additionalContext,
+        },
+      },
+      true,
+    );
   });
 internal
   .command('memory-search <query>')

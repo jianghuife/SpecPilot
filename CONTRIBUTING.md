@@ -5,7 +5,8 @@ surface is the CLI, repository artifact contracts, and the runtime workflows und
 
 ## Product boundaries
 
-- Do not add generic Skill installation, third-party Skill management, or a platform registry.
+- Keep optional Skills limited to the reviewed `assets/optional_skills/` catalog. Do not add
+  arbitrary paths, remote installation, third-party registries, or a Skill marketplace.
 - Keep project memory file-first. Do not add SQLite, vector databases, or embeddings.
 - Keep CodeGraph optional and preserve source-search fallback behavior.
 - Keep TDD opt-in per task and preserve red → green → final evidence semantics.
@@ -51,6 +52,7 @@ src/graph/        CodeGraph adapter and source fallback
 src/memory/       retrieval, local inventory, and knowledge promotion
 src/runtime/      managed Claude/Codex runtime projection
 runtime/skills/   English runtime source assets
+assets/optional_skills/ curated optional Skill source assets
 test/v05/         current behavior tests
 ```
 

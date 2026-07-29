@@ -3,7 +3,6 @@ import { CodeGraphAdapter } from '../graph/graph-provider.js';
 import { type EvidenceRecord, EvidenceRunner } from '../evidence/evidence-runner.js';
 import { inspectRuntime } from '../runtime/runtime-projector.js';
 import { SPEC_PILOT_VERSION } from '../types.js';
-import { readEvidenceDirectory } from '../workflow/workflow-harness.js';
 import { readProjectConfig } from './config.js';
 import { projectStatus } from './status.js';
 
@@ -61,7 +60,7 @@ export async function doctorProject(root: string): Promise<DoctorReport> {
 
   const runner = new EvidenceRunner(resolved);
   const { fingerprint } = await runner.fingerprint();
-  const records = await readEvidenceDirectory(path.join(resolved, '.specpilot', 'evidence'));
+  const records = await runner.list();
   const invalidEvidence = records.filter(
     (record: EvidenceRecord) =>
       record.valid !== true || record.worktree_fingerprint !== fingerprint,

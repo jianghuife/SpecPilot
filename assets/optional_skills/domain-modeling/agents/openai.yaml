@@ -1,0 +1,7 @@
+interface:
+  display_name: 'Domain Modeling'
+  short_description: 'Sharpen repository-backed domain language'
+  default_prompt: 'Use $domain-modeling to clarify this domain concept and propose any glossary or decision updates.'
+
+policy:
+  allow_implicit_invocation: true

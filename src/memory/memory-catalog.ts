@@ -1,8 +1,10 @@
 import { execFile } from 'node:child_process';
-import { cp, lstat, readdir, readFile } from 'node:fs/promises';
+import { cp, lstat, readdir, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
-import { parseFrontmatter } from '../project/project-store.js';
+import { parseFrontmatter, ProjectStore, type ContextPurpose } from '../project/project-store.js';
 import { toPosixPath, writeJsonAtomic } from '../utils/files.js';
+import { assertSpecPilotId } from '../utils/identifiers.js';
+import { isJsonObject } from '../utils/json.js';
 
 interface MemoryIndexEntry {
   relativePath: string;
@@ -25,6 +27,20 @@ export interface MemoryResult {
   summary?: string;
   content: string;
   score: number;
+}
+
+export interface ResolvedContextReference {
+  path: string;
+  reason: string;
+  exists: boolean;
+}
+
+export interface TaskContextListing {
+  changeId: string;
+  taskId: string;
+  purpose: ContextPurpose;
+  references: ResolvedContextReference[];
+  missing: string[];
 }
 
 export interface LocalSession {
@@ -245,6 +261,44 @@ function validateKnowledge(content: string, filePath: string): void {
   }
 }
 
+function parseLocalSession(value: unknown): LocalSession {
+  if (!isJsonObject(value)) {
+    throw new Error('session.json must contain a valid SpecPilot local session');
+  }
+  const session = value;
+  if (session.schema_version !== 1) {
+    throw new Error(
+      'session.json must contain a valid SpecPilot local session with schema_version 1',
+    );
+  }
+  const activeChange =
+    typeof session.active_change === 'string' ? session.active_change : undefined;
+  const activeTask = typeof session.active_task === 'string' ? session.active_task : undefined;
+  for (const [field, id] of [
+    ['active_change', activeChange],
+    ['active_task', activeTask],
+  ] as const) {
+    if (id) assertSpecPilotId(id, field);
+  }
+  if (activeTask && !activeChange) {
+    throw new Error('active_task requires active_change');
+  }
+  const notes = session.notes ?? [];
+  if (!Array.isArray(notes) || notes.some((note) => typeof note !== 'string')) {
+    throw new Error('session.json notes must be a string array');
+  }
+  if (typeof session.updated_at !== 'string' || Number.isNaN(Date.parse(session.updated_at))) {
+    throw new Error('session.json updated_at must be a valid timestamp');
+  }
+  return {
+    schema_version: 1,
+    active_change: activeChange,
+    active_task: activeTask,
+    notes: notes as string[],
+    updated_at: session.updated_at,
+  };
+}
+
 export class MemoryCatalog {
   readonly root: string;
   readonly cachePath: string;
@@ -330,6 +384,30 @@ export class MemoryCatalog {
     );
   }
 
+  async contextFor(
+    changeId: string,
+    taskId: string,
+    purpose: ContextPurpose,
+  ): Promise<TaskContextListing> {
+    const store = new ProjectStore(this.root);
+    const manifest = await store.readTaskContext(changeId, taskId);
+    const references = await Promise.all(
+      manifest[purpose].map(async (reference): Promise<ResolvedContextReference> => {
+        const exists = await store.contextArtifactExists(changeId, reference.path);
+        return { ...reference, exists };
+      }),
+    );
+    return {
+      changeId,
+      taskId,
+      purpose,
+      references,
+      missing: references
+        .filter((reference) => !reference.exists)
+        .map((reference) => reference.path),
+    };
+  }
+
   async initializeKnowledge(
     options: { dryRun?: boolean } = {},
   ): Promise<KnowledgeInitializationResult> {
@@ -399,22 +477,41 @@ export class MemoryCatalog {
     return destination;
   }
 
-  async writeSession(session: LocalSession): Promise<void> {
-    await writeJsonAtomic(this.sessionPath, {
+  async activateSession(
+    activeChange?: string,
+    activeTask?: string,
+    notes: string[] = [],
+  ): Promise<LocalSession> {
+    const session = parseLocalSession({
       schema_version: 1,
-      active_change: session.active_change,
-      active_task: session.active_task,
-      notes: session.notes ?? [],
+      active_change: activeChange,
+      active_task: activeTask,
+      notes,
       updated_at: new Date().toISOString(),
     });
+    await writeJsonAtomic(this.sessionPath, session);
+    return session;
+  }
+
+  async clearSession(): Promise<void> {
+    await rm(this.sessionPath, { force: true });
   }
 
   async readSession(): Promise<LocalSession | undefined> {
+    let content: string;
     try {
-      return JSON.parse(await readFile(this.sessionPath, 'utf8')) as LocalSession;
+      content = await readFile(this.sessionPath, 'utf8');
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
       throw error;
+    }
+    try {
+      return parseLocalSession(JSON.parse(content));
+    } catch {
+      // A corrupt session pointer cannot be trusted, so it degrades to "no
+      // session" instead of failing status/resume; the next activation
+      // rewrites the file.
+      return undefined;
     }
   }
 }

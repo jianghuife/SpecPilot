@@ -49,17 +49,32 @@ execution: standard
 # Report
 `,
     );
-    await new MemoryCatalog(root).writeSession({
-      active_change: 'reporting',
-      active_task: 'report',
-    });
+    await new MemoryCatalog(root).activateSession('reporting', 'report');
 
     const status = await projectStatus(root);
     expect(status.recommendedWorkflow).toBe('specpilot-work');
+    expect(status.active).toMatchObject({
+      change: 'reporting',
+      task: 'report',
+      stale: false,
+    });
     expect(status.openChanges[0]).toMatchObject({
       id: 'reporting',
       gate: 'blocked',
       tasks: { todo: 1 },
+    });
+
+    await new MemoryCatalog(root).activateSession('reporting', 'missing');
+    await expect(projectStatus(root)).resolves.toMatchObject({
+      active: { change: 'reporting', task: 'missing', stale: true },
+      recommendedWorkflow: 'specpilot-work',
+    });
+
+    // An empty pointer is not a stale one: stale means a reference to a
+    // missing or closed change/task.
+    await new MemoryCatalog(root).activateSession();
+    await expect(projectStatus(root)).resolves.toMatchObject({
+      active: { stale: false },
     });
 
     const healthy = await doctorProject(root);

@@ -32,6 +32,7 @@
   "files": [
     "dist",
     "bin",
+    "assets",
     "runtime",
     "README.md",
     "CHANGELOG.md",
@@ -45,8 +46,8 @@
     "test:watch": "vitest",
     "lint": "eslint src test/v05",
     "lint:fix": "eslint src test/v05 --fix",
-    "format": "prettier --write src test/v05 runtime README.md",
-    "format:check": "prettier --check src test/v05 runtime README.md",
+    "format": "prettier --write src test/v05 runtime assets README.md",
+    "format:check": "prettier --check src test/v05 runtime assets README.md",
     "prepack": "pnpm run build",
     "prepublishOnly": "node scripts/prepublish-check.js && pnpm run test && pnpm run build && npm pack --dry-run"
   },

@@ -17,12 +17,18 @@ export interface ProjectConfig {
     provider: GraphMode;
     required: false;
   };
+  context: {
+    per_turn_state: boolean;
+  };
+  optional_skills: string[];
 }
 
 export interface InitializeOptions {
   projectPath: string;
   hosts: Host[];
   graph: GraphMode;
+  perTurnState?: boolean;
+  optionalSkills?: string[];
   dryRun?: boolean;
 }
 
