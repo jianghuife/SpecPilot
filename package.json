@@ -1,6 +1,6 @@
 {
-  "name": "specpilot-ai",
-  "version": "0.5.0-beta.1",
+  "name": "specpilot-kit",
+  "version": "0.5.0",
   "description": "A lightweight, repository-backed AI coding harness for Claude Code and Codex.",
   "keywords": [
     "spec-driven-development",
@@ -22,8 +22,7 @@
   },
   "homepage": "https://github.com/jianghuife/SpecPilot#readme",
   "publishConfig": {
-    "access": "public",
-    "tag": "beta"
+    "access": "public"
   },
   "bin": {
     "specpilot": "bin/specpilot.js"

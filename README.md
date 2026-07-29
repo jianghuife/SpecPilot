@@ -27,7 +27,7 @@ Comet/OpenSpec data.
 ## Install
 
 ```bash
-npm install --global specpilot-ai@beta
+npm install --global specpilot-kit
 ```
 
 ## Initialize
