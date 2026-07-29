@@ -7,7 +7,8 @@ SpecPilot is a repository-backed AI coding harness for Claude Code and Codex.
 - Keep the package as one TypeScript ESM CLI package.
 - Treat CLI behavior, repository artifacts, the five change workflows, and
   `specpilot-init-knowledge` as the public compatibility surface.
-- Do not add a TypeScript library API, generic Skill installation, third-party Skill management,
+- Optional Skills are limited to the reviewed `assets/optional_skills/` catalog bundled with the
+  package. Do not add a TypeScript library API, arbitrary-path or third-party Skill management,
   a platform registry, legacy Comet/OpenSpec migration, or global MCP configuration.
 - Keep the runtime English-only and generate Claude/Codex projections from `runtime/`.
 - CodeGraph is optional and advisory. Always preserve the source-search fallback.

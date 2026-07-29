@@ -35,6 +35,12 @@ describe('EvidenceRunner', () => {
     expect(red.exit_code).toBe(1);
     expect(green.valid).toBe(true);
     await expect(readFile(path.join(root, red.log_path), 'utf8')).resolves.toBe('');
+    await expect(runner.list('feature')).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: red.id, phase: 'red' }),
+        expect.objectContaining({ id: green.id, phase: 'green' }),
+      ]),
+    );
 
     await writeFile(path.join(root, 'src', 'feature.ts'), 'export const feature = true;\n');
     expect(await runner.isFresh(green)).toBe(false);

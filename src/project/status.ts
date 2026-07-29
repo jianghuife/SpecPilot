@@ -24,7 +24,7 @@ export interface ChangeStatusSummary {
 export interface ProjectStatus {
   root: string;
   openChanges: ChangeStatusSummary[];
-  active?: { change?: string; task?: string };
+  active?: { change?: string; task?: string; stale: boolean };
   recommendedWorkflow:
     | 'specpilot-start'
     | 'specpilot-work'
@@ -37,10 +37,12 @@ export async function projectStatus(root: string): Promise<ProjectStatus> {
   const store = new ProjectStore(resolved);
   const harness = new WorkflowHarness(resolved);
   const openChanges: ChangeStatusSummary[] = [];
+  const taskIdsByChange = new Map<string, Set<string>>();
   for (const changeId of await store.listChangeIds()) {
     try {
       const inspection = await store.inspectChange(changeId);
       if (inspection.change.status === 'closed') continue;
+      taskIdsByChange.set(changeId, new Set(inspection.taskRecords.map((task) => task.id)));
       const gate = await harness.finish(changeId);
       openChanges.push({
         id: changeId,
@@ -61,8 +63,16 @@ export async function projectStatus(root: string): Promise<ProjectStatus> {
   }
 
   const session = await new MemoryCatalog(resolved).readSession();
+  const pointedChange = openChanges.find((change) => change.id === session?.active_change);
+  // Stale means the pointer references a missing or closed change/task; a
+  // session without an active pointer is empty, not stale.
+  const sessionStale =
+    session !== undefined &&
+    ((session.active_change !== undefined && !pointedChange) ||
+      (session.active_task !== undefined &&
+        !taskIdsByChange.get(session.active_change ?? '')?.has(session.active_task)));
   const activeChange =
-    openChanges.find((change) => change.id === session?.active_change) ??
+    (sessionStale ? undefined : pointedChange) ??
     (openChanges.length === 1 ? openChanges[0] : undefined);
   let recommendedWorkflow: ProjectStatus['recommendedWorkflow'] = 'specpilot-start';
   if (openChanges.length > 0) {
@@ -81,7 +91,13 @@ export async function projectStatus(root: string): Promise<ProjectStatus> {
   return {
     root: resolved,
     openChanges,
-    active: session ? { change: session.active_change, task: session.active_task } : undefined,
+    active: session
+      ? {
+          change: session.active_change,
+          task: session.active_task,
+          stale: sessionStale,
+        }
+      : undefined,
     recommendedWorkflow,
   };
 }

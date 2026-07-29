@@ -2,9 +2,10 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { toPosixPath, writeJsonAtomic, writeTextAtomic } from '../utils/files.js';
+import { assertSpecPilotId } from '../utils/identifiers.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -114,11 +115,26 @@ async function runCommand(
   });
 }
 
-function safeId(value: string, field: string): string {
-  if (!/^[a-z0-9][a-z0-9-]*$/.test(value)) {
-    throw new Error(`${field} must use lowercase letters, digits, and hyphens`);
+async function readEvidenceDirectory(directory: string): Promise<EvidenceRecord[]> {
+  try {
+    const entries = await readdir(directory, { withFileTypes: true });
+    const records = await Promise.all(
+      entries.map(async (entry): Promise<EvidenceRecord[]> => {
+        const entryPath = path.join(directory, entry.name);
+        if (entry.isDirectory()) return readEvidenceDirectory(entryPath);
+        if (!entry.isFile() || !entry.name.endsWith('.json')) return [];
+        try {
+          return [JSON.parse(await readFile(entryPath, 'utf8')) as EvidenceRecord];
+        } catch {
+          return [];
+        }
+      }),
+    );
+    return records.flat();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
   }
-  return value;
 }
 
 export class EvidenceRunner {
@@ -156,8 +172,8 @@ export class EvidenceRunner {
   }
 
   async run(input: RunEvidenceInput): Promise<EvidenceRecord> {
-    const changeId = safeId(input.changeId, 'change id');
-    const taskId = safeId(input.taskId, 'task id');
+    const changeId = assertSpecPilotId(input.changeId, 'change id');
+    const taskId = assertSpecPilotId(input.taskId, 'task id');
     if (input.phase === 'red' && !input.reason?.trim()) {
       throw new Error('red evidence requires a reason describing the expected failure');
     }
@@ -196,6 +212,13 @@ export class EvidenceRunner {
     };
     await writeJsonAtomic(recordPath, record);
     return record;
+  }
+
+  async list(changeId?: string): Promise<EvidenceRecord[]> {
+    const directory = changeId
+      ? path.join(this.root, '.specpilot', 'evidence', assertSpecPilotId(changeId, 'change id'))
+      : path.join(this.root, '.specpilot', 'evidence');
+    return readEvidenceDirectory(directory);
   }
 
   async isFresh(record: EvidenceRecord): Promise<boolean> {

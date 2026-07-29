@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { MemoryCatalog } from '../../src/memory/memory-catalog.js';
+import { ProjectStore } from '../../src/project/project-store.js';
 
 describe('MemoryCatalog', () => {
   it('rebuilds its disposable index and only promotes verified knowledge', async () => {
@@ -72,10 +73,58 @@ verified_at: 2026-07-29T00:00:00.000Z
   it('stores one local active change/task pointer', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'specpilot-session-'));
     const catalog = new MemoryCatalog(root);
-    await catalog.writeSession({ active_change: 'billing', active_task: 'implement' });
+    await catalog.activateSession('billing', 'implement');
     await expect(catalog.readSession()).resolves.toMatchObject({
       active_change: 'billing',
       active_task: 'implement',
+    });
+
+    // A corrupt pointer cannot be trusted, so it degrades to "no session"
+    // instead of failing status/resume.
+    await writeFile(
+      path.join(root, '.specpilot', 'local', 'session.json'),
+      '{"schema_version":2,"active_change":"billing"}\n',
+    );
+    await expect(catalog.readSession()).resolves.toBeUndefined();
+
+    await writeFile(path.join(root, '.specpilot', 'local', 'session.json'), 'not json\n');
+    await expect(catalog.readSession()).resolves.toBeUndefined();
+
+    await catalog.activateSession('billing', 'implement');
+    await expect(catalog.readSession()).resolves.toMatchObject({ active_change: 'billing' });
+  });
+
+  it('resolves a task context manifest and reports missing references', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'specpilot-context-list-'));
+    const store = new ProjectStore(root);
+    await store.createChange({ id: 'billing', title: 'Billing', kind: 'light' });
+    await store.addTask('billing', { id: 'implement', title: 'Implement billing' });
+    const standard = path.join(root, 'specs', 'project', 'standards', 'testing.md');
+    await mkdir(path.dirname(standard), { recursive: true });
+    await writeFile(standard, '# Testing\n');
+    await store.addTaskContext('billing', 'implement', 'work', {
+      path: 'specs/project/standards/testing.md',
+      reason: 'Billing requires integration coverage.',
+    });
+    await rm(standard);
+
+    await expect(
+      new MemoryCatalog(root).contextFor('billing', 'implement', 'work'),
+    ).resolves.toMatchObject({
+      changeId: 'billing',
+      taskId: 'implement',
+      purpose: 'work',
+      references: [
+        {
+          path: 'specs/changes/billing/spec.md',
+          exists: true,
+        },
+        {
+          path: 'specs/project/standards/testing.md',
+          exists: false,
+        },
+      ],
+      missing: ['specs/project/standards/testing.md'],
     });
   });
 });

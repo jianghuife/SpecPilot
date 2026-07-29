@@ -1,5 +1,21 @@
-import { mkdir, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { isJsonObject, type JsonObject } from './json.js';
+
+export async function readJsonObjectFile(filePath: string): Promise<JsonObject | undefined> {
+  let content: string;
+  try {
+    content = await readFile(filePath, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  }
+  const value = JSON.parse(content) as unknown;
+  if (!isJsonObject(value)) {
+    throw new Error(`${filePath} must contain a JSON object`);
+  }
+  return value;
+}
 
 export async function writeTextAtomic(filePath: string, content: string): Promise<void> {
   await mkdir(path.dirname(filePath), { recursive: true });

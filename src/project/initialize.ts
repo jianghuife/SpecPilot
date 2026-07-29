@@ -8,6 +8,7 @@ import {
   type ProjectConfig,
 } from '../types.js';
 import { writeJsonAtomic, writeTextAtomic, writeTextIfMissing } from '../utils/files.js';
+import { normalizeOptionalSkills, readProjectConfig } from './config.js';
 
 const INITIAL_FILES: Record<string, string> = {
   'specs/project/glossary.md': `# Project Glossary\n\nRecord the domain language used by people and code.\n`,
@@ -33,7 +34,25 @@ async function ensureLocalIgnore(projectPath: string): Promise<void> {
 
 export async function initializeProject(options: InitializeOptions): Promise<InitializeResult> {
   const projectPath = path.resolve(options.projectPath);
-  const projector = new RuntimeProjector(projectPath, options.hosts);
+  let existingConfig: ProjectConfig | undefined;
+  if (options.perTurnState === undefined || options.optionalSkills === undefined) {
+    try {
+      existingConfig = await readProjectConfig(projectPath);
+    } catch {
+      existingConfig = undefined;
+    }
+  }
+  let perTurnState = options.perTurnState;
+  if (perTurnState === undefined) {
+    perTurnState = existingConfig?.context.per_turn_state ?? false;
+  }
+  const optionalSkills = normalizeOptionalSkills(
+    options.optionalSkills ?? existingConfig?.optional_skills ?? [],
+  );
+  const projector = new RuntimeProjector(projectPath, options.hosts, {
+    perTurnState,
+    optionalSkills,
+  });
   const plannedPaths = [
     '.specpilot/config.json',
     '.specpilot/.gitignore',
@@ -66,6 +85,10 @@ export async function initializeProject(options: InitializeOptions): Promise<Ini
       provider: options.graph,
       required: false,
     },
+    context: {
+      per_turn_state: perTurnState,
+    },
+    optional_skills: optionalSkills,
   };
   await writeJsonAtomic(path.join(projectPath, '.specpilot', 'config.json'), config);
   for (const [relativePath, content] of Object.entries(INITIAL_FILES)) {
