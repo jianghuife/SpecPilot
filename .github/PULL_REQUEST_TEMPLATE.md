@@ -6,10 +6,12 @@
 
 <!-- Check all areas touched by this PR. -->
 
-- [ ] CLI commands (`init`, `status`, `doctor`, `update`)
-- [ ] Core installer / platform detection
-- [ ] Comet skills (`assets/skills/`, `assets/skills-zh/`)
-- [ ] Comet shell scripts (`assets/skills/comet/scripts/`)
+- [ ] CLI and artifact contracts
+- [ ] ProjectStore / workflow gates
+- [ ] Evidence / explicit TDD
+- [ ] Project memory / knowledge promotion
+- [ ] CodeGraph / source fallback
+- [ ] Claude Code / Codex runtime
 - [ ] Tests / CI
 - [ ] Documentation / changelog
 - [ ] Other:
@@ -22,18 +24,18 @@
 - [ ] `pnpm lint`
 - [ ] `pnpm format:check`
 - [ ] `pnpm test`
-- [ ] `pnpm test -- test/ts/comet-scripts.test.ts`
-- [ ] `pnpm test:shell`
+- [ ] `pnpm test:coverage`
+- [ ] `npm pack --dry-run`
 - [ ] Not run:
 
 ## ✅ Checklist
 
 - [ ] PR title follows Conventional Commits, for example `fix: handle project-scope init`
-- [ ] User-facing behavior is documented in `README.md`, `README-zh.md`, or `CONTRIBUTING.md`
+- [ ] User-facing behavior is documented in `README.md` or `CONTRIBUTING.md`
 - [ ] `CHANGELOG.md` is updated when behavior changes
-- [ ] Skill changes were made in Chinese first when applicable, then synced to English
-- [ ] New scripts are included in `assets/manifest.json` and relevant tests
-- [ ] Shell scripts remain portable across macOS, Linux, and Windows Git Bash
+- [ ] Claude Code and Codex receive equivalent behavior from the English runtime source
+- [ ] Runtime changes remain manifest-managed and preserve unrelated user files
+- [ ] Paths and subprocess arguments remain portable across macOS, Linux, and Windows
 - [ ] No unrelated generated files or local artifacts are included
 
 ## 👀 Notes for Reviewers

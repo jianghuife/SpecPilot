@@ -7,7 +7,7 @@ on:
     branches: [master]
 
 jobs:
-  build-and-test:
+  quality:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -15,8 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
 
       - name: Setup Node ${{ matrix.node-version }}
         uses: actions/setup-node@v4
@@ -25,46 +24,23 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run format:check
+      - run: pnpm run lint
+      - run: pnpm run build
+      - run: pnpm run test
+      - run: pnpm run test:coverage
+      - run: npm pack --dry-run
 
-      - run: pnpm build
-
-      - run: pnpm lint
-
-      - run: pnpm format:check
-
-      - run: pnpm test:coverage
-
-  shellcheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run shellcheck
-        uses: ludeeus/action-shellcheck@2.0.0
-        with:
-          scandir: ./assets/skills/comet/scripts
-
-  bats-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install bats
-        run: sudo apt-get install -y bats
-
-      - name: Run shell tests
-        run: bats test/shell/*.bats
-
-  script-smoke:
+  cli-smoke:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
 
       - name: Setup Node 20
         uses: actions/setup-node@v4
@@ -73,210 +49,23 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
 
-      - name: Run Comet script smoke tests
-        run: pnpm test -- test/ts/comet-scripts.test.ts
+      - name: Initialize Claude/Codex runtime without CodeGraph
+        run: node bin/specpilot.js init "${{ runner.temp }}/specpilot-smoke" --host all --graph none --yes --json
 
-      - name: Run portable shell tests
-        run: pnpm test:shell
-
-  init-e2e:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        node-version: [20, 22]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-
-      - name: Install OpenSpec CLI
-        run: npm install -g @fission-ai/openspec@latest --legacy-peer-deps
-
-      - name: Create temp project directory
-        run: mkdir -p "$RUNNER_TEMP/comet-e2e-project"
-        shell: bash
-
-      - name: Run comet init (project scope)
+      - name: Exercise status, doctor, evidence, and update
         run: |
-          node bin/specpilot.js init "$RUNNER_TEMP/comet-e2e-project" --yes --json \
-            | tee "$RUNNER_TEMP/comet-init-project.json"
-        shell: bash
+          node bin/specpilot.js init knowledge "${{ runner.temp }}/specpilot-smoke" --json
+          node bin/specpilot.js status "${{ runner.temp }}/specpilot-smoke" --json
+          node bin/specpilot.js doctor "${{ runner.temp }}/specpilot-smoke" --json
+          node bin/specpilot.js verify run --change smoke --task cli --phase green --path "${{ runner.temp }}/specpilot-smoke" -- node -e "process.exit(0)"
+          node bin/specpilot.js update "${{ runner.temp }}/specpilot-smoke" --json
 
-      - name: Verify Comet skills installed (project)
-        run: |
-          PROJ="$RUNNER_TEMP/comet-e2e-project"
-          check_file() {
-            if [ ! -f "$1" ]; then
-              echo "Missing file: $1" >&2
-              exit 1
-            fi
-          }
-          for sd in .claude/skills .cursor/skills .codex/skills .opencode/skills \
-                    .windsurf/skills .cline/skills .roo/skills .continue/skills \
-                    .gemini/skills .amazonq/skills .qwen/skills .kilocode/skills \
-                    .augment/skills .kiro/skills .kimi-code/skills .lingma/skills .junie/skills \
-                    .codebuddy/skills .cospec/skills .crush/skills .factory/skills \
-                    .iflow/skills .pi/skills .qoder/skills .agents/skills \
-                    .bob/skills .forge/skills .trae/skills .github/skills; do
-            check_file "$PROJ/$sd/comet/SKILL.md"
-            check_file "$PROJ/$sd/comet/scripts/comet-guard.sh"
-            check_file "$PROJ/$sd/comet/scripts/comet-state.sh"
-            check_file "$PROJ/$sd/comet/scripts/comet-handoff.sh"
-            check_file "$PROJ/$sd/comet/scripts/comet-yaml-validate.sh"
-            check_file "$PROJ/$sd/comet/scripts/comet-archive.sh"
-          done
-          check_file "$PROJ/.pi/extensions/comet-commands.ts"
-          PROJ="$PROJ" node -e "const s=require(process.env.PROJ+'/.pi/settings.json'); if(s.enableSkillCommands!==true) process.exit(1)"
-          echo "All 29 platforms project Comet skills: OK"
-        shell: bash
+      - name: Uninstall managed runtime
+        run: node bin/specpilot.js uninstall "${{ runner.temp }}/specpilot-smoke" --yes --json
 
-      - name: Verify external installer status (project)
-        run: |
-          node - "$RUNNER_TEMP/comet-init-project.json" <<'NODE'
-          const fs = require('fs');
-          function extractJsonPayload(raw) {
-            const start = raw.indexOf('{');
-            if (start < 0) {
-              throw new Error('No JSON payload found in init output');
-            }
-            return raw.slice(start);
-          }
-          const raw = fs.readFileSync(process.argv[2], 'utf8');
-          const data = JSON.parse(extractJsonPayload(raw));
-          const allowed = new Set(['installed', 'skipped', 'failed']);
-          const components = ['openspec', 'superpowers'];
-          const malformed = data.results.flatMap((r) =>
-            components
-              .filter((component) => !allowed.has(r[component]))
-              .map((component) => `${r.platform}: ${component}=${r[component]}`),
-          );
-          if (malformed.length > 0) {
-            console.error('External installers returned unexpected status values:');
-            for (const item of malformed) {
-              console.error(`- ${item}`);
-            }
-            process.exit(1);
-          }
-          const failed = data.results.flatMap((r) =>
-            components
-              .filter((component) => r[component] === 'failed')
-              .map((component) => `${r.platform}: ${component}=${r[component]}`),
-          );
-          if (failed.length > 0) {
-            console.warn('External installers reported failed for:');
-            for (const item of failed) {
-              console.warn(`- ${item}`);
-            }
-          }
-          console.log(`External installer statuses validated for ${data.results.length} platforms`);
-          NODE
-        shell: bash
-
-      - name: Verify OpenSpec and working directories (project)
-        run: |
-          test -d "$RUNNER_TEMP/comet-e2e-project/openspec"
-          test -d "$RUNNER_TEMP/comet-e2e-project/docs/superpowers/specs"
-          test -d "$RUNNER_TEMP/comet-e2e-project/docs/superpowers/plans"
-          echo "OpenSpec + working dirs: OK"
-        shell: bash
-
-      - name: Create temp global home
-        run: mkdir -p "$RUNNER_TEMP/comet-e2e-global"
-        shell: bash
-
-      - name: Run comet init (global scope)
-        run: |
-          export HOME="$RUNNER_TEMP/comet-e2e-global"
-          export USERPROFILE="$RUNNER_TEMP/comet-e2e-global"
-          node bin/specpilot.js init "$RUNNER_TEMP/comet-e2e-global" --yes --scope global --json \
-            | tee "$RUNNER_TEMP/comet-init-global.json"
-        shell: bash
-
-      - name: Verify Comet skills installed (global)
-        run: |
-          HOME_DIR="$RUNNER_TEMP/comet-e2e-global"
-          check_file() {
-            if [ ! -f "$1" ]; then
-              echo "Missing file: $1" >&2
-              exit 1
-            fi
-          }
-          for sd in .claude/skills .cursor/skills .codex/skills .config/opencode/skills \
-                    .windsurf/skills .cline/skills .roo/skills .continue/skills \
-                    .gemini/skills .amazonq/skills .qwen/skills .kilocode/skills \
-                    .augment/skills .kiro/skills .kimi-code/skills .lingma/skills .junie/skills \
-                    .codebuddy/skills .cospec/skills .crush/skills .factory/skills \
-                    .iflow/skills .pi/agent/skills .qoder/skills .gemini/antigravity/skills \
-                    .bob/skills .forge/skills .trae/skills .github/skills; do
-            check_file "$HOME_DIR/$sd/comet/SKILL.md"
-            check_file "$HOME_DIR/$sd/comet/scripts/comet-guard.sh"
-            check_file "$HOME_DIR/$sd/comet/scripts/comet-state.sh"
-            check_file "$HOME_DIR/$sd/comet/scripts/comet-handoff.sh"
-            check_file "$HOME_DIR/$sd/comet/scripts/comet-yaml-validate.sh"
-            check_file "$HOME_DIR/$sd/comet/scripts/comet-archive.sh"
-          done
-          check_file "$HOME_DIR/.pi/agent/extensions/comet-commands.ts"
-          HOME_DIR="$HOME_DIR" node -e "const s=require(process.env.HOME_DIR+'/.pi/agent/settings.json'); if(s.enableSkillCommands!==true) process.exit(1)"
-          echo "All 29 platforms global Comet skills: OK"
-        shell: bash
-
-      - name: Verify external installer status (global)
-        run: |
-          node - "$RUNNER_TEMP/comet-init-global.json" <<'NODE'
-          const fs = require('fs');
-          function extractJsonPayload(raw) {
-            const start = raw.indexOf('{');
-            if (start < 0) {
-              throw new Error('No JSON payload found in init output');
-            }
-            return raw.slice(start);
-          }
-          const raw = fs.readFileSync(process.argv[2], 'utf8');
-          const data = JSON.parse(extractJsonPayload(raw));
-          const allowed = new Set(['installed', 'skipped', 'failed']);
-          const components = ['openspec', 'superpowers'];
-          const malformed = data.results.flatMap((r) =>
-            components
-              .filter((component) => !allowed.has(r[component]))
-              .map((component) => `${r.platform}: ${component}=${r[component]}`),
-          );
-          if (malformed.length > 0) {
-            console.error('External installers returned unexpected status values:');
-            for (const item of malformed) {
-              console.error(`- ${item}`);
-            }
-            process.exit(1);
-          }
-          const failed = data.results.flatMap((r) =>
-            components
-              .filter((component) => r[component] === 'failed')
-              .map((component) => `${r.platform}: ${component}=${r[component]}`),
-          );
-          if (failed.length > 0) {
-            console.warn('External installers reported failed for:');
-            for (const item of failed) {
-              console.warn(`- ${item}`);
-            }
-          }
-          console.log(`External installer statuses validated for ${data.results.length} platforms`);
-          NODE
-        shell: bash
-
-      - name: Verify no working directories (global)
-        run: |
-          test ! -d "$RUNNER_TEMP/comet-e2e-global/docs/superpowers/specs"
-          echo "Global scope has no working dirs: OK"
-        shell: bash
+      - name: Verify project artifacts were preserved
+        env:
+          SPEC_PILOT_SMOKE_ROOT: ${{ runner.temp }}/specpilot-smoke
+        run: node -e "const fs=require('node:fs');const p=require('node:path');const r=process.env.SPEC_PILOT_SMOKE_ROOT;if(!fs.existsSync(p.join(r,'specs/project/glossary.md'))||!fs.existsSync(p.join(r,'.specpilot/evidence'))||!fs.existsSync(p.join(r,'.specpilot/local/knowledge-init.json')))process.exit(1)"

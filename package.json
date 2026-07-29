@@ -1,13 +1,14 @@
 {
   "name": "specpilot-ai",
-  "version": "0.4.0",
-  "description": "Spec-driven workflow automation for AI coding agents",
+  "version": "0.5.0-beta.1",
+  "description": "A lightweight, repository-backed AI coding harness for Claude Code and Codex.",
   "keywords": [
-    "comet",
-    "openspec",
-    "superpowers",
-    "skills",
-    "workflow"
+    "spec-driven-development",
+    "ai-coding-harness",
+    "claude-code",
+    "codex",
+    "codegraph",
+    "tdd"
   ],
   "license": "MIT",
   "author": "jianghuife",
@@ -21,18 +22,20 @@
   },
   "homepage": "https://github.com/jianghuife/SpecPilot#readme",
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "tag": "beta"
   },
   "bin": {
     "specpilot": "bin/specpilot.js"
   },
+  "exports": {},
   "files": [
     "dist",
     "bin",
-    "assets",
-    "scripts/postinstall.js",
-    "!dist/**/*.test.js",
-    "!dist/**/__tests__"
+    "runtime",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "node build.js",
@@ -40,19 +43,15 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
-    "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix",
-    "format": "prettier --write src/",
-    "format:check": "prettier --check src/",
-    "test:shell": "node scripts/run-bats.js test/shell/*.bats",
-    "benchmark:context": "node scripts/context-compression-benchmark.mjs",
-    "benchmark:execution": "node scripts/context-execution-benchmark.mjs",
-    "prepare": "husky && pnpm run build",
-    "prepublishOnly": "node scripts/prepublish-check.js && pnpm run build",
-    "postinstall": "node scripts/postinstall.js"
+    "lint": "eslint src test/v05",
+    "lint:fix": "eslint src test/v05 --fix",
+    "format": "prettier --write src test/v05 runtime README.md",
+    "format:check": "prettier --check src test/v05 runtime README.md",
+    "prepack": "pnpm run build",
+    "prepublishOnly": "node scripts/prepublish-check.js && pnpm run test && pnpm run build && npm pack --dry-run"
   },
   "lint-staged": {
-    "src/**/*.{ts,tsx,js,mjs,cjs,json,md,yaml,yml}": "prettier --write"
+    "{src,test/v05}/**/*.{ts,js,mjs,cjs,json,md,yaml,yml}": "prettier --write"
   },
   "packageManager": "pnpm@10.18.3",
   "engines": {
@@ -71,8 +70,8 @@
     "vitest": "^4.1.6"
   },
   "dependencies": {
-    "@fission-ai/openspec": "^1.4.1",
     "@inquirer/prompts": "^8.4.3",
-    "commander": "^14.0.0"
+    "commander": "^14.0.0",
+    "yaml": "^2.8.1"
   }
 }
