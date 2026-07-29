@@ -2,6 +2,34 @@
 
 All notable changes to specpilot-ai will be documented in this file.
 
+## What's Changed [0.5.0-beta.1] - 2026-07-29
+
+### Changed
+
+- Rewrote SpecPilot as a single TypeScript ESM package for Claude Code and Codex.
+- Replaced Comet/OpenSpec orchestration with repository-backed specs, tasks, reviews, evidence,
+  project memory, and stable in-place change closure.
+- Made CodeGraph an optional advisory provider with source-search fallback.
+- Made TDD explicit per task and added fingerprinted red, green, and final evidence gates.
+- Projected one English workflow runtime into Claude Code and Codex from a managed manifest.
+
+### Added
+
+- Added `specpilot init knowledge [path]` and the `specpilot-init-knowledge` runtime workflow.
+  Initialization inventories the codebase in gitignored local state, then guides a reviewed
+  glossary/standards/decision/candidate workflow without auto-promoting claims.
+
+### Removed
+
+- Removed the generic Skill installer, third-party Skill management, platform registry, bilingual
+  runtime distribution, linear workflow phase state, write-blocking hooks, and legacy migration.
+
+### Safety
+
+- `update` touches only manifest-managed runtime.
+- `uninstall` preserves specs, tasks, decisions, knowledge, reviews, evidence, and unrelated host
+  files.
+
 ## What's Changed [0.4.0] - 2026-06-17
 
 ### Added

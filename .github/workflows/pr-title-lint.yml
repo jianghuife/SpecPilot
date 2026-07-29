@@ -30,11 +30,12 @@ jobs:
             revert
           scopes: |
             cli
-            commands
-            core
-            skills
-            assets
-            scripts
+            store
+            workflow
+            evidence
+            graph
+            memory
+            runtime
             docs
             ci
             deps
