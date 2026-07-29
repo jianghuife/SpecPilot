@@ -1,8 +1,13 @@
 # Changelog
 
-All notable changes to `specpilot-ai` are documented here.
+All notable changes to `specpilot-kit` are documented here.
 
-## [Unreleased]
+## [0.5.0] - 2026-07-29
+
+### Changed
+
+- The npm package is renamed from `specpilot-ai` to `specpilot-kit`; the CLI command remains
+  `specpilot`. Versions up to 0.4.0 stay published under the old name.
 
 ### Added
 

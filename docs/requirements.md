@@ -511,7 +511,7 @@ spec_fingerprint: string # spec.md/design.md/plan.md 内容哈希
 
 ### NFR-01 技术与兼容性
 
-- npm 包名：`specpilot-ai`
+- npm 包名：`specpilot-kit`（0.4.0 及更早版本发布于旧包名 `specpilot-ai`）
 - CLI 名称：`specpilot`
 - Node.js：20+
 - TypeScript ESM 单包
