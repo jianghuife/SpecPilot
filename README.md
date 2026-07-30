@@ -4,7 +4,7 @@ SpecPilot is a lightweight, repository-backed AI coding harness for Claude Code 
 It keeps specifications, tasks, decisions, reviews, verification evidence, and durable project
 knowledge close to the code.
 
-Version `0.5.0-beta.1` is a clean rewrite. It does not read, migrate, or delete legacy
+The `0.5`/`0.6` line is a clean rewrite. It does not read, migrate, or delete legacy
 Comet/OpenSpec data.
 
 ## Principles
@@ -241,6 +241,19 @@ recorded. It reads and proposes updates to `specs/project/glossary.md` and
 `specs/project/decisions/`, but requires confirmation before writing. Invoke it explicitly with
 `$domain-modeling`. It is adapted from Matt Pocock's MIT-licensed skill; its license is included
 with the bundled asset.
+
+The catalog also bundles frontend Skills, each selected implicitly from its own description and
+invocable explicitly with `$<name>`:
+
+| Skill                            | Selected when the work involves                                                   |
+| -------------------------------- | --------------------------------------------------------------------------------- |
+| `fe-architecture-best-practices` | Frontend module boundaries, feature slices, state flows, UI contracts, or ADRs    |
+| `redux-toolkit`                  | `createSlice`, RTK Query, thunks, listener middleware, or entity adapters         |
+| `tanstack-query`                 | Query keys, `useQuery`/`useMutation`, invalidation, optimistic updates, hydration |
+| `typescript-advanced-types`      | Generics, conditional and mapped types, template literals, or type utilities      |
+| `vercel-react-best-practices`    | React SPA data fetching, bundle size, rendering, or re-render performance         |
+| `viteplus`                       | Vite+ (`vp` / `vite-plus`) configuration, tasks, monorepos, checks, or CI         |
+| `zustand-best-practices`         | Zustand stores, selectors, middleware, persistence, or render behavior            |
 
 ## Optional per-turn state
 
