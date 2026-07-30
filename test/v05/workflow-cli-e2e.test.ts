@@ -18,11 +18,16 @@ interface CliResult {
   stderr: string;
 }
 
-function runCli(cwd: string, args: string[], input?: string): Promise<CliResult> {
+function runCli(
+  cwd: string,
+  args: string[],
+  input?: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<CliResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [cliPath, ...args], {
       cwd,
-      env: process.env,
+      env,
       shell: false,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
@@ -52,6 +57,52 @@ beforeAll(async () => {
 }, 30_000);
 
 describe('SpecPilot public workflow CLI', () => {
+  it('refuses sudo invocation before writing root-owned repository files', async () => {
+    const root = await setupRepository();
+
+    const result = await runCli(
+      root,
+      ['init', '.', '--host', 'codex', '--graph', 'none', '--yes', '--json'],
+      undefined,
+      { ...process.env, SUDO_UID: '501', SUDO_USER: 'test-user' },
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('Do not run SpecPilot with sudo');
+    expect(result.stderr).toContain('restore ownership');
+    await expect(readFile(path.join(root, '.specpilot', 'config.json'))).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, '.agents', 'skills', 'specpilot-start', 'SKILL.md')),
+    ).rejects.toThrow();
+  });
+
+  it('does not install CodeGraph from inside project initialization', async () => {
+    const root = await setupRepository();
+    const fakeBin = await mkdtemp(path.join(tmpdir(), 'specpilot-cli-path-'));
+    const npmMarker = path.join(fakeBin, 'npm-invoked');
+    await writeFile(
+      path.join(fakeBin, 'npm'),
+      `#!/bin/sh\nprintf invoked > "${npmMarker}"\nexit 9\n`,
+      { mode: 0o755 },
+    );
+
+    const result = await runCli(
+      root,
+      ['init', '.', '--host', 'codex', '--graph', 'codegraph', '--yes', '--json'],
+      undefined,
+      { ...process.env, PATH: fakeBin },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout).warnings).toContain(
+      'CodeGraph is unavailable. Install it separately with ' +
+        '`npm install --global @colbymchenry/codegraph` (use sudo only for that system ' +
+        'installation if required), then rerun this init command. Source search fallback ' +
+        'remains available.',
+    );
+    await expect(readFile(npmMarker)).rejects.toThrow();
+  });
+
   it('runs start through finish and clears the active session', async () => {
     const root = await setupRepository();
     const successCommand = [process.execPath, '-e', 'process.exit(0)'];

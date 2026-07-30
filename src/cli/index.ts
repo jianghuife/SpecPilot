@@ -1,4 +1,3 @@
-import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { confirm, select } from '@inquirer/prompts';
@@ -41,24 +40,14 @@ function print(value: unknown, json: boolean | undefined): void {
   else console.log(JSON.stringify(value, null, 2));
 }
 
-function run(
-  executable: string,
-  args: string[],
-  cwd: string,
-): Promise<{ exitCode: number; output: string }> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(executable, args, {
-      cwd,
-      env: process.env,
-      shell: false,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    let output = '';
-    child.stdout.on('data', (chunk) => (output += chunk.toString()));
-    child.stderr.on('data', (chunk) => (output += chunk.toString()));
-    child.on('error', reject);
-    child.on('close', (code) => resolve({ exitCode: code ?? 1, output }));
-  });
+function assertNotRunWithSudo(): void {
+  if (!process.env.SUDO_UID && !process.env.SUDO_USER) return;
+  throw new Error(
+    'Do not run SpecPilot with sudo: it would create root-owned repository files. ' +
+      'Run the command again as your normal user. If a previous sudo run already wrote files, ' +
+      'restore ownership of the repository before retrying (for example: ' +
+      'sudo chown -R "$(id -u):$(id -g)" /path/to/repository).',
+  );
 }
 
 function hostsFromOption(host: string | undefined): Host[] {
@@ -67,21 +56,17 @@ function hostsFromOption(host: string | undefined): Host[] {
   return ['claude', 'codex'];
 }
 
-async function configureCodeGraph(root: string, allowInstall: boolean): Promise<string[]> {
+async function configureCodeGraph(root: string): Promise<string[]> {
   const warnings: string[] = [];
-  let adapter = new CodeGraphAdapter(root);
-  let readiness = await adapter.readiness();
-  if (!readiness.available && allowInstall) {
-    const install = await run('npm', ['install', '--global', '@colbymchenry/codegraph'], root);
-    if (install.exitCode !== 0) {
-      warnings.push(`CodeGraph installation failed: ${install.output.trim()}`);
-      return warnings;
-    }
-    adapter = new CodeGraphAdapter(root);
-    readiness = await adapter.readiness();
-  }
+  const adapter = new CodeGraphAdapter(root);
+  const readiness = await adapter.readiness();
   if (!readiness.available) {
-    warnings.push('CodeGraph is unavailable; SpecPilot will use source search fallback.');
+    warnings.push(
+      'CodeGraph is unavailable. Install it separately with ' +
+        '`npm install --global @colbymchenry/codegraph` (use sudo only for that system ' +
+        'installation if required), then rerun this init command. Source search fallback ' +
+        'remains available.',
+    );
     return warnings;
   }
   if (!readiness.indexed) {
@@ -172,6 +157,8 @@ const program = new Command()
   .description('Repository-backed spec workflow for Claude Code and Codex')
   .version(SPEC_PILOT_VERSION);
 
+program.hook('preAction', assertNotRunWithSudo);
+
 program
   .command('init [target] [path]')
   .description('Initialize the SpecPilot harness or its project knowledge inventory')
@@ -255,7 +242,7 @@ program
           `\nSpecPilot will manage:\n${preview.plannedPaths.map((item) => `  ${item}`).join('\n')}`,
         );
         if (graphChoice === 'codegraph') {
-          console.log('  CodeGraph CLI installation/indexing if needed (no global MCP edits)');
+          console.log('  CodeGraph readiness/indexing if its CLI is already installed');
         }
         if (!(await confirm({ message: 'Apply this initialization?', default: true }))) {
           console.log('Cancelled.');
@@ -268,9 +255,7 @@ program
       }
       const result = await initializeProject(initOptions);
       if (graphChoice === 'codegraph') {
-        result.warnings.push(
-          ...(await configureCodeGraph(root, options.graph === 'codegraph' || interactive)),
-        );
+        result.warnings.push(...(await configureCodeGraph(root)));
       }
       print(
         options.json

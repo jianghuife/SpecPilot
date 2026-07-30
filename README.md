@@ -30,6 +30,15 @@ Comet/OpenSpec data.
 npm install --global specpilot-kit
 ```
 
+Run `specpilot` as the user who owns the repository; do not prefix SpecPilot commands with
+`sudo`, because that creates root-owned project files that later Git operations cannot replace.
+If an earlier sudo run already affected a repository that should be entirely owned by your user,
+repair it once from outside that repository:
+
+```bash
+sudo chown -R "$(id -u):$(id -g)" /path/to/repository
+```
+
 ## Initialize
 
 ```bash
@@ -38,7 +47,9 @@ specpilot init
 ```
 
 Interactive initialization previews all managed paths and recommends CodeGraph before asking for
-confirmation. It never edits global MCP configuration.
+confirmation. It never installs global packages or edits global MCP configuration. When
+CodeGraph is selected, `init` uses and indexes an existing CodeGraph CLI; if it is unavailable,
+SpecPilot reports the separate installation command and continues with source search fallback.
 
 For automation:
 
@@ -48,8 +59,16 @@ specpilot init . --host codex --graph codegraph --yes
 specpilot init . --dry-run --json
 ```
 
-In non-interactive `--yes` mode, CodeGraph installation is allowed only when
-`--graph codegraph` is explicit. Otherwise SpecPilot uses source search.
+Install optional CodeGraph separately before initialization:
+
+```bash
+npm install --global @colbymchenry/codegraph
+specpilot init . --graph codegraph --yes
+```
+
+If the system npm prefix requires elevated access, `sudo` may be used for the CodeGraph package
+installation only. Run `specpilot init` itself as the repository owner. Alternatively configure
+a user-owned npm prefix to keep both installations unprivileged.
 
 ## Initialize project knowledge
 
@@ -278,8 +297,9 @@ after enabling injection, use `/hooks` to review the projected hook.
 
 SpecPilot calls the CodeGraph CLI as a subprocess; it does not embed its Node library. The stable
 SpecPilot interface is `graph status|explore|impact|affected`, independent of provider output.
-If CodeGraph is missing, unindexed, stale, or fails, the workflow can continue using source
-search. Every impact or test candidate still needs confirmation in source, tests, or logs.
+`specpilot init` never installs the CLI globally. If CodeGraph is missing, unindexed, stale, or
+fails, the workflow can continue using source search. Every impact or test candidate still needs
+confirmation in source, tests, or logs.
 
 ## Scope
 
