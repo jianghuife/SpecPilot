@@ -2,6 +2,16 @@
 
 All notable changes to `specpilot-kit` are documented here.
 
+## [0.7.0] - 2026-07-30
+
+### Fixed
+
+- Refuse execution through `sudo` before writing repository files and report how to restore
+  ownership after an earlier sudo run.
+- Stop installing CodeGraph globally from `specpilot init`; initialization now checks an existing
+  CLI, provides a separate installation command when missing, and preserves source-search
+  fallback.
+
 ## [0.6.0] - 2026-07-30
 
 ### Added

@@ -1,6 +1,6 @@
 {
   "name": "specpilot-kit",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "A lightweight, repository-backed AI coding harness for Claude Code and Codex.",
   "keywords": [
     "spec-driven-development",
