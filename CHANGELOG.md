@@ -2,6 +2,17 @@
 
 All notable changes to `specpilot-kit` are documented here.
 
+## [0.6.0] - 2026-07-30
+
+### Added
+
+- Seven frontend Skills are restored to the bundled optional-Skill catalog and are now selectable
+  through `specpilot add skill`: `fe-architecture-best-practices`, `redux-toolkit`,
+  `tanstack-query`, `typescript-advanced-types`, `vercel-react-best-practices`, `viteplus`, and
+  `zustand-best-practices`. They were present before 0.5.0 but never shipped under the
+  `specpilot-kit` name. Projection, update preservation, and uninstall are unchanged; the catalog
+  remains a closed set bundled with the package.
+
 ## [0.5.0] - 2026-07-29
 
 ### Changed
