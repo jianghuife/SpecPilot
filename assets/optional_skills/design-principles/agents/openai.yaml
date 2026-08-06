@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Design Principles'
+  short_description: 'Pragmatic gates for maintainable application design'
+  default_prompt: 'Use $design-principles to review this change for unnecessary abstraction, dependency violations, and poor change locality.'

@@ -9,9 +9,12 @@ Run `specpilot status --json`. Select one unblocked task, then run
 `specpilot context list <change> <task> --purpose work --json` and read every existing reference.
 The list contains the approved change documents plus curated project standards, verified
 knowledge, or research. Do not treat it as a source-file allowlist; inspect source candidates
-separately. Respect `blocked_by`; run `specpilot task start <change> <task>` before implementing.
-This validates the approved spec, dependencies, and context references, sets the task to `doing`,
-and activates the local session pointer.
+separately. The listing must have no missing or untrusted references and must be within its byte
+budget. If context is incomplete, preview `specpilot context suggest <change> <task> --purpose
+work --json`; inspect the reasons before applying selected references. Respect `blocked_by`; run
+`specpilot task start <change> <task>` before implementing. This validates the approved spec,
+dependencies, trust state, and context budget, sets the task to `doing`, and activates the local
+session pointer.
 
 Use `specpilot graph impact <symbol>` or `affected <files...>` to narrow reading when helpful, but
 confirm call chains, impact, and candidate tests in source, tests, or logs.
@@ -29,7 +32,9 @@ evidence:
 `specpilot verify run --change <change> --task <task> --phase green -- <command>`.
 
 When the task is verified, run `specpilot task complete <change> <task>`. Completion is rejected
-without green evidence matching the current worktree. If work cannot continue, use
+without green evidence matching both the current worktree and exact curated work-context snapshot.
+If a referenced spec, standard, knowledge concept, research file, manifest entry, or reference
+reason changes, read the new context and record green evidence again. If work cannot continue, use
 `specpilot task block <change> <task> --reason "<reason>"`; use
 `specpilot task waive <change> <task> --reason "<reason>"` only after the user accepts the waiver.
 

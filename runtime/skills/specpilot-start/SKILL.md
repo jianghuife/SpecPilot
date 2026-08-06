@@ -30,7 +30,10 @@ Scaffold the approved change instead of hand-writing YAML:
 3. `specpilot task add <change-id> <task-id> --title "<Title>" [--execution tdd]
 [--blocked-by <ids...>]` creates each task with validated frontmatter. Use `--execution tdd`
    only when the user explicitly enables it. Dependencies must be acyclic.
-4. Curate repository-backed context for each task with `specpilot context add`. Add only relevant
+4. Preview deterministic context candidates with `specpilot context suggest <change> <task>
+--purpose work --json` and repeat for `--purpose review`. Inspect every reason and budget
+   omission; use `--apply` only for the candidates that belong in the approved task. Curate any
+   remaining references with `specpilot context add`. Add only relevant
    files from `specs/project/`, `specs/knowledge/`, or the current change, with a concise reason.
    Use `--purpose work` for implementation inputs and `--purpose review` for review inputs. Never
    pre-register source files that the task may edit.

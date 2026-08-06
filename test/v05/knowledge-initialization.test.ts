@@ -26,6 +26,7 @@ describe('knowledge initialization', () => {
     const dryRun = await catalog.initializeKnowledge({ dryRun: true });
     expect(dryRun.written).toBe(false);
     expect(dryRun.inventory).toMatchObject({
+      knowledge_policy_version: 1,
       project_name: 'billing-service',
       manifests: ['package.json'],
       source_roots: ['src'],
@@ -33,12 +34,38 @@ describe('knowledge initialization', () => {
       languages: { TypeScript: 2 },
       review_status: 'pending',
     });
+    expect(dryRun.inventory.knowledge_coverage).toHaveLength(16);
+    expect(dryRun.inventory.knowledge_coverage).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'architecture-boundaries',
+          priority: 'p0',
+          status: 'template',
+        }),
+        expect.objectContaining({
+          id: 'agent-skills',
+          priority: 'p1',
+          status: 'covered',
+        }),
+        expect.objectContaining({
+          id: 'requirements-archive',
+          priority: 'p1',
+          status: 'missing',
+        }),
+      ]),
+    );
+    expect(dryRun.inventory.priority_summary.p0).toEqual({
+      covered: 0,
+      template: 4,
+      missing: 0,
+    });
     await expect(readFile(dryRun.reportPath)).rejects.toThrow();
 
     const initialized = await catalog.initializeKnowledge();
     expect(initialized.written).toBe(true);
     expect(JSON.parse(await readFile(initialized.reportPath, 'utf8'))).toMatchObject({
       schema_version: 1,
+      knowledge_policy_version: 1,
       project_name: 'billing-service',
       review_status: 'pending',
     });

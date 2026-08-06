@@ -70,6 +70,8 @@ export interface ReviewRecord {
   // Absent only in reviews written before spec fingerprinting; finish treats
   // a missing value as stale so those reviews must be re-recorded.
   specFingerprint?: string;
+  // Absent only in reviews written before curated-context fingerprinting.
+  reviewContextFingerprint?: string;
   body: string;
 }
 
@@ -86,6 +88,7 @@ export interface WriteReviewInput {
   reviewedAt: string;
   worktreeFingerprint: string;
   specFingerprint: string;
+  reviewContextFingerprint: string;
   body: string;
 }
 
@@ -326,6 +329,11 @@ function parseReview(content: string, filePath: string): ReviewRecord {
     specFingerprint:
       typeof metadata.spec_fingerprint === 'string' && metadata.spec_fingerprint.trim() !== ''
         ? metadata.spec_fingerprint
+        : undefined,
+    reviewContextFingerprint:
+      typeof metadata.review_context_fingerprint === 'string' &&
+      metadata.review_context_fingerprint.trim() !== ''
+        ? metadata.review_context_fingerprint
         : undefined,
     body,
   };
@@ -683,6 +691,10 @@ export class ProjectStore {
       reviewed_at: assertString(input.reviewedAt, 'reviewed_at'),
       worktree_fingerprint: assertString(input.worktreeFingerprint, 'worktree_fingerprint'),
       spec_fingerprint: assertString(input.specFingerprint, 'spec_fingerprint'),
+      review_context_fingerprint: assertString(
+        input.reviewContextFingerprint,
+        'review_context_fingerprint',
+      ),
     });
     const content = `---\n${frontmatter}---\n\n${assertString(input.body, 'review body').trimEnd()}\n`;
     await writeTextAtomic(filePath, content);

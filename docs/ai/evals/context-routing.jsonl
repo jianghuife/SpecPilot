@@ -1,0 +1,16 @@
+{"id":"architecture-layer-change","prompt":"Move invoice orchestration across the domain and infrastructure dependency boundary.","expected_knowledge_type":"architecture-boundaries","priority":"p0"}
+{"id":"testing-fixture-change","prompt":"Change the billing integration test command and shared fixture setup.","expected_knowledge_type":"testing-verification","priority":"p0"}
+{"id":"event-schema-change","prompt":"Add a field to the invoice-created event and preserve consumer compatibility.","expected_knowledge_type":"api-data-event-contracts","priority":"p0"}
+{"id":"state-transition-change","prompt":"Allow a suspended subscription to resume after payment recovery.","expected_knowledge_type":"state-machines-business-flows","priority":"p0"}
+{"id":"architecture-choice","prompt":"Replace the queue provider and explain the historical trade-off.","expected_knowledge_type":"architecture-decisions","priority":"p1"}
+{"id":"requirement-rationale","prompt":"Explain why the completed cross-module settlement change was requested.","expected_knowledge_type":"requirements-archive","priority":"p1"}
+{"id":"repeatable-agent-workflow","prompt":"Automate the recurring database compatibility review workflow.","expected_knowledge_type":"agent-skills","priority":"p1"}
+{"id":"approved-code-pattern","prompt":"Implement a handler using the project's approved example pattern.","expected_knowledge_type":"standard-examples","priority":"p1"}
+{"id":"production-diagnosis","prompt":"Diagnose delayed invoice events and verify the operational repair.","expected_knowledge_type":"runbooks","priority":"p1"}
+{"id":"prior-failure","prompt":"Check whether this change can repeat the previous billing outage.","expected_knowledge_type":"incidents-postmortems","priority":"p1"}
+{"id":"known-bad-pattern","prompt":"Avoid the repository pattern that repeatedly caused duplicate writes.","expected_knowledge_type":"anti-patterns","priority":"p1"}
+{"id":"domain-term","prompt":"Clarify the canonical meaning of invoice settlement and its state names.","expected_knowledge_type":"domain-glossary","priority":"p1"}
+{"id":"alert-interpretation","prompt":"Explain the payment-lag alert, metric, trace, and diagnostic logs.","expected_knowledge_type":"observability","priority":"p1"}
+{"id":"safe-rollout","prompt":"Plan a compatible data migration with rollout checks and rollback criteria.","expected_knowledge_type":"release-rollback-migration","priority":"p1"}
+{"id":"agent-regression","prompt":"Add a pass-fail case for an agent that ignored a billing invariant.","expected_knowledge_type":"ai-evaluations","priority":"p1"}
+{"id":"capacity-security-limit","prompt":"Evaluate throughput limits, authorization boundaries, and sensitive data risk.","expected_knowledge_type":"performance-capacity-security","priority":"p2"}

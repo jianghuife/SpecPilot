@@ -45,6 +45,7 @@ export interface WorkflowStateSnapshot {
     purpose: 'work' | 'review';
     count: number;
     missing: string[];
+    invalid: string[];
   };
 }
 
@@ -71,6 +72,7 @@ function latestEvidence(
   taskId: string,
   phase: EvidencePhase,
   fingerprint?: string,
+  contextFingerprint?: string,
 ): EvidenceRecord | undefined {
   return records
     .filter(
@@ -80,7 +82,8 @@ function latestEvidence(
         record.change_id === changeId &&
         record.task_id === taskId &&
         record.phase === phase &&
-        (fingerprint === undefined || record.worktree_fingerprint === fingerprint),
+        (fingerprint === undefined || record.worktree_fingerprint === fingerprint) &&
+        (contextFingerprint === undefined || record.context_fingerprint === contextFingerprint),
     )
     .sort((left, right) => right.completed_at.localeCompare(left.completed_at))[0];
 }
@@ -163,6 +166,7 @@ export class WorkflowHarness {
         purpose,
         count: listing.references.length,
         missing: listing.missing,
+        invalid: listing.invalid,
       };
     }
     return {
@@ -211,10 +215,20 @@ export class WorkflowHarness {
     // Missing review context always blocks a review write; only a passing
     // review additionally requires every task to be finished.
     for (const task of inspection.taskRecords.filter((task) => task.status !== 'waived')) {
-      const context = await this.memory.contextFor(changeId, task.id, 'review');
+      const context = await this.memory.contextSnapshot(changeId, task.id, 'review');
       if (context.missing.length > 0) {
         throw new Error(
           `task ${task.id} has missing review context: ${context.missing.join(', ')}`,
+        );
+      }
+      if (context.invalid.length > 0) {
+        throw new Error(
+          `task ${task.id} has untrusted review context: ${context.invalid.join(', ')}`,
+        );
+      }
+      if (!context.withinBudget) {
+        throw new Error(
+          `task ${task.id} review context exceeds its ${context.budgetBytes}-byte budget by ${context.overBudgetBytes} bytes`,
         );
       }
     }
@@ -227,6 +241,7 @@ export class WorkflowHarness {
       }
     }
     const { fingerprint } = await this.evidence.fingerprint();
+    const reviewContext = await this.memory.changeContextSnapshot(changeId, 'review');
     return this.store.writeReview(changeId, {
       status,
       standards: input.standards,
@@ -234,6 +249,7 @@ export class WorkflowHarness {
       reviewedAt: new Date().toISOString(),
       worktreeFingerprint: fingerprint,
       specFingerprint: await this.store.specFingerprint(changeId),
+      reviewContextFingerprint: reviewContext.fingerprint,
       body: input.body,
     });
   }
@@ -259,18 +275,38 @@ export class WorkflowHarness {
       if (unsatisfied.length > 0) {
         throw new Error(`task ${taskId} has unsatisfied dependencies: ${unsatisfied.join(', ')}`);
       }
-      const context = await this.memory.contextFor(changeId, taskId, 'work');
+      const context = await this.memory.contextSnapshot(changeId, taskId, 'work');
       if (context.missing.length > 0) {
         throw new Error(`task ${taskId} has missing work context: ${context.missing.join(', ')}`);
+      }
+      if (context.invalid.length > 0) {
+        throw new Error(`task ${taskId} has untrusted work context: ${context.invalid.join(', ')}`);
+      }
+      if (!context.withinBudget) {
+        throw new Error(
+          `task ${taskId} work context exceeds its ${context.budgetBytes}-byte budget by ${context.overBudgetBytes} bytes`,
+        );
       }
     }
 
     if (transition === 'complete') {
       const { fingerprint } = await this.evidence.fingerprint();
       const records = await this.evidence.list(changeId);
-      const green = latestEvidence(records, changeId, taskId, 'green', fingerprint);
-      if (!green) {
+      const greenForCode = latestEvidence(records, changeId, taskId, 'green', fingerprint);
+      if (!greenForCode) {
         throw new Error(`task ${taskId} requires fresh green evidence before completion`);
+      }
+      const context = await this.memory.contextSnapshot(changeId, taskId, 'work');
+      const greenForContext = latestEvidence(
+        records,
+        changeId,
+        taskId,
+        'green',
+        fingerprint,
+        context.fingerprint,
+      );
+      if (!greenForContext) {
+        throw new Error(`task ${taskId} requires green evidence for the current work context`);
       }
     }
 
@@ -328,10 +364,20 @@ export class WorkflowHarness {
       }
       if (task.status !== 'waived') {
         for (const purpose of ['work', 'review'] as const) {
-          const context = await this.memory.contextFor(changeId, task.id, purpose);
+          const context = await this.memory.contextSnapshot(changeId, task.id, purpose);
           if (context.missing.length > 0) {
             missing.push(
               `task ${task.id} has missing ${purpose} context: ${context.missing.join(', ')}`,
+            );
+          }
+          if (context.invalid.length > 0) {
+            missing.push(
+              `task ${task.id} has untrusted ${purpose} context: ${context.invalid.join(', ')}`,
+            );
+          }
+          if (!context.withinBudget) {
+            missing.push(
+              `task ${task.id} ${purpose} context exceeds its ${context.budgetBytes}-byte budget by ${context.overBudgetBytes} bytes`,
             );
           }
         }
@@ -339,6 +385,8 @@ export class WorkflowHarness {
     }
 
     const { fingerprint } = await this.evidence.fingerprint();
+    const changeContext = await this.memory.changeContextSnapshot(changeId);
+    const reviewContext = await this.memory.changeContextSnapshot(changeId, 'review');
     const reviewPath = path.join(changeDirectory, 'review.md');
     let review: ReviewRecord | undefined;
     if (!(await exists(reviewPath))) {
@@ -356,6 +404,9 @@ export class WorkflowHarness {
         // separately; a review without a spec fingerprint predates this gate.
         if (review.specFingerprint !== (await this.store.specFingerprint(changeId))) {
           missing.push('review is stale: the spec documents changed after review');
+        }
+        if (review.reviewContextFingerprint !== reviewContext.fingerprint) {
+          missing.push('review is stale: curated review context changed');
         }
         if (
           review.status === 'pass_with_warnings' ||
@@ -377,7 +428,8 @@ export class WorkflowHarness {
           record.valid === true &&
           record.change_id === changeId &&
           record.phase === 'final' &&
-          record.worktree_fingerprint === fingerprint,
+          record.worktree_fingerprint === fingerprint &&
+          record.context_fingerprint === changeContext.fingerprint,
       )
       .sort((left, right) => right.completed_at.localeCompare(left.completed_at))[0];
     if (!latestFinal) {
@@ -389,8 +441,16 @@ export class WorkflowHarness {
       // Red evidence predates the implementation by definition, so it can never
       // match the final worktree fingerprint; ordering and the shared command tie
       // it to the fresh green run instead.
+      const workContext = await this.memory.contextSnapshot(changeId, task.id, 'work');
       const red = latestEvidence(evidenceRecords, changeId, task.id, 'red');
-      const green = latestEvidence(evidenceRecords, changeId, task.id, 'green', fingerprint);
+      const green = latestEvidence(
+        evidenceRecords,
+        changeId,
+        task.id,
+        'green',
+        fingerprint,
+        workContext.fingerprint,
+      );
       if (!red) {
         missing.push(`task ${task.id} is missing red evidence`);
       }

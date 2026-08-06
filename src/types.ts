@@ -4,6 +4,7 @@ const require = createRequire(import.meta.url);
 const packageMetadata = require('../package.json') as { version: string };
 
 export const SPEC_PILOT_VERSION = packageMetadata.version;
+export const DEFAULT_CONTEXT_MAX_BYTES = 131_072;
 
 export type Host = 'claude' | 'codex';
 export type GraphMode = 'codegraph' | 'none';
@@ -19,6 +20,7 @@ export interface ProjectConfig {
   };
   context: {
     per_turn_state: boolean;
+    max_bytes: number;
   };
   optional_skills: string[];
 }
@@ -28,6 +30,7 @@ export interface InitializeOptions {
   hosts: Host[];
   graph: GraphMode;
   perTurnState?: boolean;
+  contextMaxBytes?: number;
   optionalSkills?: string[];
   dryRun?: boolean;
 }

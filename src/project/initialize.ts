@@ -1,5 +1,6 @@
 import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { PROJECT_KNOWLEDGE_TEMPLATES } from '../memory/knowledge-policy.js';
 import { RuntimeProjector } from '../runtime/runtime-projector.js';
 import {
   SPEC_PILOT_VERSION,
@@ -8,13 +9,14 @@ import {
   type ProjectConfig,
 } from '../types.js';
 import { writeJsonAtomic, writeTextAtomic, writeTextIfMissing } from '../utils/files.js';
-import { normalizeOptionalSkills, readProjectConfig } from './config.js';
+import { normalizeContextMaxBytes, normalizeOptionalSkills, readProjectConfig } from './config.js';
 
 const INITIAL_FILES: Record<string, string> = {
-  'specs/project/glossary.md': `# Project Glossary\n\nRecord the domain language used by people and code.\n`,
+  'specs/project/glossary.md': `<!-- specpilot-template:domain-glossary -->\n# Project Glossary\n\nRecord the domain language used by people and code.\n`,
   'specs/project/standards/README.md': `# Project Standards\n\nKeep codebase-specific engineering standards here.\n`,
-  'specs/project/decisions/README.md': `# Architecture Decisions\n\nRecord durable decisions and their trade-offs here.\n`,
-  'specs/knowledge/README.md': `# Verified Project Knowledge\n\nOnly reviewed, reusable knowledge with source evidence belongs here.\n`,
+  'specs/project/decisions/README.md': `<!-- specpilot-template:architecture-decisions -->\n# Architecture Decisions\n\nRecord durable decisions and their trade-offs here.\n`,
+  ...PROJECT_KNOWLEDGE_TEMPLATES,
+  'specs/knowledge/index.md': `---\nokf_version: "0.2"\n---\n\n# Verified Project Knowledge\n\nThis directory is an Open Knowledge Format bundle. Only reviewed, reusable knowledge with valid provenance belongs here.\n`,
 };
 
 async function ensureLocalIgnore(projectPath: string): Promise<void> {
@@ -35,7 +37,11 @@ async function ensureLocalIgnore(projectPath: string): Promise<void> {
 export async function initializeProject(options: InitializeOptions): Promise<InitializeResult> {
   const projectPath = path.resolve(options.projectPath);
   let existingConfig: ProjectConfig | undefined;
-  if (options.perTurnState === undefined || options.optionalSkills === undefined) {
+  if (
+    options.perTurnState === undefined ||
+    options.contextMaxBytes === undefined ||
+    options.optionalSkills === undefined
+  ) {
     try {
       existingConfig = await readProjectConfig(projectPath);
     } catch {
@@ -46,6 +52,9 @@ export async function initializeProject(options: InitializeOptions): Promise<Ini
   if (perTurnState === undefined) {
     perTurnState = existingConfig?.context.per_turn_state ?? false;
   }
+  const contextMaxBytes = normalizeContextMaxBytes(
+    options.contextMaxBytes ?? existingConfig?.context.max_bytes,
+  );
   const optionalSkills = normalizeOptionalSkills(
     options.optionalSkills ?? existingConfig?.optional_skills ?? [],
   );
@@ -87,6 +96,7 @@ export async function initializeProject(options: InitializeOptions): Promise<Ini
     },
     context: {
       per_turn_state: perTurnState,
+      max_bytes: contextMaxBytes,
     },
     optional_skills: optionalSkills,
   };

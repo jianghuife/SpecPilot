@@ -5,7 +5,12 @@ import { Command, Option } from 'commander';
 import { EvidenceRunner, type EvidencePhase } from '../evidence/evidence-runner.js';
 import { CodeGraphAdapter, graphProvider, type GraphResult } from '../graph/graph-provider.js';
 import { MemoryCatalog } from '../memory/memory-catalog.js';
-import { findProjectRoot, normalizeOptionalSkills, readProjectConfig } from '../project/config.js';
+import {
+  findProjectRoot,
+  normalizeContextMaxBytes,
+  normalizeOptionalSkills,
+  readProjectConfig,
+} from '../project/config.js';
 import { doctorProject } from '../project/doctor.js';
 import { initializeProject } from '../project/initialize.js';
 import {
@@ -109,7 +114,7 @@ async function applyManagedRuntime(
   const updated: ProjectConfig = {
     ...config,
     managed_version: SPEC_PILOT_VERSION,
-    context: { per_turn_state: perTurnState },
+    context: { per_turn_state: perTurnState, max_bytes: config.context.max_bytes },
     optional_skills: optionalSkills,
   };
   await writeJsonAtomic(path.join(root, '.specpilot', 'config.json'), updated);
@@ -145,7 +150,7 @@ function promptContextText(state: WorkflowStateSnapshot): string {
   lines.push(`Next: ${state.next}`);
   if (state.context) {
     lines.push(
-      `Context(${state.context.purpose}): ${state.context.count} references; missing ${state.context.missing.length}`,
+      `Context(${state.context.purpose}): ${state.context.count} references; missing ${state.context.missing.length}; untrusted ${state.context.invalid.length}`,
     );
   }
   lines.push('</specpilot-state>');
@@ -165,6 +170,7 @@ program
   .addOption(new Option('--host <host>').choices(['claude', 'codex', 'all']))
   .addOption(new Option('--graph <provider>').choices(['codegraph', 'none']))
   .option('--context-injection', 'Enable lightweight per-turn workflow-state injection')
+  .option('--context-max-bytes <bytes>', 'Maximum curated context bytes per task and purpose')
   .option('--dry-run', 'Preview all writes without changing the project')
   .option('--yes', 'Run non-interactively')
   .option('--json', 'Print machine-readable JSON')
@@ -176,6 +182,7 @@ program
         host?: string;
         graph?: GraphMode;
         contextInjection?: boolean;
+        contextMaxBytes?: string;
         dryRun?: boolean;
         yes?: boolean;
         json?: boolean;
@@ -234,6 +241,10 @@ program
         hosts: hostsFromOption(hostChoice),
         graph: graphChoice,
         perTurnState: options.contextInjection,
+        contextMaxBytes:
+          options.contextMaxBytes === undefined
+            ? undefined
+            : normalizeContextMaxBytes(Number(options.contextMaxBytes)),
         dryRun: options.dryRun,
       };
       const preview = await initializeProject({ ...initOptions, dryRun: true });
@@ -571,13 +582,44 @@ context
       taskId: string,
       options: { purpose: ContextPurpose; path: string; json?: boolean },
     ) => {
-      const listing = await new MemoryCatalog(options.path).contextFor(
+      const listing = await new MemoryCatalog(options.path).contextSnapshot(
         changeId,
         taskId,
         options.purpose,
       );
       print(listing, options.json);
-      if (listing.missing.length > 0) process.exitCode = 1;
+      if (listing.missing.length > 0 || listing.invalid.length > 0 || !listing.withinBudget)
+        process.exitCode = 1;
+    },
+  );
+context
+  .command('suggest <change> <task>')
+  .description('Rank relevant project knowledge within the configured byte budget')
+  .addOption(new Option('--purpose <purpose>').choices(['work', 'review']).makeOptionMandatory())
+  .option('--apply', 'Add the selected references to the task context manifest')
+  .option('--path <path>', 'Project path', '.')
+  .option('--json')
+  .action(
+    async (
+      changeId: string,
+      taskId: string,
+      options: { purpose: ContextPurpose; apply?: boolean; path: string; json?: boolean },
+    ) => {
+      const catalog = new MemoryCatalog(options.path);
+      const report = await catalog.suggestContext(changeId, taskId, options.purpose);
+      if (options.apply) {
+        const store = new ProjectStore(options.path);
+        for (const suggestion of report.selected) {
+          await store.addTaskContext(changeId, taskId, options.purpose, {
+            path: suggestion.path,
+            reason: suggestion.reason,
+          });
+        }
+      }
+      print(
+        { ...report, applied: options.apply ? report.selected.map((item) => item.path) : [] },
+        options.json,
+      );
     },
   );
 context
@@ -625,6 +667,48 @@ function registerContextInjection(mode: 'enable' | 'disable'): void {
 
 registerContextInjection('enable');
 registerContextInjection('disable');
+
+const contextBudget = context
+  .command('budget')
+  .description('Inspect or change the curated context byte budget');
+contextBudget
+  .command('show')
+  .option('--path <path>', 'Project path', '.')
+  .option('--json')
+  .action(async (options: { path: string; json?: boolean }) => {
+    const maxBytes = (await readProjectConfig(options.path)).context.max_bytes;
+    print(options.json ? { max_bytes: maxBytes } : `${maxBytes} bytes`, options.json);
+  });
+contextBudget
+  .command('set <bytes>')
+  .option('--path <path>', 'Project path', '.')
+  .option('--json')
+  .action(async (bytes: string, options: { path: string; json?: boolean }) => {
+    const root = path.resolve(options.path);
+    const config = await readProjectConfig(root);
+    const maxBytes = normalizeContextMaxBytes(Number(bytes));
+    const updated: ProjectConfig = {
+      ...config,
+      context: { ...config.context, max_bytes: maxBytes },
+    };
+    await writeJsonAtomic(path.join(root, '.specpilot', 'config.json'), updated);
+    print(
+      options.json ? { max_bytes: maxBytes } : `Context budget set to ${maxBytes} bytes.`,
+      options.json,
+    );
+  });
+
+const knowledge = program
+  .command('knowledge')
+  .description('Audit project knowledge coverage and trusted OKF concepts');
+knowledge
+  .command('audit [path]')
+  .option('--json')
+  .action(async (target = '.', options: CommonOutputOptions) => {
+    const report = await new MemoryCatalog(target).auditKnowledge();
+    print(report, options.json);
+    if (!report.healthy) process.exitCode = 1;
+  });
 
 const graph = program.command('graph').description('Provider-neutral code graph operations');
 graph
@@ -787,6 +871,34 @@ internal
   .action(async (query: string, options: { path: string; json?: boolean }) => {
     print(await new MemoryCatalog(options.path).search(query), options.json);
   });
+internal
+  .command('memory-review <candidate>')
+  .addOption(
+    new Option('--decision <decision>').choices(['approved', 'rejected']).makeOptionMandatory(),
+  )
+  .requiredOption('--reviewer <actor>', 'Human reviewer actor, for example human:alice')
+  .requiredOption('--reason <reason>', 'Why the candidate was approved or rejected')
+  .option('--path <path>', 'Project path', '.')
+  .option('--json')
+  .action(
+    async (
+      candidate: string,
+      options: {
+        decision: 'approved' | 'rejected';
+        reviewer: string;
+        reason: string;
+        path: string;
+        json?: boolean;
+      },
+    ) => {
+      const receipt = await new MemoryCatalog(options.path).reviewCandidate(candidate, {
+        decision: options.decision,
+        reviewer: options.reviewer,
+        reason: options.reason,
+      });
+      print(receipt, options.json);
+    },
+  );
 internal
   .command('memory-promote <candidate>')
   .option('--path <path>', 'Project path', '.')

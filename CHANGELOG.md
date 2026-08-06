@@ -2,6 +2,42 @@
 
 All notable changes to `specpilot-kit` are documented here.
 
+## [0.8.0] - 2026-08-06
+
+### Added
+
+- OKF v0.2-compatible trusted knowledge concepts with a strict `specpilot` policy extension for
+  engineering criticality, authority, loading policy, evidence, and invalidation metadata.
+- Deterministic work, review, and change context fingerprints covering manifest identity,
+  reference reasons, and referenced file contents.
+- Content-bound knowledge review receipts recording the decision, human actor, reason, timestamp,
+  candidate path, and candidate SHA-256.
+- A 16-type P0/P1/P2 knowledge policy, initialized project-memory templates, coverage auditing,
+  update triggers, and a versioned context-routing evaluation set.
+- `specpilot knowledge audit`, budget-aware `context suggest [--apply]`, configurable context byte
+  budgets, and context budget inspection/update commands.
+- A bundled `design-principles` optional Skill for evidence-based abstraction, sharing,
+  dependency-boundary, change-locality, and refactor decisions.
+
+### Changed
+
+- Knowledge promotion now verifies local source paths, evidence records, evidence freshness, and
+  evidence logs. Trusted OKF concepts require stable status, current human verification, and an
+  approved review receipt that still matches the candidate content.
+- Green evidence must match the current work-context fingerprint; reviews pin aggregate review
+  context; final evidence pins aggregate work and review context. Older unpinned evidence and
+  reviews remain readable but must be re-recorded before satisfying current workflow gates.
+- Verification refuses to execute until its relevant curated context can be resolved and
+  fingerprinted.
+- New projects initialize `specs/knowledge/index.md` as an OKF v0.2 bundle index.
+- Memory search fingerprints its Markdown inputs and automatically rebuilds a stale local index
+  after direct project-memory edits.
+- Trusted knowledge is revalidated during audit, retrieval, and task-context resolution. Stale,
+  invalid, or duplicate/conflicting concepts are excluded, and missing, untrusted, or over-budget
+  context now blocks start, verification, review, and finish.
+- Promotion writes a tracked attestation for the reviewed knowledge SHA and its source/watch-path
+  fingerprint, so relevant inputs invalidate a concept without unrelated worktree changes doing so.
+
 ## [0.7.0] - 2026-07-30
 
 ### Fixed

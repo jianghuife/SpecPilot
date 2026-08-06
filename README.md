@@ -14,6 +14,8 @@ Comet/OpenSpec data.
 - CodeGraph is recommended but optional. Graph results narrow source reading and are never proof.
 - TDD is opt-in per task. When enabled, finish requires red-before-green evidence with a shared
   command and a green run matching the current worktree.
+- Verification and review records pin the exact curated context used, so later standard,
+  knowledge, research, manifest, or reference-reason changes require new evidence or review.
 - Runtime files are projected from one English source to Claude Code and Codex.
 - There is no general-purpose Skill installer, Skill marketplace, or third-party Skill manager.
 
@@ -112,6 +114,7 @@ specpilot init [path]
   --host claude|codex|all
   --graph codegraph|none
   --context-injection
+  --context-max-bytes <bytes>
   --dry-run --yes --json
 
 specpilot init knowledge [path] [--dry-run] [--json]
@@ -132,9 +135,13 @@ specpilot task waive <change> <id> --reason <reason> [--path <path>] [--json]
 specpilot context add <change> <task> --purpose work|review \
   --file <path> --reason <reason> [--path <path>] [--json]
 specpilot context list <change> <task> --purpose work|review [--path <path>] [--json]
+specpilot context suggest <change> <task> --purpose work|review [--apply] [--path <path>] [--json]
 specpilot context remove <change> <task> --purpose work|review \
   --file <path> [--path <path>] [--json]
 specpilot context injection enable|disable [--path <path>] [--json]
+specpilot context budget show|set <bytes> [--path <path>] [--json]
+
+specpilot knowledge audit [path] [--json]
 
 specpilot session activate <change> [task] [--path <path>] [--json]
 specpilot session show [--path <path>] [--json]
@@ -158,8 +165,8 @@ specpilot update [path] [--json]
 specpilot uninstall [path] [--yes] [--json]
 ```
 
-`doctor` checks config validity, managed runtime drift, artifact contracts, CodeGraph readiness,
-and evidence freshness. `update` refreshes only manifest-managed runtime. `uninstall` removes
+`doctor` checks config validity, managed runtime drift, artifact contracts, knowledge health,
+CodeGraph readiness, and evidence freshness. `update` refreshes only manifest-managed runtime. `uninstall` removes
 only manifest-managed runtime and SpecPilot config; specs, tasks, reviews, knowledge, evidence,
 and unrelated host files remain.
 
@@ -169,8 +176,19 @@ and unrelated host files remain.
 specs/
   project/
     glossary.md
+    architecture/
+    contracts/
+    domain/
     standards/
     decisions/
+    examples/
+    runbooks/
+    incidents/
+    observability/
+    release/
+    ai/evals/
+    performance/
+    security/
   changes/<change-id>/
     change.yaml
     spec.md
@@ -180,11 +198,15 @@ specs/
     context/*.json     # per-task work/review context manifests
     review.md
     summary.md
-  knowledge/*.md
+  knowledge/
+    index.md            # OKF v0.2 bundle index
+    **/*.md             # reviewed OKF concepts
+    **/*.attestation.json # content-bound review and source/watch fingerprints
 
 .specpilot/
   config.json
-  evidence/
+  evidence/<change>/<task>/*.json # verification metadata records
+  evidence/<change>/<task>/*.log  # captured command output
   local/               # gitignored; session pointer and knowledge inventory
   cache/               # gitignored and rebuildable
 ```
@@ -206,9 +228,11 @@ execution: standard # standard|tdd
 Dependency cycles and waivers without a reason are invalid.
 
 Evidence JSON records command arguments, exit code, timestamps, log path, Git HEAD, worktree
-fingerprint, change, task, and phase. Red evidence requires an explained non-zero exit; green and
-final evidence require zero. A code change makes prior green and final evidence stale; red
-evidence stays tied to its green run through ordering and a shared command.
+fingerprint, curated-context fingerprint, change, task, and phase. Red evidence requires an
+explained non-zero exit; green and final evidence require zero. A code change makes prior green
+and final evidence stale; red evidence stays tied to its green run through ordering and a shared
+command. A work-context change invalidates green evidence, while red remains historical failure
+proof and final evidence pins the aggregate work and review context of every non-waived task.
 
 Task status changes go through `WorkflowHarness` and `ProjectStore`. Starting requires an approved
 spec and satisfied dependencies; it also activates the local session pointer. Completing requires
@@ -222,16 +246,43 @@ References must remain under `specs/`; missing files block task start, review re
 finish. Source files are discovered from the manifest-guided scope but are never pre-registered as
 context.
 
+`context suggest` ranks non-template project memory using the change/task text, P0/P1/P2 policy,
+and OKF `load_policy`. It fills only the remaining configured byte budget and explains selected
+and omitted files. Suggestions are read-only unless `--apply` is explicit. The default per-task,
+per-purpose budget is 131072 bytes; configure it during `init` or with `context budget set`.
+Missing, untrusted, or over-budget context blocks task start, verification, review, and finish.
+
 Closing a change requires an approved spec (`spec_approved_at`, stamped by
 `specpilot change approve`) and a `review.md` whose `worktree_fingerprint` still matches the
 worktree and whose `spec_fingerprint` still matches the change's spec documents, so a code or
-spec change made after review forces a re-review. `specpilot review record` derives the overall
-two-axis result and captures both fingerprints automatically. Closing the active change
-clears its local session pointer.
+spec change made after review forces a re-review. It also requires a
+`review_context_fingerprint` matching every non-waived task's current curated review context.
+`specpilot review record` derives the overall two-axis result and captures all fingerprints
+automatically. Closing the active change clears its local session pointer.
 
-Verified knowledge requires `domain`, `summary`, `source_refs`, `evidence_refs`,
-`invalidation_condition`, and `verified_at` frontmatter. Raw sessions and unconfirmed graph
-results must not enter `specs/knowledge/`.
+`specs/knowledge/` is an [Open Knowledge Format v0.2](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)
+bundle. New trusted concepts use portable OKF fields (`type`, `sources`, `generated`, `verified`,
+`status`, and optional `stale_after`) plus a `specpilot` extension containing `domain`,
+`criticality`, `authority`, `load_policy`, evidence references, and invalidation watch paths.
+Promotion requires stable content, a `human:` verification that does not predate generation,
+existing local sources, and current valid evidence records with logs. Legacy SpecPilot knowledge
+frontmatter remains readable and promotable when its source and evidence references pass the same
+integrity checks. Before promotion, `specpilot internal memory-review` records the decision,
+reviewer, reason, and candidate SHA-256 in a gitignored local receipt; promotion rejects missing,
+rejected, or content-stale receipts. Promotion writes a tracked attestation binding the reviewed
+knowledge content to its source and invalidation-watch fingerprint. Later source/watch changes
+make that concept stale without invalidating unrelated knowledge. The disposable memory index
+fingerprints its Markdown inputs and rebuilds automatically after direct edits. Raw sessions and
+unconfirmed graph results must not enter `specs/knowledge/`.
+
+`knowledge audit` reports coverage for all 16 governed knowledge types, distinguishing `covered`,
+`template`, and `missing`. P0 covers architecture boundaries, testing/verification, contracts,
+and business flows; P1 covers decisions, requirements history, Skills, examples, operations,
+incidents, anti-patterns, glossary, observability, release/migration, and AI evaluations; P2 covers
+performance, capacity, and security constraints. It also revalidates every trusted concept and
+fails on stale, invalid, or duplicate/conflicting identities. Search and task context exclude any
+concept that does not currently pass that audit. A scaffold becomes covered only after reviewed
+project-specific content replaces it and the `specpilot-template` marker is removed.
 
 ## Bundled optional Skills
 
@@ -240,6 +291,7 @@ name, or omit the name to choose interactively:
 
 ```bash
 specpilot add skill codebase-design
+specpilot add skill design-principles
 specpilot add skill domain-modeling
 specpilot add skill
 ```
@@ -253,6 +305,12 @@ marketplaces.
 interface, locating a seam, deepening shallow modules, or improving testability and
 AI-navigability. Invoke it explicitly with `$codebase-design`. It is derived from Matt Pocock's
 MIT-licensed skill; its license is included with the bundled asset.
+
+`design-principles` is selected implicitly when deciding whether an abstraction, extraction,
+shared module, dependency boundary, or refactor is justified, or when reviewing architectural fit.
+It applies an explicit decision order, evidence-based abstraction gates, restrained DRY, and
+change-locality criteria while deferring to repository-specific rules. Invoke it explicitly with
+`$design-principles`.
 
 `domain-modeling` is selected implicitly when canonical project terminology needs clarification,
 domain rules or boundaries need scenario testing, or a durable trade-off decision should be

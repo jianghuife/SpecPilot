@@ -1,6 +1,20 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { ProjectConfig } from '../types.js';
+import { DEFAULT_CONTEXT_MAX_BYTES } from '../types.js';
+
+export function normalizeContextMaxBytes(value: unknown): number {
+  const normalized = value ?? DEFAULT_CONTEXT_MAX_BYTES;
+  if (
+    typeof normalized !== 'number' ||
+    !Number.isInteger(normalized) ||
+    normalized < 4_096 ||
+    normalized > 10_485_760
+  ) {
+    throw new Error('context.max_bytes must be an integer from 4096 through 10485760');
+  }
+  return normalized;
+}
 
 export async function findProjectRoot(startPath: string): Promise<string | undefined> {
   let current = path.resolve(startPath);
@@ -38,6 +52,7 @@ export async function readProjectConfig(root: string): Promise<ProjectConfig> {
     ...value,
     context: {
       per_turn_state: value.context?.per_turn_state === true,
+      max_bytes: normalizeContextMaxBytes(value.context?.max_bytes),
     },
     optional_skills: normalizeOptionalSkills(
       Array.isArray(value.optional_skills)

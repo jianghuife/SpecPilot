@@ -34,6 +34,11 @@ export interface EvidenceRecord {
   duration_ms: number;
   head: string;
   worktree_fingerprint: string;
+  // Absent only in records written before context fingerprinting, or records
+  // captured outside a valid SpecPilot change/task. Workflow gates never treat
+  // an absent value as current context.
+  context_fingerprint?: string;
+  context_scope?: 'work' | 'change';
   log_path: string;
   record_path: string;
 }
@@ -178,6 +183,24 @@ export class EvidenceRunner {
       throw new Error('red evidence requires a reason describing the expected failure');
     }
 
+    const { MemoryCatalog } = await import('../memory/memory-catalog.js');
+    const memory = new MemoryCatalog(this.root);
+    const contextScope: EvidenceRecord['context_scope'] =
+      input.phase === 'final' ? 'change' : 'work';
+    const context =
+      input.phase === 'final'
+        ? await memory.changeContextSnapshot(changeId)
+        : await memory.contextSnapshot(changeId, taskId, 'work');
+    if (context.missing.length > 0) {
+      throw new Error(`verification context is missing: ${context.missing.join(', ')}`);
+    }
+    if (context.invalid.length > 0) {
+      throw new Error(`verification context is untrusted: ${context.invalid.join(', ')}`);
+    }
+    if (!context.withinBudget) {
+      throw new Error('verification context exceeds its configured byte budget');
+    }
+    const contextFingerprint = context.fingerprint;
     const startedAt = new Date();
     const result = await runCommand(this.root, input.command);
     const completedAt = new Date();
@@ -207,6 +230,8 @@ export class EvidenceRunner {
       duration_ms: result.durationMs,
       head,
       worktree_fingerprint: fingerprint,
+      context_fingerprint: contextFingerprint,
+      context_scope: contextScope,
       log_path: relativeLogPath,
       record_path: relativeRecordPath,
     };
@@ -223,6 +248,31 @@ export class EvidenceRunner {
 
   async isFresh(record: EvidenceRecord): Promise<boolean> {
     const { fingerprint } = await this.fingerprint();
-    return record.valid && record.worktree_fingerprint === fingerprint;
+    if (!record.valid) return false;
+    // Red is historical proof that the focused check failed before the
+    // implementation. Like its code fingerprint, its context snapshot is
+    // audit metadata rather than a freshness gate.
+    if (record.phase === 'red') return true;
+    if (record.worktree_fingerprint !== fingerprint) return false;
+    if (!record.context_fingerprint) return false;
+    try {
+      const { MemoryCatalog } = await import('../memory/memory-catalog.js');
+      const memory = new MemoryCatalog(this.root);
+      const contextFingerprint =
+        record.phase === 'final'
+          ? (
+              await memory.changeContextSnapshot(record.change_id, undefined, {
+                validateKnowledge: false,
+              })
+            ).fingerprint
+          : (
+              await memory.contextSnapshot(record.change_id, record.task_id, 'work', {
+                validateKnowledge: false,
+              })
+            ).fingerprint;
+      return record.context_fingerprint === contextFingerprint;
+    } catch {
+      return false;
+    }
   }
 }

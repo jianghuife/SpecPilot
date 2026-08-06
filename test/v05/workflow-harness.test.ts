@@ -78,6 +78,9 @@ async function writeReview(
 ): Promise<void> {
   const root = path.resolve(changeDirectory, '..', '..', '..');
   const changeId = path.basename(changeDirectory);
+  const reviewContextFingerprint = (
+    await new MemoryCatalog(root).changeContextSnapshot(changeId, 'review')
+  ).fingerprint;
   await writeFile(
     path.join(changeDirectory, 'review.md'),
     `---
@@ -88,9 +91,26 @@ spec: pass
 reviewed_at: 2026-07-29T00:02:00.000Z
 worktree_fingerprint: ${fingerprint}
 spec_fingerprint: ${specFingerprint ?? (await new ProjectStore(root).specFingerprint(changeId))}
+review_context_fingerprint: ${reviewContextFingerprint}
 ---
 # Review
 `,
+  );
+}
+
+async function writeContextBudget(root: string, maxBytes: number): Promise<void> {
+  await mkdir(path.join(root, '.specpilot'), { recursive: true });
+  await writeFile(
+    path.join(root, '.specpilot', 'config.json'),
+    JSON.stringify({
+      schema_version: 1,
+      managed_version: 'test',
+      language: 'en',
+      hosts: ['codex'],
+      graph: { provider: 'none', required: false },
+      context: { per_turn_state: false, max_bytes: maxBytes },
+      optional_skills: [],
+    }),
   );
 }
 
@@ -138,15 +158,42 @@ describe('WorkflowHarness task lifecycle', () => {
       'task implement requires fresh green evidence before completion',
     );
 
+    const green = await new EvidenceRunner(root).run({
+      changeId: 'add-value',
+      taskId: 'implement',
+      phase: 'green',
+      command: PASS,
+    });
+    expect(green).toMatchObject({ context_scope: 'work' });
+    expect(green.context_fingerprint).toMatch(/^[a-f0-9]{64}$/);
+    await expect(
+      harness.transitionTask('add-value', 'implement', 'complete'),
+    ).resolves.toMatchObject({ status: 'done' });
+  });
+
+  it('requires new green evidence when curated work context changes', async () => {
+    const root = await setupRepository();
+    await writeChange(root, { execution: 'standard', taskStatus: 'todo' });
+    const standard = path.join(root, 'specs', 'project', 'standards', 'testing.md');
+    await mkdir(path.dirname(standard), { recursive: true });
+    await writeFile(standard, '# Testing\n\nRun the focused suite.\n');
+    await new ProjectStore(root).addTaskContext('add-value', 'implement', 'work', {
+      path: 'specs/project/standards/testing.md',
+      reason: 'Required testing standard.',
+    });
+    const harness = new WorkflowHarness(root);
+    await harness.transitionTask('add-value', 'implement', 'start');
     await new EvidenceRunner(root).run({
       changeId: 'add-value',
       taskId: 'implement',
       phase: 'green',
       command: PASS,
     });
-    await expect(
-      harness.transitionTask('add-value', 'implement', 'complete'),
-    ).resolves.toMatchObject({ status: 'done' });
+
+    await writeFile(standard, '# Testing\n\nRun the expanded suite.\n');
+    await expect(harness.transitionTask('add-value', 'implement', 'complete')).rejects.toThrow(
+      'task implement requires green evidence for the current work context',
+    );
   });
 
   it('rejects green evidence copied from another change', async () => {
@@ -155,6 +202,9 @@ describe('WorkflowHarness task lifecycle', () => {
     const harness = new WorkflowHarness(root);
     await harness.transitionTask('add-value', 'implement', 'start');
 
+    const store = new ProjectStore(root);
+    await store.createChange({ id: 'other-change', title: 'Other change', kind: 'light' });
+    await store.addTask('other-change', { id: 'implement', title: 'Implement other change' });
     const foreign = await new EvidenceRunner(root).run({
       changeId: 'other-change',
       taskId: 'implement',
@@ -213,6 +263,75 @@ execution: standard
     ).rejects.toThrow(
       'task implement has missing work context: specs/project/standards/testing.md',
     );
+  });
+
+  it('enforces context trust and byte budgets at start, review, and finish gates', async () => {
+    const oversizedRoot = await setupRepository();
+    const oversizedChange = await writeChange(oversizedRoot, {
+      execution: 'standard',
+      taskStatus: 'todo',
+    });
+    await writeFile(path.join(oversizedChange, 'spec.md'), `# Add value\n\n${'x'.repeat(5_000)}\n`);
+    await writeContextBudget(oversizedRoot, 4_096);
+    await expect(
+      new WorkflowHarness(oversizedRoot).transitionTask('add-value', 'implement', 'start'),
+    ).rejects.toThrow('work context exceeds its 4096-byte budget');
+
+    const untrustedRoot = await setupRepository();
+    await writeChange(untrustedRoot, { execution: 'standard', taskStatus: 'todo' });
+    const untrustedPath = path.join(untrustedRoot, 'specs', 'knowledge', 'invalid.md');
+    await mkdir(path.dirname(untrustedPath), { recursive: true });
+    await writeFile(untrustedPath, '# Bypassed review and provenance\n');
+    const untrustedStore = new ProjectStore(untrustedRoot);
+    await untrustedStore.addTaskContext('add-value', 'implement', 'work', {
+      path: 'specs/knowledge/invalid.md',
+      reason: 'This must be rejected as untrusted.',
+    });
+    await expect(
+      new WorkflowHarness(untrustedRoot).transitionTask('add-value', 'implement', 'start'),
+    ).rejects.toThrow('untrusted work context: specs/knowledge/invalid.md');
+    await untrustedStore.addTaskContext('add-value', 'implement', 'review', {
+      path: 'specs/knowledge/invalid.md',
+      reason: 'This must also be rejected during review.',
+    });
+    await expect(
+      new WorkflowHarness(untrustedRoot).recordReview('add-value', {
+        standards: 'blocked',
+        spec: 'pass',
+        body: '# Blocked review\n',
+      }),
+    ).rejects.toThrow('untrusted review context: specs/knowledge/invalid.md');
+    await expect(new WorkflowHarness(untrustedRoot).finish('add-value')).resolves.toMatchObject({
+      status: 'blocked',
+      missing: expect.arrayContaining([
+        'task implement has untrusted work context: specs/knowledge/invalid.md',
+      ]),
+    });
+
+    const reviewRoot = await setupRepository();
+    await writeChange(reviewRoot, { execution: 'standard', taskStatus: 'done' });
+    const reviewStandard = path.join(reviewRoot, 'specs', 'project', 'standards', 'review.md');
+    await mkdir(path.dirname(reviewStandard), { recursive: true });
+    await writeFile(reviewStandard, `# Review\n\n${'x'.repeat(5_000)}\n`);
+    await new ProjectStore(reviewRoot).addTaskContext('add-value', 'implement', 'review', {
+      path: 'specs/project/standards/review.md',
+      reason: 'Large required review policy.',
+    });
+    await writeContextBudget(reviewRoot, 4_096);
+    const reviewHarness = new WorkflowHarness(reviewRoot);
+    await expect(
+      reviewHarness.recordReview('add-value', {
+        standards: 'pass',
+        spec: 'pass',
+        body: '# Review\n',
+      }),
+    ).rejects.toThrow('review context exceeds its 4096-byte budget');
+    await expect(reviewHarness.finish('add-value')).resolves.toMatchObject({
+      status: 'blocked',
+      missing: expect.arrayContaining([
+        expect.stringContaining('review context exceeds its 4096-byte budget'),
+      ]),
+    });
   });
 
   it('validates, activates, and clears a local session pointer', async () => {
@@ -412,6 +531,56 @@ reviewed_at: 2026-07-29T00:02:00.000Z
     );
   });
 
+  it('blocks finish when review context changes after the review', async () => {
+    const root = await setupRepository();
+    const changeDirectory = await writeChange(root, { execution: 'standard' });
+    const standard = path.join(root, 'specs', 'project', 'standards', 'review.md');
+    await mkdir(path.dirname(standard), { recursive: true });
+    await writeFile(standard, '# Review standard\n\nCheck public compatibility.\n');
+    await new ProjectStore(root).addTaskContext('add-value', 'implement', 'review', {
+      path: 'specs/project/standards/review.md',
+      reason: 'Required review standard.',
+    });
+    const evidence = new EvidenceRunner(root);
+    await evidence.run({
+      changeId: 'add-value',
+      taskId: 'implement',
+      phase: 'final',
+      command: PASS,
+    });
+    await writeReview(changeDirectory, (await evidence.fingerprint()).fingerprint);
+
+    await writeFile(standard, '# Review standard\n\nCheck compatibility and rollback safety.\n');
+    const result = await new WorkflowHarness(root).finish('add-value');
+    expect(result.status).toBe('blocked');
+    expect(result.missing).toContain('review is stale: curated review context changed');
+  });
+
+  it('requires new final evidence when curated work context changes', async () => {
+    const root = await setupRepository();
+    const changeDirectory = await writeChange(root, { execution: 'standard' });
+    const standard = path.join(root, 'specs', 'project', 'standards', 'testing.md');
+    await mkdir(path.dirname(standard), { recursive: true });
+    await writeFile(standard, '# Testing\n\nRun the focused suite.\n');
+    await new ProjectStore(root).addTaskContext('add-value', 'implement', 'work', {
+      path: 'specs/project/standards/testing.md',
+      reason: 'Required testing standard.',
+    });
+    const evidence = new EvidenceRunner(root);
+    await evidence.run({
+      changeId: 'add-value',
+      taskId: 'implement',
+      phase: 'final',
+      command: PASS,
+    });
+    await writeFile(standard, '# Testing\n\nRun the expanded suite.\n');
+    await writeReview(changeDirectory, (await evidence.fingerprint()).fingerprint);
+
+    const result = await new WorkflowHarness(root).finish('add-value');
+    expect(result.status).toBe('blocked');
+    expect(result.missing).toContain('change is missing fresh final evidence');
+  });
+
   it('blocks when the spec has not been approved', async () => {
     const root = await setupRepository();
     const changeDirectory = await writeChange(root, {
@@ -488,6 +657,44 @@ reviewed_at: 2026-07-29T00:02:00.000Z
     expect(result.missing).toContain(
       'task implement red and green evidence must use the same command',
     );
+  });
+
+  it('keeps historical red evidence usable when work context changes before green', async () => {
+    const root = await setupRepository();
+    const changeDirectory = await writeChange(root);
+    const standard = path.join(root, 'specs', 'project', 'standards', 'testing.md');
+    await mkdir(path.dirname(standard), { recursive: true });
+    await writeFile(standard, '# Testing\n\nUse the focused check.\n');
+    await new ProjectStore(root).addTaskContext('add-value', 'implement', 'work', {
+      path: 'specs/project/standards/testing.md',
+      reason: 'Required testing standard.',
+    });
+    const evidence = new EvidenceRunner(root);
+    await evidence.run({
+      changeId: 'add-value',
+      taskId: 'implement',
+      phase: 'red',
+      reason: 'The focused behavior is not implemented yet.',
+      command: CHECK_IMPL,
+    });
+    await writeFile(standard, '# Testing\n\nUse the focused check and report coverage.\n');
+    await writeFile(path.join(root, 'impl.txt'), 'implemented\n');
+    await evidence.run({
+      changeId: 'add-value',
+      taskId: 'implement',
+      phase: 'green',
+      command: CHECK_IMPL,
+    });
+    await evidence.run({
+      changeId: 'add-value',
+      taskId: 'implement',
+      phase: 'final',
+      command: PASS,
+    });
+    await writeReview(changeDirectory, (await evidence.fingerprint()).fingerprint);
+
+    const result = await new WorkflowHarness(root).finish('add-value');
+    expect(result.status).toBe('ready');
   });
 });
 
@@ -577,6 +784,7 @@ describe('WorkflowHarness review recording', () => {
       spec: 'pass',
     });
     expect(recorded.worktreeFingerprint).toMatch(/^[a-f0-9]{64}$/);
+    expect(recorded.reviewContextFingerprint).toMatch(/^[a-f0-9]{64}$/);
     await expect(new ProjectStore(root).readReview('add-value')).resolves.toMatchObject({
       status: 'pass_with_warnings',
       body: expect.stringContaining('compatibility note'),

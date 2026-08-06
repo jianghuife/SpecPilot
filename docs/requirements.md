@@ -1,8 +1,8 @@
-# SpecPilot 0.5 项目需求基线
+# SpecPilot 项目需求基线
 
-> 状态：Beta 基线  
-> 适用版本：`0.5.x`  
-> 更新日期：2026-07-29
+> 状态：Beta 基线
+> 适用版本：`0.7.x` 与 Unreleased
+> 更新日期：2026-08-05
 
 ## 1. 产品定义
 
@@ -82,6 +82,7 @@ specpilot init [path]
   --host claude|codex|all
   --graph codegraph|none
   --context-injection
+  --context-max-bytes <bytes>
   --dry-run --yes --json
 ```
 
@@ -356,6 +357,7 @@ Evidence JSON 必须记录：
 - 完整命令参数和可选原因。
 - 退出码、有效性、开始/结束时间、耗时。
 - Git HEAD 和 worktree fingerprint。
+- 精确 curated-context fingerprint 与 work|change scope。
 - 日志路径和 evidence record 路径。
 
 有效性规则：
@@ -391,22 +393,61 @@ Evidence JSON 必须记录：
 
 #### FR-MEM-03 Knowledge 晋升
 
-长期知识必须遵循 candidate → review → promote。晋升后的 frontmatter 必须包含：
+长期知识必须遵循 candidate → review → promote。新知识必须使用 OKF v0.2 portable 字段和
+`specpilot` policy 扩展：
 
 ```yaml
-domain: string
-summary: string
-source_refs: [string]
-evidence_refs: [string]
-invalidation_condition: string
-verified_at: ISO-8601 timestamp
+type: string
+title: string
+description: string
+sources: [{ id: string, resource: string }]
+generated: { by: string, at: ISO-8601 timestamp }
+verified: { by: 'human:<id>', at: ISO-8601 timestamp }
+status: stable
+stale_after: YYYY-MM-DD
+specpilot:
+  domain: string
+  criticality: p0|p1|p2
+  authority: normative|contractual|descriptive|historical|operational|instructional
+  load_policy: always|required_when_matched|recommended_when_matched|on_demand|host_managed
+  evidence_refs: [string]
+  invalidation: { description: string, watch_paths: [string] }
 ```
+
+人工 review receipt 必须记录候选路径、内容 SHA-256、决定、human actor、原因和时间；候选内容
+变化后必须重新 review。晋升与后续 audit 必须重新校验本地来源、evidence 新鲜度、日志、
+`stale_after` 和重复 identity。晋升必须写入 tracked attestation，将已 review 的知识内容绑定到
+source 和 invalidation watch fingerprint；后续只因相关来源/watch 内容变化而 stale，不因无关
+worktree 变化误伤。检索与 task context 不得使用 invalid、stale 或 conflicting knowledge。
 
 以下内容不得晋升：
 
 - 原始聊天或会话记录。
 - 未经源码、测试、配置或日志确认的图谱输出。
 - 缺少来源、证据或失效条件的经验。
+
+#### FR-MEM-04 知识治理覆盖
+
+`specpilot init knowledge` 和 `specpilot knowledge audit` 必须按 `covered|template|missing`
+审计以下 16 类知识，并返回推荐位置和更新触发条件：
+
+- P0：架构边界、测试与验证、API/数据/事件契约、状态机与业务流程。
+- P1：ADR、需求归档、Agent Skills、标准样例、Runbook、Incident/Postmortem、反模式库、
+  领域词汇表、观测性、发布/回滚/迁移、AI 评估集。
+- P2：性能、容量与安全约束。
+
+初始化只创建带 `specpilot-template` 标记的骨架；骨架不得被统计为已覆盖。P0 缺口应在
+doctor 中告警；invalid、stale 或 conflicting trusted knowledge 必须使 doctor 失败。
+
+#### FR-MEM-05 上下文选择与预算
+
+每个 task/purpose 的 curated context 必须具有可配置字节预算，默认 131072 bytes，允许范围
+4096 到 10485760 bytes。`context list` 必须返回实际字节、预算和超额量；missing、untrusted
+或 over-budget context 必须阻止 start、verification、review 和 finish。
+
+`specpilot context suggest` 必须根据 change/task 文本、知识优先级和 OKF `load_policy`
+确定候选排序，排除 template 与不可信 knowledge，在剩余预算内选择并解释每个候选；默认
+只预览，只有显式 `--apply` 才能写入 manifest。
 
 ### 5.7 Runtime 投射
 
@@ -431,8 +472,19 @@ verified_at: ISO-8601 timestamp
 specs/
   project/
     glossary.md
+    architecture/
+    contracts/
+    domain/
     standards/
     decisions/
+    examples/
+    runbooks/
+    incidents/
+    observability/
+    release/
+    ai/evals/
+    performance/
+    security/
   changes/<change-id>/
     change.yaml
     spec.md

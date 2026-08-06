@@ -9,6 +9,10 @@ For every non-waived task, run
 `specpilot context list <change> <task> --purpose review --json` and read every existing
 reference. Then read task evidence and the current diff. Review on two independent axes:
 
+The context listing must contain no missing or untrusted references and must remain within its
+configured byte budget. If review context is incomplete, preview `specpilot context suggest
+<change> <task> --purpose review --json` and inspect every proposed reason before applying it.
+
 1. Standards: does the change follow the documented project standards and the smell baseline
    below?
 2. Spec: does it implement the approved behavior without missing requirements or scope creep?
@@ -59,8 +63,10 @@ Write separate Standards and Spec findings with file references to
 `specpilot review record <change> --standards pass|pass_with_warnings|blocked --spec
 pass|pass_with_warnings|blocked --body-file .specpilot/local/review-draft.md`
 
-The workflow harness derives the overall status and captures the current worktree fingerprint
-plus a fingerprint of the change's spec documents (`spec.md`, `design.md`, `plan.md`);
-`ProjectStore` writes the frontmatter and body. Never hand-write `review.md`. Finish blocks a
-review whose fingerprints no longer match the worktree or the spec documents, so any later code
-or spec change requires a re-review. A warning does not block finish; any `blocked` axis does.
+The workflow harness derives the overall status and captures the current worktree fingerprint,
+a fingerprint of the change's spec documents (`spec.md`, `design.md`, `plan.md`), and a fingerprint
+of every non-waived task's curated review context. `ProjectStore` writes the frontmatter and body.
+Never hand-write `review.md`. Finish blocks a review whose fingerprints no longer match the
+worktree, spec documents, or review context, so later code, spec, standard, knowledge, research,
+manifest, or context-reason changes require a re-review. A warning does not block finish; any
+`blocked` axis does.

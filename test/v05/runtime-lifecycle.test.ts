@@ -26,7 +26,7 @@ describe('runtime lifecycle', () => {
       projectPath: root,
       hosts: ['claude', 'codex'],
       graph: 'none',
-      optionalSkills: ['codebase-design', 'domain-modeling'],
+      optionalSkills: ['codebase-design', 'design-principles', 'domain-modeling'],
     });
 
     for (const hostRoot of ['.agents', '.claude', '.codex']) {
@@ -36,11 +36,17 @@ describe('runtime lifecycle', () => {
       expect(
         await readFile(path.join(root, hostRoot, 'skills', 'domain-modeling', 'SKILL.md'), 'utf8'),
       ).toContain('specs/project/glossary.md');
+      expect(
+        await readFile(
+          path.join(root, hostRoot, 'skills', 'design-principles', 'SKILL.md'),
+          'utf8',
+        ),
+      ).toContain('Correctness > Understandability > Change locality');
     }
     await expect(inspectRuntime(root)).resolves.toMatchObject({ healthy: true, drift: [] });
 
     await uninstallRuntime(root);
-    for (const skill of ['codebase-design', 'domain-modeling']) {
+    for (const skill of ['codebase-design', 'design-principles', 'domain-modeling']) {
       await expect(
         readFile(path.join(root, '.agents', 'skills', skill, 'SKILL.md')),
       ).rejects.toThrow();

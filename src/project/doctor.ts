@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { CodeGraphAdapter } from '../graph/graph-provider.js';
 import { type EvidenceRecord, EvidenceRunner } from '../evidence/evidence-runner.js';
+import { MemoryCatalog } from '../memory/memory-catalog.js';
 import { inspectRuntime } from '../runtime/runtime-projector.js';
 import { SPEC_PILOT_VERSION } from '../types.js';
 import { readProjectConfig } from './config.js';
@@ -59,17 +60,37 @@ export async function doctorProject(root: string): Promise<DoctorReport> {
   }
 
   const runner = new EvidenceRunner(resolved);
-  const { fingerprint } = await runner.fingerprint();
   const records = await runner.list();
-  const invalidEvidence = records.filter(
-    (record: EvidenceRecord) =>
-      record.valid !== true || record.worktree_fingerprint !== fingerprint,
+  const freshness = await Promise.all(
+    records.map(async (record: EvidenceRecord) => ({
+      record,
+      fresh: await runner.isFresh(record),
+    })),
   );
+  const invalidEvidence = freshness.filter(({ fresh }) => !fresh);
   checks.push({
     name: 'evidence',
     status: invalidEvidence.length === 0 ? 'pass' : 'warn',
     detail: `${records.length - invalidEvidence.length} current, ${invalidEvidence.length} invalid or stale`,
   });
+
+  try {
+    const audit = await new MemoryCatalog(resolved).auditKnowledge();
+    const p0Gaps = audit.coverage.filter(
+      (item) => item.priority === 'p0' && item.status !== 'covered',
+    );
+    checks.push({
+      name: 'knowledge',
+      status: !audit.healthy ? 'fail' : p0Gaps.length > 0 ? 'warn' : 'pass',
+      detail: !audit.healthy
+        ? `${audit.summary.invalid} invalid, ${audit.summary.stale} stale, ${audit.summary.conflict} conflicting trusted knowledge file(s)`
+        : p0Gaps.length > 0
+          ? `P0 knowledge needs curation: ${p0Gaps.map((item) => item.id).join(', ')}`
+          : `${audit.summary.trusted} trusted knowledge file(s); all P0 categories covered`,
+    });
+  } catch (error) {
+    checks.push({ name: 'knowledge', status: 'fail', detail: (error as Error).message });
+  }
 
   if (config?.graph.provider === 'codegraph') {
     const graph = await new CodeGraphAdapter(resolved).readiness();

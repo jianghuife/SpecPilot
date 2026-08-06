@@ -117,6 +117,42 @@ describe('SpecPilot public workflow CLI', () => {
       expect(await runCli(root, args)).toMatchObject({ exitCode: 0 });
     }
 
+    const knowledgeAudit = await runCli(root, ['knowledge', 'audit', '.', '--json']);
+    expect(knowledgeAudit.exitCode).toBe(0);
+    expect(JSON.parse(knowledgeAudit.stdout)).toMatchObject({
+      policy_version: 1,
+      healthy: true,
+      coverage: expect.arrayContaining([
+        expect.objectContaining({ id: 'architecture-boundaries', priority: 'p0' }),
+      ]),
+    });
+    expect(await runCli(root, ['context', 'budget', 'set', '65536', '--json'])).toMatchObject({
+      exitCode: 0,
+    });
+    const budget = await runCli(root, ['context', 'budget', 'show', '--json']);
+    expect(JSON.parse(budget.stdout)).toEqual({ max_bytes: 65_536 });
+    await writeFile(
+      path.join(root, 'specs', 'project', 'examples', 'add-value.md'),
+      '# Add value implementation example\n\nUse this approved pattern when implementing value changes.\n',
+    );
+    const suggestions = await runCli(root, [
+      'context',
+      'suggest',
+      'add-value',
+      'implement',
+      '--purpose',
+      'work',
+      '--apply',
+      '--json',
+    ]);
+    expect(suggestions.exitCode).toBe(0);
+    expect(JSON.parse(suggestions.stdout)).toMatchObject({
+      budgetBytes: 65_536,
+      selected: expect.any(Array),
+      omitted: expect.any(Array),
+      applied: ['specs/project/examples/add-value.md'],
+    });
+
     await expect(
       readFile(path.join(root, '.agents', 'skills', 'codebase-design', 'SKILL.md')),
     ).rejects.toThrow();
@@ -190,6 +226,7 @@ describe('SpecPilot public workflow CLI', () => {
           path: 'specs/project/standards/README.md',
           reason: 'Project standards',
           exists: true,
+          trusted: true,
         },
       ]),
       missing: [],
@@ -238,7 +275,7 @@ describe('SpecPilot public workflow CLI', () => {
       },
     });
     expect(JSON.parse(hook.stdout).hookSpecificOutput.additionalContext).toContain(
-      'Context(work): 2 references; missing 0',
+      'Context(work): 3 references; missing 0',
     );
     expect(await runCli(root, ['context', 'injection', 'disable', '--json'])).toMatchObject({
       exitCode: 0,

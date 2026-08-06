@@ -96,4 +96,24 @@ execution: standard
     await writeFile(path.join(root, '.specpilot', 'config.json'), '{"schema_version":2}\n');
     await expect(readProjectConfig(root)).rejects.toThrow('valid SpecPilot 0.5 config');
   });
+
+  it('makes invalid trusted knowledge a failing doctor check', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'specpilot-knowledge-doctor-'));
+    await initializeProject({
+      projectPath: root,
+      hosts: ['codex'],
+      graph: 'none',
+    });
+    await writeFile(
+      path.join(root, 'specs', 'knowledge', 'invalid.md'),
+      '# This file bypassed candidate review and has no provenance.\n',
+    );
+
+    const report = await doctorProject(root);
+    expect(report.healthy).toBe(false);
+    expect(report.checks.find((check) => check.name === 'knowledge')).toMatchObject({
+      status: 'fail',
+      detail: expect.stringContaining('1 invalid'),
+    });
+  });
 });
