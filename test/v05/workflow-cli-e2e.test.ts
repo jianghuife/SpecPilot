@@ -120,7 +120,7 @@ describe('SpecPilot public workflow CLI', () => {
     const knowledgeAudit = await runCli(root, ['knowledge', 'audit', '.', '--json']);
     expect(knowledgeAudit.exitCode).toBe(0);
     expect(JSON.parse(knowledgeAudit.stdout)).toMatchObject({
-      policy_version: 1,
+      policy_version: 2,
       healthy: true,
       coverage: expect.arrayContaining([
         expect.objectContaining({ id: 'architecture-boundaries', priority: 'p0' }),

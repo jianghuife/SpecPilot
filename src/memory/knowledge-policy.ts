@@ -83,15 +83,6 @@ export const KNOWLEDGE_TYPE_POLICIES: KnowledgeTypePolicy[] = [
     path_prefixes: ['docs/adr/', 'specs/project/decisions/'],
   },
   {
-    id: 'requirements-archive',
-    title: 'Requirements archive',
-    priority: 'p1',
-    objective: 'Preserve why cross-module or consequential work was requested and approved.',
-    recommended_locations: ['.agents/openspec/', 'docs/openspec/', 'specs/changes/'],
-    update_when: ['A cross-module requirement or important design is completed.'],
-    path_prefixes: ['.agents/openspec/', 'docs/openspec/', 'specs/changes/'],
-  },
-  {
     id: 'agent-skills',
     title: 'Agent skills',
     priority: 'p1',
@@ -145,34 +136,6 @@ export const KNOWLEDGE_TYPE_POLICIES: KnowledgeTypePolicy[] = [
     recommended_locations: ['docs/domain/glossary.md', 'specs/project/glossary.md'],
     update_when: ['A domain concept or canonical name is introduced or changed.'],
     exact_paths: ['docs/domain/glossary.md', 'specs/project/glossary.md'],
-  },
-  {
-    id: 'observability',
-    title: 'Observability',
-    priority: 'p1',
-    objective: 'Explain logs, metrics, traces, alerts, and their diagnostic meaning.',
-    recommended_locations: ['docs/observability/', 'specs/project/observability/'],
-    update_when: ['Metrics, logs, traces, dashboards, or alert rules change.'],
-    path_prefixes: ['docs/observability/', 'specs/project/observability/'],
-  },
-  {
-    id: 'release-rollback-migration',
-    title: 'Release, rollback, and migration',
-    priority: 'p1',
-    objective: 'Ensure plans include rollout risk, compatibility, migration, and rollback paths.',
-    recommended_locations: [
-      'docs/release/',
-      'docs/migration/',
-      'specs/project/release/',
-      'specs/project/migration/',
-    ],
-    update_when: ['Release, rollout, data migration, or rollback strategy changes.'],
-    path_prefixes: [
-      'docs/release/',
-      'docs/migration/',
-      'specs/project/release/',
-      'specs/project/migration/',
-    ],
   },
   {
     id: 'ai-evaluations',
@@ -289,16 +252,6 @@ Record impact, timeline, root cause, contributing factors, corrective actions, a
 # Project Anti-patterns
 
 Record repeated project-specific mistakes, why they fail, the preferred pattern, and representative evidence.
-`,
-  'specs/project/observability/README.md': `<!-- specpilot-template:observability -->
-# Observability
-
-Document logs, metrics, traces, dashboards, alerts, ownership, and diagnostic interpretation.
-`,
-  'specs/project/release/README.md': `<!-- specpilot-template:release-rollback-migration -->
-# Release, Rollback, and Migration
-
-Document rollout stages, compatibility windows, migration checks, rollback criteria, and recovery commands.
 `,
   'specs/project/ai/evals/README.md': `<!-- specpilot-template:ai-evaluations -->
 # AI Evaluation Set

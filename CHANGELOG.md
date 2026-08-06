@@ -2,6 +2,15 @@
 
 All notable changes to `specpilot-kit` are documented here.
 
+## [0.8.1] - 2026-08-06
+
+### Changed
+
+- Reduced the governed knowledge policy from 16 to 13 types. Requirements remain in
+  `specs/changes/`, while observability and release/rollback/migration remain ordinary project or
+  change documentation instead of knowledge candidates. New initialization no longer creates
+  templates for the latter two; existing user files are preserved.
+
 ## [0.8.0] - 2026-08-06
 
 ### Added

@@ -101,7 +101,7 @@ export interface LocalSession {
 
 export interface KnowledgeInventory {
   schema_version: 1;
-  knowledge_policy_version: 1;
+  knowledge_policy_version: 2;
   generated_at: string;
   project_name: string;
   manifests: string[];
@@ -158,7 +158,7 @@ export interface TrustedKnowledgeAuditEntry {
 }
 
 export interface KnowledgeAuditReport {
-  policy_version: 1;
+  policy_version: 2;
   healthy: boolean;
   coverage: KnowledgeCoverage[];
   trusted_knowledge: TrustedKnowledgeAuditEntry[];
@@ -1095,7 +1095,7 @@ export class MemoryCatalog {
     const summary = { trusted: 0, stale: 0, invalid: 0, conflict: 0 };
     for (const entry of trustedKnowledge) summary[entry.status] += 1;
     return {
-      policy_version: 1,
+      policy_version: 2,
       healthy: summary.stale === 0 && summary.invalid === 0 && summary.conflict === 0,
       coverage: await this.knowledgeCoverage(),
       trusted_knowledge: trustedKnowledge,
@@ -1277,7 +1277,7 @@ export class MemoryCatalog {
     const knowledgeCoverage = await this.knowledgeCoverage();
     const inventory: KnowledgeInventory = {
       schema_version: 1,
-      knowledge_policy_version: 1,
+      knowledge_policy_version: 2,
       generated_at: new Date().toISOString(),
       project_name: projectName,
       manifests: [...manifests],

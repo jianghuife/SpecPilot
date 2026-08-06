@@ -10,12 +10,13 @@ Run `specpilot init knowledge --json` and `specpilot knowledge audit --json`. Th
 
 The inventory audits all governed knowledge types. Resolve P0 gaps first: architecture boundaries,
 testing and verification, API/data/event contracts, and state machines/business flows. Then cover
-P1 decisions, requirements history, Skills, examples, runbooks, incidents, anti-patterns, glossary,
-observability, release/rollback/migration, and AI evaluations. Treat performance, capacity, and
-security constraints as P2 unless project risk makes them more urgent. A `template` status means
-the destination exists but still contains only scaffolding; it is not evidence of coverage. Remove
-that file's `specpilot-template` marker only when reviewed project-specific content replaces the
-scaffold.
+P1 decisions, Skills, examples, runbooks, incidents, anti-patterns, glossary, and AI evaluations.
+Treat performance, capacity, and security constraints as P2 unless project risk makes them more
+urgent. Requirements remain in `specs/changes/`; observability and release/rollback/migration may
+remain ordinary project or change documentation, but none of those three are governed knowledge
+types or default knowledge candidates. A `template` status means the destination exists but still
+contains only scaffolding; it is not evidence of coverage. Remove that file's
+`specpilot-template` marker only when reviewed project-specific content replaces the scaffold.
 
 Use the inventory to choose a small reading set:
 

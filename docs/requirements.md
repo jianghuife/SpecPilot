@@ -429,12 +429,15 @@ worktree 变化误伤。检索与 task context 不得使用 invalid、stale 或 
 #### FR-MEM-04 知识治理覆盖
 
 `specpilot init knowledge` 和 `specpilot knowledge audit` 必须按 `covered|template|missing`
-审计以下 16 类知识，并返回推荐位置和更新触发条件：
+审计以下 13 类知识，并返回推荐位置和更新触发条件：
 
 - P0：架构边界、测试与验证、API/数据/事件契约、状态机与业务流程。
-- P1：ADR、需求归档、Agent Skills、标准样例、Runbook、Incident/Postmortem、反模式库、
-  领域词汇表、观测性、发布/回滚/迁移、AI 评估集。
+- P1：ADR、Agent Skills、标准样例、Runbook、Incident/Postmortem、反模式库、领域词汇表、
+  AI 评估集。
 - P2：性能、容量与安全约束。
+
+需求历史保留在 `specs/changes/`；可观测性和发布/回滚/迁移保留为普通项目文档或 change
+过程资产。这三类内容不得作为治理覆盖类型，也不得在 finish 时默认总结为长期知识候选。
 
 初始化只创建带 `specpilot-template` 标记的骨架；骨架不得被统计为已覆盖。P0 缺口应在
 doctor 中告警；invalid、stale 或 conflicting trusted knowledge 必须使 doctor 失败。
@@ -480,8 +483,6 @@ specs/
     examples/
     runbooks/
     incidents/
-    observability/
-    release/
     ai/evals/
     performance/
     security/

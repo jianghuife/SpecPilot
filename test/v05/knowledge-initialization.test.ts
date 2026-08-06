@@ -26,7 +26,7 @@ describe('knowledge initialization', () => {
     const dryRun = await catalog.initializeKnowledge({ dryRun: true });
     expect(dryRun.written).toBe(false);
     expect(dryRun.inventory).toMatchObject({
-      knowledge_policy_version: 1,
+      knowledge_policy_version: 2,
       project_name: 'billing-service',
       manifests: ['package.json'],
       source_roots: ['src'],
@@ -34,7 +34,7 @@ describe('knowledge initialization', () => {
       languages: { TypeScript: 2 },
       review_status: 'pending',
     });
-    expect(dryRun.inventory.knowledge_coverage).toHaveLength(16);
+    expect(dryRun.inventory.knowledge_coverage).toHaveLength(13);
     expect(dryRun.inventory.knowledge_coverage).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -47,11 +47,13 @@ describe('knowledge initialization', () => {
           priority: 'p1',
           status: 'covered',
         }),
-        expect.objectContaining({
-          id: 'requirements-archive',
-          priority: 'p1',
-          status: 'missing',
-        }),
+      ]),
+    );
+    expect(dryRun.inventory.knowledge_coverage.map((item) => item.id)).not.toEqual(
+      expect.arrayContaining([
+        'requirements-archive',
+        'observability',
+        'release-rollback-migration',
       ]),
     );
     expect(dryRun.inventory.priority_summary.p0).toEqual({
@@ -65,12 +67,28 @@ describe('knowledge initialization', () => {
     expect(initialized.written).toBe(true);
     expect(JSON.parse(await readFile(initialized.reportPath, 'utf8'))).toMatchObject({
       schema_version: 1,
-      knowledge_policy_version: 1,
+      knowledge_policy_version: 2,
       project_name: 'billing-service',
       review_status: 'pending',
     });
     await expect(
       readFile(path.join(root, 'specs', 'knowledge', 'project-profile.md')),
     ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, 'specs', 'project', 'observability', 'README.md')),
+    ).rejects.toThrow();
+    await expect(
+      readFile(path.join(root, 'specs', 'project', 'release', 'README.md')),
+    ).rejects.toThrow();
+
+    const observability = path.join(root, 'specs', 'project', 'observability', 'README.md');
+    const release = path.join(root, 'specs', 'project', 'release', 'README.md');
+    await mkdir(path.dirname(observability), { recursive: true });
+    await mkdir(path.dirname(release), { recursive: true });
+    await writeFile(observability, '# Existing observability guide\n');
+    await writeFile(release, '# Existing release guide\n');
+    await initializeProject({ projectPath: root, hosts: ['codex'], graph: 'none' });
+    await expect(readFile(observability, 'utf8')).resolves.toBe('# Existing observability guide\n');
+    await expect(readFile(release, 'utf8')).resolves.toBe('# Existing release guide\n');
   });
 });

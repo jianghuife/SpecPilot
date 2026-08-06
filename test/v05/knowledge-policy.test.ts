@@ -20,7 +20,11 @@ describe('knowledge policy evaluation set', () => {
       .map((line) => JSON.parse(line) as ContextRoutingCase);
     const policies = new Map(KNOWLEDGE_TYPE_POLICIES.map((policy) => [policy.id, policy]));
 
-    expect(new Set(KNOWLEDGE_TYPE_POLICIES.map((policy) => policy.id)).size).toBe(16);
+    const governedTypes = new Set(KNOWLEDGE_TYPE_POLICIES.map((policy) => policy.id));
+    expect(governedTypes.size).toBe(13);
+    expect(governedTypes).not.toContain('requirements-archive');
+    expect(governedTypes).not.toContain('observability');
+    expect(governedTypes).not.toContain('release-rollback-migration');
     expect(new Set(cases.map((item) => item.expected_knowledge_type))).toEqual(
       new Set(policies.keys()),
     );

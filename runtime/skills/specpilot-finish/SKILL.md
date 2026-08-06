@@ -29,7 +29,9 @@ When ready, run `specpilot internal finish --change <change> --apply --json`. Th
 never moves. If the closed change is active locally, its session pointer is cleared automatically.
 
 Draft durable lessons under `.specpilot/local/knowledge-candidates/` and preview the complete
-candidate to the user. After an explicit decision, record a content-bound receipt with:
+candidate to the user. Do not turn requirement history, observability descriptions, or
+release/rollback/migration plans into knowledge candidates; keep them in `specs/changes/` or the
+project's ordinary documentation. After an explicit decision, record a content-bound receipt with:
 
 ```bash
 specpilot internal memory-review .specpilot/local/knowledge-candidates/example.md \

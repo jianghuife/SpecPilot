@@ -184,8 +184,6 @@ specs/
     examples/
     runbooks/
     incidents/
-    observability/
-    release/
     ai/evals/
     performance/
     security/
@@ -275,14 +273,16 @@ make that concept stale without invalidating unrelated knowledge. The disposable
 fingerprints its Markdown inputs and rebuilds automatically after direct edits. Raw sessions and
 unconfirmed graph results must not enter `specs/knowledge/`.
 
-`knowledge audit` reports coverage for all 16 governed knowledge types, distinguishing `covered`,
+`knowledge audit` reports coverage for all 13 governed knowledge types, distinguishing `covered`,
 `template`, and `missing`. P0 covers architecture boundaries, testing/verification, contracts,
-and business flows; P1 covers decisions, requirements history, Skills, examples, operations,
-incidents, anti-patterns, glossary, observability, release/migration, and AI evaluations; P2 covers
-performance, capacity, and security constraints. It also revalidates every trusted concept and
-fails on stale, invalid, or duplicate/conflicting identities. Search and task context exclude any
-concept that does not currently pass that audit. A scaffold becomes covered only after reviewed
-project-specific content replaces it and the `specpilot-template` marker is removed.
+and business flows; P1 covers decisions, Skills, examples, runbooks, incidents, anti-patterns,
+glossary, and AI evaluations; P2 covers performance, capacity, and security constraints.
+Requirements remain under `specs/changes/`; observability and release/rollback/migration remain
+ordinary project or change documentation rather than governed knowledge types. The audit also
+revalidates every trusted concept and fails on stale, invalid, or duplicate/conflicting identities.
+Search and task context exclude any concept that does not currently pass that audit. A scaffold
+becomes covered only after reviewed project-specific content replaces it and the
+`specpilot-template` marker is removed.
 
 ## Bundled optional Skills
 
