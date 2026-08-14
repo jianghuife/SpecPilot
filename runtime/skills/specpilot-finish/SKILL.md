@@ -28,10 +28,12 @@ When ready, run `specpilot internal finish --change <change> --apply --json`. Th
 `summary.md` and changes only `status: closed` plus `closed_at` in `change.yaml`; the directory
 never moves. If the closed change is active locally, its session pointer is cleared automatically.
 
-Draft durable lessons under `.specpilot/local/knowledge-candidates/` and preview the complete
-candidate to the user. Do not turn requirement history, observability descriptions, or
-release/rollback/migration plans into knowledge candidates; keep them in `specs/changes/` or the
-project's ordinary documentation. After an explicit decision, record a content-bound receipt with:
+Draft durable lessons under `.specpilot/local/knowledge-candidates/`, run
+`specpilot knowledge validate <candidate-path> --json`, and preview the complete validated
+candidate to the user. Validation does not replace explicit human review. Do not turn requirement
+history, observability descriptions, or release/rollback/migration plans into knowledge
+candidates; keep them in `specs/changes/` or the project's ordinary documentation. After an
+explicit decision, record a content-bound receipt with:
 
 ```bash
 specpilot internal memory-review .specpilot/local/knowledge-candidates/example.md \

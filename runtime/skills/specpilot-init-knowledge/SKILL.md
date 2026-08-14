@@ -49,10 +49,11 @@ engineering policy under `specpilot`: `domain`, `criticality`, `authority`, `loa
 evidence references, and invalidation watch paths. Every local `sources[].resource` must exist;
 every evidence reference must name a valid, current SpecPilot evidence JSON record whose log also
 exists. Trusted promotion requires `status: stable` and a `human:` verification event that does not
-predate `generated.at`.
+predate `generated.at`. Run `specpilot knowledge validate <candidate-path> --json` before asking
+for approval; validation is a read-only preflight and does not replace explicit human review.
 
-After showing the complete candidate and receiving an explicit decision, bind that exact content
-to a local review receipt:
+After showing the complete validated candidate and receiving an explicit decision, bind that exact
+content to a local review receipt:
 
 ```bash
 specpilot internal memory-review .specpilot/local/knowledge-candidates/example.md \

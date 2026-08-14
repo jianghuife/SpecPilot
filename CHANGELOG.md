@@ -18,6 +18,15 @@ All notable changes to `specpilot-kit` are documented here.
   commands for work, the read-only findings contract for review). Missing, untrusted, or
   over-budget context is flagged explicitly.
 - Delegation guidance in the `specpilot-work` and `specpilot-review` runtime skills.
+- `specpilot knowledge validate <candidate>` for read-only OKF/provenance preflight and receipt
+  state inspection; `specpilot status --json` now lists pending knowledge candidate paths.
+- Optional `context.work_bytes` and `context.review_bytes` budgets, configurable through
+  `specpilot context budget set <bytes> --purpose work|review` with fallback to `max_bytes`.
+
+### Changed
+
+- `context suggest` now includes the approved spec, design, and plan documents in its deterministic
+  query terms instead of relying only on change/task titles and task text.
 
 ## [0.8.1] - 2026-08-06
 
