@@ -1,4 +1,4 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
   type EvidencePhase,
@@ -20,7 +20,6 @@ import {
   type TaskRecord,
   type TaskTransition,
 } from '../project/project-store.js';
-import { toPosixPath } from '../utils/files.js';
 
 export interface FinishResult {
   changeId: string;
@@ -582,17 +581,7 @@ export class WorkflowHarness {
   }
 
   private async knowledgeCandidates(): Promise<string[]> {
-    const directory = path.join(this.root, '.specpilot', 'local', 'knowledge-candidates');
-    try {
-      const entries = await readdir(directory, { withFileTypes: true });
-      return entries
-        .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
-        .map((entry) => toPosixPath(path.relative(this.root, path.join(directory, entry.name))))
-        .sort();
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
-      throw error;
-    }
+    return this.memory.listKnowledgeCandidates();
   }
 
   async finish(changeId: string, options: { apply?: boolean } = {}): Promise<FinishResult> {

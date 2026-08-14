@@ -30,6 +30,7 @@ export interface ProjectStatus {
     | 'specpilot-work'
     | 'specpilot-review'
     | 'specpilot-finish';
+  knowledgeCandidates: string[];
 }
 
 export async function projectStatus(root: string): Promise<ProjectStatus> {
@@ -62,7 +63,9 @@ export async function projectStatus(root: string): Promise<ProjectStatus> {
     }
   }
 
-  const session = await new MemoryCatalog(resolved).readSession();
+  const memory = new MemoryCatalog(resolved);
+  const session = await memory.readSession();
+  const knowledgeCandidates = await memory.listKnowledgeCandidates();
   const pointedChange = openChanges.find((change) => change.id === session?.active_change);
   // Stale means the pointer references a missing or closed change/task; a
   // session without an active pointer is empty, not stale.
@@ -99,5 +102,6 @@ export async function projectStatus(root: string): Promise<ProjectStatus> {
         }
       : undefined,
     recommendedWorkflow,
+    knowledgeCandidates,
   };
 }

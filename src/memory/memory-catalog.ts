@@ -1337,6 +1337,20 @@ export class MemoryCatalog {
     return `${candidatePath.slice(0, -'.md'.length)}.review.json`;
   }
 
+  async listKnowledgeCandidates(): Promise<string[]> {
+    const directory = path.join(this.root, '.specpilot', 'local', 'knowledge-candidates');
+    try {
+      const entries = await readdir(directory, { withFileTypes: true });
+      return entries
+        .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+        .map((entry) => toPosixPath(path.relative(this.root, path.join(directory, entry.name))))
+        .sort();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+      throw error;
+    }
+  }
+
   async reviewCandidate(
     candidatePath: string,
     input: {

@@ -116,4 +116,25 @@ execution: standard
       detail: expect.stringContaining('1 invalid'),
     });
   });
+
+  it('lists pending knowledge candidates in project status', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'specpilot-report-'));
+    await initializeProject({
+      projectPath: root,
+      hosts: ['codex'],
+      graph: 'none',
+    });
+
+    const initial = await projectStatus(root);
+    expect(initial.knowledgeCandidates).toEqual([]);
+
+    const directory = path.join(root, '.specpilot', 'local', 'knowledge-candidates');
+    await mkdir(directory, { recursive: true });
+    await writeFile(path.join(directory, 'lesson.md'), '# Lesson\n');
+
+    const updated = await projectStatus(root);
+    expect(updated.knowledgeCandidates).toEqual([
+      '.specpilot/local/knowledge-candidates/lesson.md',
+    ]);
+  });
 });
