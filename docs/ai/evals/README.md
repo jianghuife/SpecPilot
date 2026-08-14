@@ -4,6 +4,11 @@
 context selector. Each case names a representative engineering request, the knowledge type that
 must be considered, and its required priority.
 
+`retrieval-ranking.jsonl` is the deterministic top-result regression set. Each synthetic case
+contains the documents to index, the query, the pre-weighted `baseline_top`, and the desired
+`expected_top`. Preserve the baseline field when improving the ranker so the behavior change stays
+reviewable rather than silently rewriting history.
+
 Add a case when an agent misses a project constraint, repeatedly loads irrelevant context, or a
 new high-frequency workflow appears. Keep prompts synthetic and free of secrets or raw private
 sessions. A policy change is incomplete until the evaluation set and its regression test agree.
