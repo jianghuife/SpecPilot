@@ -42,6 +42,18 @@ interface MemoryIndex {
   entries: MemoryIndexEntry[];
 }
 
+interface KnowledgeAuditCache {
+  schema_version: 1;
+  validator_version: 1;
+  date: string;
+  input_fingerprint: string;
+  entries: TrustedKnowledgeAuditEntry[];
+  source_refs: string[];
+  watch_paths: string[];
+  evidence_refs: string[];
+  log_paths: string[];
+}
+
 export interface MemoryResult {
   relativePath: string;
   title: string;
@@ -174,6 +186,7 @@ export interface TrustedKnowledgeAuditEntry {
 export interface KnowledgeAuditReport {
   policy_version: 2;
   healthy: boolean;
+  cache_hit: boolean;
   coverage: KnowledgeCoverage[];
   trusted_knowledge: TrustedKnowledgeAuditEntry[];
   summary: {
@@ -761,11 +774,13 @@ function parseLocalSession(value: unknown): LocalSession {
 export class MemoryCatalog {
   readonly root: string;
   readonly cachePath: string;
+  readonly auditCachePath: string;
   readonly sessionPath: string;
 
   constructor(root: string) {
     this.root = path.resolve(root);
     this.cachePath = path.join(this.root, '.specpilot', 'cache', 'memory-index.json');
+    this.auditCachePath = path.join(this.root, '.specpilot', 'cache', 'knowledge-audit.json');
     this.sessionPath = path.join(this.root, '.specpilot', 'local', 'session.json');
   }
 
@@ -881,7 +896,7 @@ export class MemoryCatalog {
     const tokens = words(query);
     const index = await this.index();
     const trustedKnowledge = new Map(
-      (await this.inspectTrustedKnowledge()).map((entry) => [entry.relativePath, entry]),
+      (await this.trustedKnowledge()).entries.map((entry) => [entry.relativePath, entry]),
     );
     const ranked = rankMemoryEntries(index.entries, tokens)
       .filter(({ entry, score }) => {
@@ -943,7 +958,7 @@ export class MemoryCatalog {
     ];
     const existing = new Set(current.references.map((reference) => reference.path));
     const trustedKnowledge = new Map(
-      (await this.inspectTrustedKnowledge()).map((entry) => [entry.relativePath, entry]),
+      (await this.trustedKnowledge()).entries.map((entry) => [entry.relativePath, entry]),
     );
     let graphCandidates: string[] = [];
     const graphQuery = [...queryTokens].sort(
@@ -1187,6 +1202,198 @@ export class MemoryCatalog {
     }
   }
 
+  private async readKnowledgeAuditCache(): Promise<KnowledgeAuditCache | undefined> {
+    let value: unknown;
+    try {
+      value = JSON.parse(await readFile(this.auditCachePath, 'utf8'));
+    } catch {
+      return undefined;
+    }
+    if (
+      !isJsonObject(value) ||
+      value.schema_version !== 1 ||
+      value.validator_version !== 1 ||
+      typeof value.date !== 'string' ||
+      typeof value.input_fingerprint !== 'string' ||
+      !/^[a-f0-9]{64}$/u.test(value.input_fingerprint) ||
+      !Array.isArray(value.entries) ||
+      !Array.isArray(value.source_refs) ||
+      !Array.isArray(value.watch_paths) ||
+      !Array.isArray(value.evidence_refs) ||
+      !Array.isArray(value.log_paths)
+    ) {
+      return undefined;
+    }
+    const stringArrays = [
+      value.source_refs,
+      value.watch_paths,
+      value.evidence_refs,
+      value.log_paths,
+    ];
+    if (stringArrays.some((items) => items.some((item) => typeof item !== 'string'))) {
+      return undefined;
+    }
+    if (
+      value.entries.some(
+        (entry) =>
+          !isJsonObject(entry) ||
+          entry.status !== 'trusted' ||
+          entry.attested !== true ||
+          typeof entry.relativePath !== 'string' ||
+          typeof entry.title !== 'string' ||
+          typeof entry.identity !== 'string' ||
+          !Array.isArray(entry.issues),
+      )
+    ) {
+      return undefined;
+    }
+    return value as unknown as KnowledgeAuditCache;
+  }
+
+  private async auditInputFingerprint(
+    input: Pick<KnowledgeAuditCache, 'source_refs' | 'watch_paths' | 'evidence_refs' | 'log_paths'>,
+  ): Promise<string> {
+    const hash = createHash('sha256');
+    hash.update('knowledge-audit-validator:1\0');
+    hash.update(new Date().toISOString().slice(0, 10));
+    hash.update('\0');
+    const knowledgeFiles = (await listTrustedKnowledgeFiles(this.root))
+      .map((filePath) => toPosixPath(path.relative(this.root, filePath)))
+      .sort();
+    const concretePaths = new Set([
+      ...knowledgeFiles,
+      ...knowledgeFiles.map((filePath) =>
+        filePath.endsWith('.md')
+          ? `${filePath.slice(0, -'.md'.length)}.attestation.json`
+          : filePath,
+      ),
+      ...input.source_refs,
+      ...input.evidence_refs,
+      ...input.log_paths,
+    ]);
+    hash.update(
+      JSON.stringify({
+        knowledgeFiles,
+        sourceRefs: input.source_refs,
+        watchPaths: input.watch_paths,
+        evidenceRefs: input.evidence_refs,
+        logPaths: input.log_paths,
+      }),
+    );
+    hash.update('\0');
+
+    let repositoryFiles: string[] | undefined;
+    for (const watchPath of [...input.watch_paths].sort()) {
+      const resolved = safeRepositoryReference(this.root, watchPath, 'cached watch path');
+      let watchedFiles: string[] = [];
+      if (/[*?]/u.test(watchPath)) {
+        repositoryFiles ??= await walkKnowledgeFiles(this.root, this.root);
+        const matcher = globPattern(watchPath);
+        watchedFiles = repositoryFiles.filter((relativePath) => matcher.test(relativePath));
+      } else {
+        try {
+          const metadata = await lstat(resolved);
+          watchedFiles = metadata.isDirectory()
+            ? await walkKnowledgeFiles(resolved, this.root)
+            : metadata.isFile()
+              ? [toPosixPath(path.relative(this.root, resolved))]
+              : [];
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+        }
+      }
+      watchedFiles.sort();
+      hash.update(`watch:${watchPath}\0${JSON.stringify(watchedFiles)}\0`);
+      for (const watchedFile of watchedFiles) concretePaths.add(watchedFile);
+    }
+
+    for (const relativePath of [...concretePaths].sort()) {
+      const resolved = safeRepositoryReference(this.root, relativePath, 'cached audit dependency');
+      hash.update(relativePath);
+      hash.update('\0');
+      try {
+        const metadata = await lstat(resolved, { bigint: true });
+        hash.update(
+          `${metadata.isFile() ? 'file' : metadata.isDirectory() ? 'directory' : 'other'}:${metadata.size}:${metadata.mtimeNs}:${metadata.ctimeNs}`,
+        );
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+        hash.update('<missing>');
+      }
+      hash.update('\0');
+    }
+    return hash.digest('hex');
+  }
+
+  private async evidenceLogPaths(evidenceRefs: string[]): Promise<string[]> {
+    const logs = new Set<string>();
+    for (const evidenceRef of evidenceRefs) {
+      const value: unknown = JSON.parse(
+        await readFile(
+          safeRepositoryReference(this.root, evidenceRef, 'evidence reference'),
+          'utf8',
+        ),
+      );
+      if (isJsonObject(value) && typeof value.log_path === 'string') logs.add(value.log_path);
+    }
+    return [...logs].sort();
+  }
+
+  private async trustedKnowledge(): Promise<{
+    entries: TrustedKnowledgeAuditEntry[];
+    cacheHit: boolean;
+  }> {
+    const cached = await this.readKnowledgeAuditCache();
+    if (cached && cached.date === new Date().toISOString().slice(0, 10)) {
+      try {
+        if ((await this.auditInputFingerprint(cached)) === cached.input_fingerprint) {
+          return { entries: cached.entries, cacheHit: true };
+        }
+      } catch {
+        // The cache is disposable; unsafe or unreadable dependencies rebuild it.
+      }
+    }
+
+    const entries = await this.inspectTrustedKnowledge();
+    if (
+      entries.length > 0 &&
+      entries.every((entry) => entry.status === 'trusted' && entry.attested)
+    ) {
+      const sourceRefs = [
+        ...new Set(
+          entries
+            .flatMap((entry) => entry.sourceRefs ?? [])
+            .filter((ref) => !isExternalResource(ref)),
+        ),
+      ].sort();
+      const watchPaths = [...new Set(entries.flatMap((entry) => entry.watchPaths ?? []))].sort();
+      const evidenceRefs = [
+        ...new Set(entries.flatMap((entry) => entry.evidenceRefs ?? [])),
+      ].sort();
+      try {
+        const logPaths = await this.evidenceLogPaths(evidenceRefs);
+        const cache: KnowledgeAuditCache = {
+          schema_version: 1,
+          validator_version: 1,
+          date: new Date().toISOString().slice(0, 10),
+          input_fingerprint: '',
+          entries,
+          source_refs: sourceRefs,
+          watch_paths: watchPaths,
+          evidence_refs: evidenceRefs,
+          log_paths: logPaths,
+        };
+        cache.input_fingerprint = await this.auditInputFingerprint(cache);
+        await writeJsonAtomic(this.auditCachePath, cache);
+      } catch {
+        await rm(this.auditCachePath, { force: true });
+      }
+    } else {
+      await rm(this.auditCachePath, { force: true });
+    }
+    return { entries, cacheHit: false };
+  }
+
   private async inspectTrustedKnowledge(): Promise<TrustedKnowledgeAuditEntry[]> {
     const entries = await Promise.all(
       (await listTrustedKnowledgeFiles(this.root)).map(
@@ -1261,14 +1468,15 @@ export class MemoryCatalog {
   }
 
   async auditKnowledge(): Promise<KnowledgeAuditReport> {
-    const trustedKnowledge = await this.inspectTrustedKnowledge();
+    const trustedKnowledge = await this.trustedKnowledge();
     const summary = { trusted: 0, stale: 0, invalid: 0, conflict: 0 };
-    for (const entry of trustedKnowledge) summary[entry.status] += 1;
+    for (const entry of trustedKnowledge.entries) summary[entry.status] += 1;
     return {
       policy_version: 2,
       healthy: summary.stale === 0 && summary.invalid === 0 && summary.conflict === 0,
+      cache_hit: trustedKnowledge.cacheHit,
       coverage: await this.knowledgeCoverage(),
-      trusted_knowledge: trustedKnowledge,
+      trusted_knowledge: trustedKnowledge.entries,
       summary,
     };
   }
@@ -1285,7 +1493,7 @@ export class MemoryCatalog {
       options.validateKnowledge === false
         ? new Map<string, TrustedKnowledgeAuditEntry>()
         : new Map(
-            (await this.inspectTrustedKnowledge()).map((entry) => [entry.relativePath, entry]),
+            (await this.trustedKnowledge()).entries.map((entry) => [entry.relativePath, entry]),
           );
     const references = await Promise.all(
       manifest[purpose].map(async (reference): Promise<ResolvedContextReference> => {
@@ -1650,6 +1858,7 @@ export class MemoryCatalog {
       attested_at: new Date().toISOString(),
     };
     await writeJsonAtomic(attestationPath, attestation);
+    await rm(this.auditCachePath, { force: true });
     await this.refresh();
     return destination;
   }

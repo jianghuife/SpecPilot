@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { EvidenceRunner } from '../../src/evidence/evidence-runner.js';
 import type { GraphProvider } from '../../src/graph/graph-provider.js';
 import { MemoryCatalog } from '../../src/memory/memory-catalog.js';
@@ -85,8 +85,10 @@ verified_at: 2026-07-29T00:00:00.000Z
     await rm(path.join(root, 'specs', 'knowledge', 'billing-boundary.attestation.json'));
     await expect(catalog.auditKnowledge()).resolves.toMatchObject({
       healthy: true,
+      cache_hit: false,
       summary: { trusted: 1, stale: 0, invalid: 0, conflict: 0 },
     });
+    await expect(catalog.auditKnowledge()).resolves.toMatchObject({ cache_hit: false });
 
     await writeFile(
       candidate,
@@ -195,11 +197,28 @@ specpilot:
     ).resolves.toContain('provenance_sha256');
     await expect(catalog.auditKnowledge()).resolves.toMatchObject({
       healthy: true,
+      cache_hit: false,
       summary: { trusted: 1, stale: 0, invalid: 0, conflict: 0 },
     });
+    await expect(new MemoryCatalog(root).auditKnowledge()).resolves.toMatchObject({
+      healthy: true,
+      cache_hit: true,
+      summary: { trusted: 1, stale: 0, invalid: 0, conflict: 0 },
+    });
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date(Date.now() + 86_400_000));
+      await expect(new MemoryCatalog(root).auditKnowledge()).resolves.toMatchObject({
+        healthy: true,
+        cache_hit: false,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
     await writeFile(path.join(root, 'AGENTS.md'), '# Changed architecture boundaries\n');
     await expect(catalog.auditKnowledge()).resolves.toMatchObject({
       healthy: false,
+      cache_hit: false,
       summary: { trusted: 0, stale: 1, invalid: 0, conflict: 0 },
     });
     await writeFile(path.join(root, 'AGENTS.md'), '# Architecture boundaries\n');
@@ -209,6 +228,19 @@ specpilot:
       summary: { trusted: 0, stale: 1, invalid: 0, conflict: 0 },
     });
     await writeFile(path.join(root, 'src', 'architecture.ts'), 'export const boundary = true;\n');
+    await expect(catalog.auditKnowledge()).resolves.toMatchObject({
+      healthy: true,
+      cache_hit: false,
+      summary: { trusted: 1, stale: 0, invalid: 0, conflict: 0 },
+    });
+    await expect(catalog.auditKnowledge()).resolves.toMatchObject({ cache_hit: true });
+    await writeFile(path.join(root, 'src', 'new-member.ts'), 'export const added = true;\n');
+    await expect(catalog.auditKnowledge()).resolves.toMatchObject({
+      healthy: false,
+      cache_hit: false,
+      summary: { trusted: 0, stale: 1, invalid: 0, conflict: 0 },
+    });
+    await rm(path.join(root, 'src', 'new-member.ts'));
     await expect(new MemoryCatalog(root).search('web adapters')).resolves.toEqual(
       expect.arrayContaining([
         expect.objectContaining({
