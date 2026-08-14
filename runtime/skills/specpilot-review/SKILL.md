@@ -53,15 +53,47 @@ documented-standard breach or a Spec violation.
 
 ## Process
 
-Use parallel internal reviewers when the host can schedule them; otherwise perform the same two
-contracts sequentially. Graph output is advisory. Every blocking finding must cite source, test,
-log, or missing acceptance evidence.
+Graph output is advisory. Every blocking finding must cite source, test, log, or missing
+acceptance evidence; the harness enforces this for structured findings at record time.
 
-Write separate Standards and Spec findings with file references to
-`.specpilot/local/review-draft.md`, then record them through the validated interface:
+When the host can delegate, run one reviewer subagent per axis. Build each reviewer's prompt
+from `specpilot internal briefing <change> --purpose review`, the review context listings for
+every non-waived task (`specpilot context list <change> <task> --purpose review --json`), and
+the current diff. Each reviewer writes its result to
+`.specpilot/local/review-findings/<axis>-reviewer.json`:
+
+```json
+{
+  "schema_version": 1,
+  "reviewer": "standards-reviewer",
+  "axis": "standards",
+  "status": "blocked",
+  "findings": [
+    {
+      "severity": "blocking",
+      "title": "Feature envy in BillingService",
+      "evidence": [{ "path": "src/billing/service.ts", "lines": "42-58" }],
+      "recommendation": "Move the calculation onto Invoice."
+    }
+  ]
+}
+```
+
+A `blocking` finding without at least one real repository path in `evidence` is rejected at
+record time. Without delegation, perform the same two-axis contracts sequentially and write the
+same findings files.
+
+Write the summary body to `.specpilot/local/review-draft.md`, then record through the validated
+interface:
 
 `specpilot review record <change> --standards pass|pass_with_warnings|blocked --spec
-pass|pass_with_warnings|blocked --body-file .specpilot/local/review-draft.md`
+pass|pass_with_warnings|blocked --body-file .specpilot/local/review-draft.md --findings
+.specpilot/local/review-findings/`
+
+`--findings` accepts report files or the findings directory. Recorded findings are merged into
+`review.md` with reviewer attribution, and each axis is floored by its findings: blocking
+findings force `blocked`, warnings force at least `pass_with_warnings`. Do not paste findings
+into the draft body by hand; let the recorder merge them so attribution stays intact.
 
 The workflow harness derives the overall status and captures the current worktree fingerprint,
 a fingerprint of the change's spec documents (`spec.md`, `design.md`, `plan.md`), and a fingerprint

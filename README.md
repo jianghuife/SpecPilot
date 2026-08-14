@@ -150,7 +150,7 @@ specpilot session clear [--path <path>] [--json]
 specpilot review record <change> \
   --standards pass|pass_with_warnings|blocked \
   --spec pass|pass_with_warnings|blocked \
-  --body-file <path> [--path <path>] [--json]
+  --body-file <path> [--findings <paths...>] [--path <path>] [--json]
 
 specpilot graph status [path] [--json]
 specpilot graph explore <query> [path] [--json]
@@ -257,6 +257,17 @@ spec change made after review forces a re-review. It also requires a
 `review_context_fingerprint` matching every non-waived task's current curated review context.
 `specpilot review record` derives the overall two-axis result and captures all fingerprints
 automatically. Closing the active change clears its local session pointer.
+
+Reviews may incorporate structured reviewer findings from
+`.specpilot/local/review-findings/<reviewer>.json` (schema version 1: reviewer, axis, status,
+and findings with severity, title, evidence, and recommendation). Blocking findings must cite at
+least one repository file that exists; the axis status is floored by its findings, so blocking
+findings force `blocked` and warnings force at least `pass_with_warnings`. `review record
+--findings` merges reports into `review.md` with reviewer attribution and records a content hash
+of each source report. `specpilot internal briefing <change> [task] --purpose work|review`
+packages a change or task — metadata, curated context listing, and the behavior contract — as a
+self-contained Markdown or JSON prompt for a delegated subagent, flagging missing or untrusted
+context explicitly instead of omitting it.
 
 `specs/knowledge/` is an [Open Knowledge Format v0.2](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)
 bundle. New trusted concepts use portable OKF fields (`type`, `sources`, `generated`, `verified`,

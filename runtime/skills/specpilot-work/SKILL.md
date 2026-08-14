@@ -38,5 +38,13 @@ reason changes, read the new context and record green evidence again. If work ca
 `specpilot task block <change> <task> --reason "<reason>"`; use
 `specpilot task waive <change> <task> --reason "<reason>"` only after the user accepts the waiver.
 
+When the host can delegate implementation, generate the subagent's prompt with
+`specpilot internal briefing <change> <task> --purpose work`. The briefing packages the task
+definition, the curated context listing, and the exact evidence commands. A subagent that finds
+the briefing reporting missing or untrusted context must report back instead of guessing.
+Evidence the subagent records through `specpilot verify run` is first-class; the delegating
+agent still owns `specpilot task complete`, which the harness rejects without fresh green
+evidence.
+
 Never hand-edit task status or `.specpilot/local/session.json`. Never write all tests before
 implementation, and do not complete a task based on graph output or an unrecorded claim.

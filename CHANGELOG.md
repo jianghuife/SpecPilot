@@ -2,6 +2,23 @@
 
 All notable changes to `specpilot-kit` are documented here.
 
+## [Unreleased]
+
+### Added
+
+- Structured reviewer findings under `.specpilot/local/review-findings/` (schema version 1) as
+  the subagent output contract for reviews. Blocking findings must cite at least one existing
+  repository file; each review axis is floored by its findings (blocking forces `blocked`,
+  warnings force at least `pass_with_warnings`). `specpilot review record --findings` merges
+  reports into `review.md` with reviewer attribution and records a content-bound `reviewers`
+  list in the frontmatter; reviews recorded before attribution remain readable.
+- `specpilot internal briefing <change> [task] --purpose work|review [--format markdown|json]`,
+  the subagent input contract: a self-contained delegation package with change metadata, task
+  definition, curated context listing, and the purpose-specific behavior contract (TDD evidence
+  commands for work, the read-only findings contract for review). Missing, untrusted, or
+  over-budget context is flagged explicitly.
+- Delegation guidance in the `specpilot-work` and `specpilot-review` runtime skills.
+
 ## [0.8.1] - 2026-08-06
 
 ### Changed
