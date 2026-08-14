@@ -133,6 +133,13 @@ export interface KnowledgeReviewReceipt {
   reason: string;
 }
 
+export interface CandidateValidation {
+  candidate: string;
+  valid: boolean;
+  issues: string[];
+  receipt: 'approved' | 'rejected' | 'stale' | 'missing';
+}
+
 export interface KnowledgeAttestation {
   schema_version: 1;
   knowledge_path: string;
@@ -1358,6 +1365,43 @@ export class MemoryCatalog {
     };
     await writeJsonAtomic(this.reviewReceiptPath(resolved), receipt);
     return receipt;
+  }
+
+  // Read-only preflight for knowledge candidates: drafters get the same
+  // contract and provenance checks promotion runs, plus the receipt state,
+  // without needing to attempt a review or promotion to discover errors.
+  async validateCandidate(candidatePath: string): Promise<CandidateValidation> {
+    const resolved = this.resolveCandidatePath(candidatePath);
+    const issues: string[] = [];
+    let content: string | undefined;
+    try {
+      content = await readFile(resolved, 'utf8');
+      const provenance = validateKnowledge(content, resolved);
+      await this.assertKnowledgeProvenance(provenance, true);
+    } catch (error) {
+      issues.push((error as Error).message);
+    }
+    let receipt: CandidateValidation['receipt'] = 'missing';
+    try {
+      const value: unknown = JSON.parse(await readFile(this.reviewReceiptPath(resolved), 'utf8'));
+      if (isJsonObject(value) && value.schema_version === 1) {
+        if (value.decision === 'rejected') {
+          receipt = 'rejected';
+        } else if (value.decision === 'approved') {
+          const hash =
+            content === undefined ? undefined : createHash('sha256').update(content).digest('hex');
+          receipt = value.candidate_sha256 === hash ? 'approved' : 'stale';
+        }
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+    return {
+      candidate: toPosixPath(path.relative(this.root, resolved)),
+      valid: issues.length === 0,
+      issues,
+      receipt,
+    };
   }
 
   private async readCandidateReview(candidatePath: string): Promise<KnowledgeReviewReceipt> {

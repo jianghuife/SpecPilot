@@ -719,6 +719,16 @@ knowledge
     print(report, options.json);
     if (!report.healthy) process.exitCode = 1;
   });
+knowledge
+  .command('validate <candidate>')
+  .description('Preflight a knowledge candidate against the OKF contract and provenance rules')
+  .option('--path <path>', 'Project path', '.')
+  .option('--json')
+  .action(async (candidate: string, options: { path: string; json?: boolean }) => {
+    const result = await new MemoryCatalog(options.path).validateCandidate(candidate);
+    print(result, options.json);
+    if (!result.valid) process.exitCode = 1;
+  });
 
 const graph = program.command('graph').description('Provider-neutral code graph operations');
 graph

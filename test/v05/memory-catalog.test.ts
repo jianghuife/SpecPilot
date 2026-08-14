@@ -456,3 +456,103 @@ verified_at: 2026-08-05T00:00:00.000Z
     });
   });
 });
+
+describe('MemoryCatalog candidate validation', () => {
+  async function setupCandidate(root: string): Promise<string> {
+    await mkdir(path.join(root, 'src'), { recursive: true });
+    await writeFile(path.join(root, 'src', 'billing.ts'), 'export const billing = true;\n');
+    const store = new ProjectStore(root);
+    await store.createChange({ id: 'billing', title: 'Billing', kind: 'light' });
+    await store.addTask('billing', { id: 'task', title: 'Verify billing' });
+    const evidence = await new EvidenceRunner(root).run({
+      changeId: 'billing',
+      taskId: 'task',
+      phase: 'final',
+      command: PASS,
+    });
+    const directory = path.join(root, '.specpilot', 'local', 'knowledge-candidates');
+    await mkdir(directory, { recursive: true });
+    const candidate = path.join(directory, 'billing-boundary.md');
+    await writeFile(
+      candidate,
+      `---
+domain: billing
+summary: Billing writes cross the invoice boundary.
+source_refs:
+  - src/billing.ts
+evidence_refs:
+  - ${evidence.record_path}
+invalidation_condition: The billing write path changes.
+verified_at: 2026-07-29T00:00:00.000Z
+---
+# Billing boundary
+`,
+    );
+    return candidate;
+  }
+
+  it('validates a well-formed candidate and reports the receipt lifecycle', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'specpilot-validate-'));
+    const candidate = await setupCandidate(root);
+    const catalog = new MemoryCatalog(root);
+
+    const initial = await catalog.validateCandidate(candidate);
+    expect(initial).toEqual({
+      candidate: '.specpilot/local/knowledge-candidates/billing-boundary.md',
+      valid: true,
+      issues: [],
+      receipt: 'missing',
+    });
+
+    await catalog.reviewCandidate(candidate, {
+      decision: 'approved',
+      reviewer: 'human:hui',
+      reason: 'Confirmed against source and final evidence.',
+    });
+    await expect(catalog.validateCandidate(candidate)).resolves.toMatchObject({
+      valid: true,
+      receipt: 'approved',
+    });
+
+    await writeFile(candidate, `${await readFile(candidate, 'utf8')}\nAmended after review.\n`);
+    await expect(catalog.validateCandidate(candidate)).resolves.toMatchObject({
+      receipt: 'stale',
+    });
+  });
+
+  it('reports contract and provenance issues without throwing', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'specpilot-validate-'));
+    const directory = path.join(root, '.specpilot', 'local', 'knowledge-candidates');
+    await mkdir(directory, { recursive: true });
+    const candidate = path.join(directory, 'bad-candidate.md');
+    await writeFile(
+      candidate,
+      `---
+domain: billing
+summary: Unverified claim
+source_refs:
+  - src/missing.ts
+evidence_refs: []
+verified_at: 2026-07-29T00:00:00.000Z
+---
+# Bad candidate
+`,
+    );
+
+    const result = await new MemoryCatalog(root).validateCandidate(candidate);
+
+    expect(result.valid).toBe(false);
+    expect(result.issues.join('\n')).toMatch(/invalidation_condition/);
+    expect(result.receipt).toBe('missing');
+  });
+
+  it('rejects candidates outside the knowledge-candidates directory', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'specpilot-validate-'));
+    const outside = path.join(root, 'outside.md');
+    await writeFile(outside, '# Outside\n');
+
+    await expect(new MemoryCatalog(root).validateCandidate(outside)).rejects.toThrow(
+      /knowledge-candidates/,
+    );
+  });
+});
