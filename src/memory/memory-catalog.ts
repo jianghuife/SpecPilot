@@ -20,7 +20,12 @@ interface MemoryIndexEntry {
   title: string;
   domain?: string;
   summary?: string;
-  searchable: string;
+  titleTokens: string[];
+  domainTokens: string[];
+  summaryTokens: string[];
+  bodyTokens: string[];
+  pathTokens: string[];
+  knowledgeTypeTokens: string[];
   sizeBytes: number;
   priority?: KnowledgePriority;
   authority?: string;
@@ -30,7 +35,7 @@ interface MemoryIndexEntry {
 }
 
 interface MemoryIndex {
-  schema_version: 2;
+  schema_version: 3;
   generated_at: string;
   source_fingerprint: string;
   entries: MemoryIndexEntry[];
@@ -401,10 +406,82 @@ function titleOf(content: string, fallback: string): string {
 }
 
 function words(value: string): string[] {
-  return value
-    .toLocaleLowerCase()
-    .split(/[^a-z0-9_-]+/u)
-    .filter((word) => word.length > 1);
+  const normalized = value
+    .normalize('NFKC')
+    .replace(/(\p{Lu}+)(\p{Lu}\p{Ll})/gu, '$1 $2')
+    .replace(/([\p{Ll}\p{N}])(\p{Lu})/gu, '$1 $2')
+    .replace(/[_-]+/gu, ' ')
+    .toLocaleLowerCase();
+  const tokens = normalized.match(/[\p{L}\p{N}]+/gu) ?? [];
+  const expanded: string[] = [];
+  for (const token of tokens) {
+    const characters = [...token];
+    if (characters.length <= 1) continue;
+    expanded.push(token);
+    if (/^\p{Script=Han}+$/u.test(token) && characters.length > 2) {
+      for (let index = 0; index < characters.length - 1; index += 1) {
+        expanded.push(`${characters[index]}${characters[index + 1]}`);
+      }
+    }
+  }
+  return expanded;
+}
+
+interface RankedMemoryEntry {
+  entry: MemoryIndexEntry;
+  score: number;
+  matchedTerms: string[];
+}
+
+function rankMemoryEntries(
+  entries: MemoryIndexEntry[],
+  queryTokens: string[],
+): RankedMemoryEntry[] {
+  const tokens = [...new Set(queryTokens)];
+  const entryTerms = new Map(
+    entries.map((entry) => [
+      entry.relativePath,
+      new Set([
+        ...entry.titleTokens,
+        ...entry.domainTokens,
+        ...entry.summaryTokens,
+        ...entry.bodyTokens,
+        ...entry.pathTokens,
+        ...entry.knowledgeTypeTokens,
+      ]),
+    ]),
+  );
+  const documentFrequency = new Map(
+    tokens.map((token) => [
+      token,
+      entries.filter((entry) => entryTerms.get(entry.relativePath)?.has(token)).length,
+    ]),
+  );
+  const totalDocuments = entries.length;
+  return entries.map((entry) => {
+    const fields: Array<[Set<string>, number]> = [
+      [new Set(entry.titleTokens), 5],
+      [new Set(entry.domainTokens), 4],
+      [new Set(entry.summaryTokens), 3],
+      [new Set(entry.knowledgeTypeTokens), 3],
+      [new Set(entry.pathTokens), 2],
+      [new Set(entry.bodyTokens), 1],
+    ];
+    const matchedTerms: string[] = [];
+    let score = 0;
+    for (const token of tokens) {
+      const fieldWeight = Math.max(
+        0,
+        ...fields.filter(([field]) => field.has(token)).map(([, weight]) => weight),
+      );
+      if (fieldWeight === 0) continue;
+      matchedTerms.push(token);
+      const frequency = documentFrequency.get(token) ?? 0;
+      const inverseDocumentFrequency = 1 + Math.log((totalDocuments + 1) / (frequency + 1));
+      score += fieldWeight * inverseDocumentFrequency;
+    }
+    return { entry, score, matchedTerms };
+  });
 }
 
 function stringList(value: unknown, field: string): string[] {
@@ -724,23 +801,30 @@ export class MemoryCatalog {
         priority ??= policies
           .map((policy) => policy.priority)
           .sort((left, right) => left.localeCompare(right))[0];
+        const resolvedTitle = title ?? titleOf(content, path.basename(filePath, '.md'));
+        const knowledgeTypes = policies.map((policy) => policy.id);
         return {
           relativePath,
-          title: title ?? titleOf(content, path.basename(filePath, '.md')),
+          title: resolvedTitle,
           domain,
           summary,
-          searchable: `${domain ?? ''} ${summary ?? ''} ${content}`.toLocaleLowerCase(),
+          titleTokens: [...new Set(words(resolvedTitle))],
+          domainTokens: [...new Set(words(domain ?? ''))],
+          summaryTokens: [...new Set(words(summary ?? ''))],
+          bodyTokens: [...new Set(words(content))],
+          pathTokens: [...new Set(words(relativePath))],
+          knowledgeTypeTokens: [...new Set(words(knowledgeTypes.join(' ')))],
           sizeBytes: Buffer.byteLength(content),
           priority,
           authority,
           loadPolicy,
-          knowledgeTypes: policies.map((policy) => policy.id),
+          knowledgeTypes,
           template: /<!--\s*specpilot-template:[a-z0-9-]+\s*-->/u.test(content),
         };
       }),
     );
     const index: MemoryIndex = {
-      schema_version: 2,
+      schema_version: 3,
       generated_at: new Date().toISOString(),
       source_fingerprint: sourceFingerprint,
       entries,
@@ -760,7 +844,7 @@ export class MemoryCatalog {
     try {
       const value = JSON.parse(await readFile(this.cachePath, 'utf8')) as MemoryIndex;
       if (
-        value.schema_version === 2 &&
+        value.schema_version === 3 &&
         value.source_fingerprint === sourceFingerprint &&
         Array.isArray(value.entries)
       ) {
@@ -778,14 +862,7 @@ export class MemoryCatalog {
     const trustedKnowledge = new Map(
       (await this.inspectTrustedKnowledge()).map((entry) => [entry.relativePath, entry]),
     );
-    const ranked = index.entries
-      .map((entry) => ({
-        entry,
-        score: tokens.reduce(
-          (score, token) => score + (entry.searchable.includes(token) ? 1 : 0),
-          0,
-        ),
-      }))
+    const ranked = rankMemoryEntries(index.entries, tokens)
       .filter(({ entry, score }) => {
         if (tokens.length > 0 && score === 0) return false;
         if (!entry.relativePath.startsWith('specs/knowledge/')) return true;
@@ -862,7 +939,14 @@ export class MemoryCatalog {
       on_demand: 0,
       host_managed: -100,
     };
-    const candidates = (await this.index()).entries
+    const index = await this.index();
+    const lexicalRanks = new Map(
+      rankMemoryEntries(index.entries, queryTokens).map((ranked) => [
+        ranked.entry.relativePath,
+        ranked,
+      ]),
+    );
+    const candidates = index.entries
       .filter((entry) => !entry.template && !existing.has(entry.relativePath))
       .filter((entry) => entry.loadPolicy !== 'host_managed')
       .filter(
@@ -871,18 +955,19 @@ export class MemoryCatalog {
           trustedKnowledge.get(entry.relativePath)?.status === 'trusted',
       )
       .map((entry): ContextSuggestion | undefined => {
-        const matchedTerms = queryTokens.filter((token) => entry.searchable.includes(token));
+        const lexical = lexicalRanks.get(entry.relativePath);
+        const matchedTerms = lexical?.matchedTerms ?? [];
         if (matchedTerms.length === 0 && entry.loadPolicy !== 'always') return undefined;
         const priority = entry.priority;
         const score =
-          matchedTerms.length * 10 +
+          (lexical?.score ?? 0) * 2 +
           (priority ? priorityWeight[priority] : 0) +
           (entry.authority ? (authorityWeight[entry.authority] ?? 0) : 0) +
           (entry.loadPolicy ? (loadPolicyWeight[entry.loadPolicy] ?? 0) : 0);
         const reason =
           entry.loadPolicy === 'always' && matchedTerms.length === 0
             ? 'The verified knowledge load policy is always.'
-            : `Matched task terms ${matchedTerms.join(', ')}${
+            : `Matched change/task terms ${matchedTerms.join(', ')}${
                 entry.knowledgeTypes.length > 0 ? ` in ${entry.knowledgeTypes.join(', ')}` : ''
               }.`;
         return {

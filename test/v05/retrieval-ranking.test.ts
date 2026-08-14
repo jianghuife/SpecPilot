@@ -30,7 +30,7 @@ async function cases(): Promise<RetrievalCase[]> {
 }
 
 describe('deterministic retrieval ranking evaluation', () => {
-  it('records the current top result before the weighted retrieval upgrade', async () => {
+  it('ranks the expected result first with token and field weighting', async () => {
     const evaluationCases = await cases();
     expect(new Set(evaluationCases.map((item) => item.id)).size).toBe(evaluationCases.length);
     expect(evaluationCases.some((item) => item.baseline_top !== item.expected_top)).toBe(true);
@@ -45,7 +45,7 @@ describe('deterministic retrieval ranking evaluation', () => {
 
       const result = await new MemoryCatalog(root).search(item.query);
 
-      expect(result[0]?.relativePath, item.id).toBe(item.baseline_top);
+      expect(result[0]?.relativePath, item.id).toBe(item.expected_top);
     }
   });
 });
