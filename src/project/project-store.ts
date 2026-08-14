@@ -17,6 +17,37 @@ export type TaskStatus = 'todo' | 'doing' | 'done' | 'blocked' | 'waived';
 export type TaskExecution = 'standard' | 'tdd';
 export type TaskTransition = 'start' | 'complete' | 'block' | 'waive';
 export type ReviewAxisStatus = 'pass' | 'pass_with_warnings' | 'blocked';
+export type FindingAxis = 'standards' | 'spec';
+export type FindingSeverity = 'blocking' | 'warning' | 'note';
+
+export interface ReviewFindingEvidence {
+  path: string;
+  lines?: string;
+}
+
+export interface ReviewFinding {
+  severity: FindingSeverity;
+  title: string;
+  evidence: ReviewFindingEvidence[];
+  recommendation?: string;
+}
+
+export interface ReviewFindingsReport {
+  schema_version: 1;
+  reviewer: string;
+  axis: FindingAxis;
+  status: ReviewAxisStatus;
+  findings: ReviewFinding[];
+  filePath: string;
+  // Content hash of the source findings file, recorded for reviewer attribution.
+  sha256: string;
+}
+
+export interface ReviewerAttribution {
+  id: string;
+  axis: FindingAxis;
+  findings_sha256: string;
+}
 
 export interface ChangeRecord {
   schema_version: 1;
@@ -72,6 +103,8 @@ export interface ReviewRecord {
   specFingerprint?: string;
   // Absent only in reviews written before curated-context fingerprinting.
   reviewContextFingerprint?: string;
+  // Absent only in reviews recorded without structured reviewer findings.
+  reviewers?: ReviewerAttribution[];
   body: string;
 }
 
@@ -89,6 +122,7 @@ export interface WriteReviewInput {
   worktreeFingerprint: string;
   specFingerprint: string;
   reviewContextFingerprint: string;
+  reviewers?: ReviewerAttribution[];
   body: string;
 }
 
@@ -235,6 +269,90 @@ function reviewStatus(value: unknown, field: string): ReviewAxisStatus {
   throw new Error(`${field} must be pass, pass_with_warnings, or blocked`);
 }
 
+function findingAxis(value: unknown, field: string): FindingAxis {
+  if (value === 'standards' || value === 'spec') return value;
+  throw new Error(`${field} must be standards or spec`);
+}
+
+function findingSeverity(value: unknown, field: string): FindingSeverity {
+  if (value === 'blocking' || value === 'warning' || value === 'note') return value;
+  throw new Error(`${field} must be blocking, warning, or note`);
+}
+
+function reviewerAttributions(value: unknown, filePath: string): ReviewerAttribution[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) {
+    throw new Error(`${filePath} reviewers must be an array`);
+  }
+  return value.map((item, index) => {
+    if (!isJsonObject(item)) {
+      throw new Error(`${filePath} reviewers[${index}] must be an object`);
+    }
+    return {
+      id: assertString(item.id, `reviewers[${index}].id`),
+      axis: findingAxis(item.axis, `reviewers[${index}].axis`),
+      findings_sha256: assertString(item.findings_sha256, `reviewers[${index}].findings_sha256`),
+    };
+  });
+}
+
+function parseFindings(content: string, filePath: string): ReviewFindingsReport {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch (error) {
+    throw new Error(`${filePath} is not valid JSON: ${(error as Error).message}`);
+  }
+  if (!isJsonObject(parsed)) {
+    throw new Error(`${filePath} must contain a JSON object`);
+  }
+  if (parsed.schema_version !== 1) {
+    throw new Error(`${filePath} schema_version must be 1`);
+  }
+  if (!Array.isArray(parsed.findings)) {
+    throw new Error(`${filePath} findings must be an array`);
+  }
+  const findings: ReviewFinding[] = parsed.findings.map((item, index) => {
+    const field = `${filePath} findings[${index}]`;
+    if (!isJsonObject(item)) {
+      throw new Error(`${field} must be an object`);
+    }
+    const severity = findingSeverity(item.severity, `${field}.severity`);
+    const evidenceValue = item.evidence ?? [];
+    if (!Array.isArray(evidenceValue)) {
+      throw new Error(`${field}.evidence must be an array`);
+    }
+    const evidence: ReviewFindingEvidence[] = evidenceValue.map((entry, evidenceIndex) => {
+      if (!isJsonObject(entry)) {
+        throw new Error(`${field}.evidence[${evidenceIndex}] must be an object`);
+      }
+      return {
+        path: assertString(entry.path, `${field}.evidence[${evidenceIndex}].path`),
+        lines: typeof entry.lines === 'string' ? entry.lines : undefined,
+      };
+    });
+    const title = assertString(item.title, `${field}.title`);
+    if (severity === 'blocking' && evidence.length === 0) {
+      throw new Error(`${field}: blocking finding "${title}" requires at least one evidence path`);
+    }
+    return {
+      severity,
+      title,
+      evidence,
+      recommendation: typeof item.recommendation === 'string' ? item.recommendation : undefined,
+    };
+  });
+  return {
+    schema_version: 1,
+    reviewer: assertString(parsed.reviewer, 'reviewer'),
+    axis: findingAxis(parsed.axis, 'axis'),
+    status: reviewStatus(parsed.status, 'findings status'),
+    findings,
+    filePath,
+    sha256: createHash('sha256').update(content).digest('hex'),
+  };
+}
+
 function contextReferences(value: unknown, field: string): ContextReference[] {
   if (!Array.isArray(value)) {
     throw new Error(`${field} must be an array`);
@@ -335,6 +453,7 @@ function parseReview(content: string, filePath: string): ReviewRecord {
       metadata.review_context_fingerprint.trim() !== ''
         ? metadata.review_context_fingerprint
         : undefined,
+    reviewers: reviewerAttributions(metadata.reviewers, filePath),
     body,
   };
 }
@@ -683,7 +802,7 @@ export class ProjectStore {
   async writeReview(changeId: string, input: WriteReviewInput): Promise<ReviewRecord> {
     requireOpenChange(await this.readChange(changeId));
     const filePath = path.join(this.changeDirectory(changeId), 'review.md');
-    const frontmatter = YAML.stringify({
+    const metadata: Record<string, unknown> = {
       schema_version: 1,
       status: reviewStatus(input.status, 'review status'),
       standards: reviewStatus(input.standards, 'standards review'),
@@ -695,8 +814,11 @@ export class ProjectStore {
         input.reviewContextFingerprint,
         'review_context_fingerprint',
       ),
-    });
-    const content = `---\n${frontmatter}---\n\n${assertString(input.body, 'review body').trimEnd()}\n`;
+    };
+    if (input.reviewers && input.reviewers.length > 0) {
+      metadata.reviewers = reviewerAttributions(input.reviewers, 'review input');
+    }
+    const content = `---\n${YAML.stringify(metadata)}---\n\n${assertString(input.body, 'review body').trimEnd()}\n`;
     await writeTextAtomic(filePath, content);
     return parseReview(content, filePath);
   }
@@ -704,6 +826,71 @@ export class ProjectStore {
   async readReview(changeId: string): Promise<ReviewRecord> {
     const filePath = path.join(this.changeDirectory(changeId), 'review.md');
     return parseReview(await readFile(filePath, 'utf8'), filePath);
+  }
+
+  reviewFindingsDirectory(): string {
+    return path.join(this.root, '.specpilot', 'local', 'review-findings');
+  }
+
+  // Blocking findings must cite real repository files: evidence paths resolve
+  // against the repository root and symlink escapes are rejected, so a
+  // reviewer (human or subagent) cannot anchor a gate to a fabricated path.
+  private async evidenceFileExists(reference: string): Promise<boolean> {
+    const normalized = path.posix.normalize(reference.replaceAll('\\', '/'));
+    if (path.posix.isAbsolute(normalized) || normalized === '..' || normalized.startsWith('../')) {
+      throw new Error(`evidence path escapes the repository: ${reference}`);
+    }
+    try {
+      const canonicalRoot = await realpath(this.root);
+      const canonical = await realpath(path.join(this.root, normalized));
+      return (
+        canonical.startsWith(`${canonicalRoot}${path.sep}`) && (await lstat(canonical)).isFile()
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  async readFindingsReports(reference: string): Promise<ReviewFindingsReport[]> {
+    const directory = this.reviewFindingsDirectory();
+    const resolved = path.resolve(directory, assertString(reference, 'findings reference'));
+    if (resolved !== directory && !resolved.startsWith(`${directory}${path.sep}`)) {
+      throw new Error('findings reports must live under .specpilot/local/review-findings/');
+    }
+    let files: string[];
+    const stats = await lstat(resolved).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') {
+        throw new Error(`findings report not found: ${reference}`);
+      }
+      throw error;
+    });
+    if (stats.isDirectory()) {
+      files = (await readdir(resolved))
+        .filter((entry) => entry.endsWith('.json'))
+        .sort()
+        .map((entry) => path.join(resolved, entry));
+    } else {
+      if (!resolved.endsWith('.json')) {
+        throw new Error(`findings report must be a JSON file: ${reference}`);
+      }
+      files = [resolved];
+    }
+    const reports: ReviewFindingsReport[] = [];
+    for (const filePath of files) {
+      const relative = toPosixPath(path.relative(this.root, filePath));
+      const report = parseFindings(await readFile(filePath, 'utf8'), relative);
+      for (const finding of report.findings) {
+        for (const evidence of finding.evidence) {
+          if (!(await this.evidenceFileExists(evidence.path))) {
+            throw new Error(
+              `${report.filePath}: evidence path does not exist in the repository: ${evidence.path}`,
+            );
+          }
+        }
+      }
+      reports.push(report);
+    }
+    return reports;
   }
 
   // The worktree fingerprint deliberately excludes specs/**, so reviews pin

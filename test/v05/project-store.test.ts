@@ -275,3 +275,175 @@ describe('ProjectStore', () => {
     expect(summary.issues).not.toContain('blocked task copy requires blocked_reason');
   });
 });
+
+describe('ProjectStore review findings', () => {
+  async function setupFindings(root: string): Promise<string> {
+    const directory = path.join(root, '.specpilot', 'local', 'review-findings');
+    await mkdir(directory, { recursive: true });
+    await mkdir(path.join(root, 'src'), { recursive: true });
+    await writeFile(path.join(root, 'src', 'service.ts'), 'export const value = 1;\n');
+    return directory;
+  }
+
+  function findingsJson(overrides: Record<string, unknown> = {}): string {
+    return JSON.stringify({
+      schema_version: 1,
+      reviewer: 'standards-reviewer',
+      axis: 'standards',
+      status: 'blocked',
+      findings: [
+        {
+          severity: 'blocking',
+          title: 'BillingService reaches into Invoice internals',
+          evidence: [{ path: 'src/service.ts', lines: '1' }],
+          recommendation: 'Move the calculation onto Invoice.',
+        },
+      ],
+      ...overrides,
+    });
+  }
+
+  it('parses a valid report and binds it to its content hash', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'specpilot-findings-'));
+    const directory = await setupFindings(root);
+    const content = findingsJson();
+    await writeFile(path.join(directory, 'standards-reviewer.json'), content);
+
+    const reports = await new ProjectStore(root).readFindingsReports('standards-reviewer.json');
+
+    expect(reports).toHaveLength(1);
+    expect(reports[0]).toMatchObject({
+      schema_version: 1,
+      reviewer: 'standards-reviewer',
+      axis: 'standards',
+      status: 'blocked',
+      findings: [
+        {
+          severity: 'blocking',
+          title: 'BillingService reaches into Invoice internals',
+          evidence: [{ path: 'src/service.ts', lines: '1' }],
+          recommendation: 'Move the calculation onto Invoice.',
+        },
+      ],
+    });
+    expect(reports[0].sha256).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('loads every findings file in a directory in sorted order', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'specpilot-findings-'));
+    const directory = await setupFindings(root);
+    await writeFile(
+      path.join(directory, 'spec-reviewer.json'),
+      findingsJson({ reviewer: 'spec-reviewer', axis: 'spec', status: 'pass', findings: [] }),
+    );
+    await writeFile(path.join(directory, 'standards-reviewer.json'), findingsJson());
+    await writeFile(path.join(directory, 'notes.md'), '# not findings\n');
+
+    const reports = await new ProjectStore(root).readFindingsReports('.');
+
+    expect(reports.map((report) => report.reviewer)).toEqual([
+      'spec-reviewer',
+      'standards-reviewer',
+    ]);
+  });
+
+  it('rejects reports outside the review-findings directory', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'specpilot-findings-'));
+    await setupFindings(root);
+    await writeFile(path.join(root, 'findings.json'), findingsJson());
+
+    await expect(new ProjectStore(root).readFindingsReports('../findings.json')).rejects.toThrow(
+      /review-findings/,
+    );
+    await expect(new ProjectStore(root).readFindingsReports('/etc/passwd.json')).rejects.toThrow(
+      /review-findings/,
+    );
+  });
+
+  it('rejects a blocking finding without evidence', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'specpilot-findings-'));
+    const directory = await setupFindings(root);
+    await writeFile(
+      path.join(directory, 'standards-reviewer.json'),
+      findingsJson({
+        findings: [{ severity: 'blocking', title: 'Unbacked claim', evidence: [] }],
+      }),
+    );
+
+    await expect(
+      new ProjectStore(root).readFindingsReports('standards-reviewer.json'),
+    ).rejects.toThrow(/blocking finding.*evidence/i);
+  });
+
+  it('rejects a blocking finding whose evidence path does not exist in the repository', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'specpilot-findings-'));
+    const directory = await setupFindings(root);
+    await writeFile(
+      path.join(directory, 'standards-reviewer.json'),
+      findingsJson({
+        findings: [
+          {
+            severity: 'blocking',
+            title: 'Missing evidence file',
+            evidence: [{ path: 'src/missing.ts' }],
+          },
+        ],
+      }),
+    );
+
+    await expect(
+      new ProjectStore(root).readFindingsReports('standards-reviewer.json'),
+    ).rejects.toThrow(/src\/missing\.ts/);
+  });
+
+  it('rejects evidence paths that escape the repository', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'specpilot-findings-'));
+    const directory = await setupFindings(root);
+    await writeFile(
+      path.join(directory, 'standards-reviewer.json'),
+      findingsJson({
+        findings: [
+          {
+            severity: 'warning',
+            title: 'Escaped evidence',
+            evidence: [{ path: '../outside.ts' }],
+          },
+        ],
+      }),
+    );
+
+    await expect(
+      new ProjectStore(root).readFindingsReports('standards-reviewer.json'),
+    ).rejects.toThrow(/outside the repository|escape/i);
+  });
+
+  it('keeps reviews recorded before reviewer attribution readable', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'specpilot-findings-'));
+    const changeDirectory = path.join(root, 'specs', 'changes', 'add-value');
+    await mkdir(changeDirectory, { recursive: true });
+    await writeFile(
+      path.join(changeDirectory, 'change.yaml'),
+      'schema_version: 1\nid: add-value\ntitle: Add value\nkind: light\nstatus: open\ncreated_at: 2026-07-29T00:00:00.000Z\n',
+    );
+    await writeFile(
+      path.join(changeDirectory, 'review.md'),
+      `---
+schema_version: 1
+status: pass
+standards: pass
+spec: pass
+reviewed_at: 2026-07-29T00:02:00.000Z
+worktree_fingerprint: ${'a'.repeat(64)}
+spec_fingerprint: ${'b'.repeat(64)}
+review_context_fingerprint: ${'c'.repeat(64)}
+---
+# Review
+`,
+    );
+
+    const review = await new ProjectStore(root).readReview('add-value');
+
+    expect(review.status).toBe('pass');
+    expect(review.reviewers).toBeUndefined();
+  });
+});

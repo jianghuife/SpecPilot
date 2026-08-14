@@ -792,3 +792,140 @@ describe('WorkflowHarness review recording', () => {
     });
   });
 });
+
+describe('WorkflowHarness review findings', () => {
+  async function writeFindings(
+    root: string,
+    name: string,
+    report: Record<string, unknown>,
+  ): Promise<void> {
+    const directory = path.join(root, '.specpilot', 'local', 'review-findings');
+    await mkdir(directory, { recursive: true });
+    await writeFile(path.join(directory, name), JSON.stringify(report));
+  }
+
+  function standardsReport(findings: Record<string, unknown>[]): Record<string, unknown> {
+    return {
+      schema_version: 1,
+      reviewer: 'standards-reviewer',
+      axis: 'standards',
+      status: findings.some((finding) => finding.severity === 'blocking')
+        ? 'blocked'
+        : 'pass_with_warnings',
+      findings,
+    };
+  }
+
+  it('rejects a passing axis when its findings contain a blocking finding', async () => {
+    const root = await setupRepository();
+    await writeChange(root, { execution: 'standard' });
+    await writeFindings(
+      root,
+      'standards-reviewer.json',
+      standardsReport([
+        {
+          severity: 'blocking',
+          title: 'Feature envy in the new module',
+          evidence: [{ path: 'app.ts', lines: '1' }],
+        },
+      ]),
+    );
+
+    await expect(
+      new WorkflowHarness(root).recordReview('add-value', {
+        standards: 'pass',
+        spec: 'pass',
+        body: '# Review\n',
+        findings: ['standards-reviewer.json'],
+      }),
+    ).rejects.toThrow(/standards findings contain blocking findings/);
+  });
+
+  it('rejects pass on an axis whose findings contain warnings', async () => {
+    const root = await setupRepository();
+    await writeChange(root, { execution: 'standard' });
+    await writeFindings(
+      root,
+      'standards-reviewer.json',
+      standardsReport([{ severity: 'warning', title: 'Mysterious name', evidence: [] }]),
+    );
+
+    await expect(
+      new WorkflowHarness(root).recordReview('add-value', {
+        standards: 'pass',
+        spec: 'pass',
+        body: '# Review\n',
+        findings: ['standards-reviewer.json'],
+      }),
+    ).rejects.toThrow(/standards findings contain warnings/);
+  });
+
+  it('merges findings into the review body with reviewer attribution', async () => {
+    const root = await setupRepository();
+    await writeChange(root, { execution: 'standard' });
+    await writeFindings(
+      root,
+      'standards-reviewer.json',
+      standardsReport([
+        {
+          severity: 'blocking',
+          title: 'Feature envy in the new module',
+          evidence: [{ path: 'app.ts', lines: '1' }],
+          recommendation: 'Move the logic onto the data it uses.',
+        },
+      ]),
+    );
+    const harness = new WorkflowHarness(root);
+
+    const recorded = await harness.recordReview('add-value', {
+      standards: 'blocked',
+      spec: 'pass',
+      body: '# Review\n',
+      findings: ['standards-reviewer.json'],
+    });
+
+    expect(recorded.status).toBe('blocked');
+    expect(recorded.reviewers).toEqual([
+      {
+        id: 'standards-reviewer',
+        axis: 'standards',
+        findings_sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+      },
+    ]);
+    expect(recorded.body).toContain('## Standards findings (reviewer: standards-reviewer)');
+    expect(recorded.body).toContain('**blocking** Feature envy in the new module (app.ts:1)');
+    expect(recorded.body).toContain('Recommendation: Move the logic onto the data it uses.');
+    const persisted = await new ProjectStore(root).readReview('add-value');
+    expect(persisted.reviewers).toEqual(recorded.reviewers);
+    expect(persisted.body).toBe(recorded.body);
+  });
+
+  it('records a clean review with attribution when findings reports are empty', async () => {
+    const root = await setupRepository();
+    await writeChange(root, { execution: 'standard' });
+    await writeFindings(root, 'spec-reviewer.json', {
+      schema_version: 1,
+      reviewer: 'spec-reviewer',
+      axis: 'spec',
+      status: 'pass',
+      findings: [],
+    });
+
+    const recorded = await new WorkflowHarness(root).recordReview('add-value', {
+      standards: 'pass',
+      spec: 'pass',
+      body: '# Review\n',
+      findings: ['spec-reviewer.json'],
+    });
+
+    expect(recorded.status).toBe('pass');
+    expect(recorded.reviewers).toEqual([
+      {
+        id: 'spec-reviewer',
+        axis: 'spec',
+        findings_sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+      },
+    ]);
+    expect(recorded.body).not.toContain('## Spec findings');
+  });
+});

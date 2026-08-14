@@ -11,8 +11,11 @@ import {
   requireOpenChange,
   requireTask,
   type ChangeRecord,
+  type FindingAxis,
   type ReviewAxisStatus,
+  type ReviewFindingsReport,
   type ReviewRecord,
+  type ReviewerAttribution,
   type TaskRecord,
   type TaskTransition,
 } from '../project/project-store.js';
@@ -60,6 +63,48 @@ async function exists(filePath: string): Promise<boolean> {
 
 function reviewIsBlocking(review: ReviewRecord): boolean {
   return review.status === 'blocked' || review.standards === 'blocked' || review.spec === 'blocked';
+}
+
+const AXIS_RANK: Record<ReviewAxisStatus, number> = { pass: 0, pass_with_warnings: 1, blocked: 2 };
+const AXES: FindingAxis[] = ['standards', 'spec'];
+
+// Structured reviewer findings set a floor for each axis: a blocking finding
+// forces `blocked`, a warning forces at least `pass_with_warnings`. The harness
+// owns this aggregation so reviewers cannot be talked into a lower status.
+function axisFloor(reports: ReviewFindingsReport[], axis: FindingAxis): ReviewAxisStatus {
+  const severities = reports
+    .filter((report) => report.axis === axis)
+    .flatMap((report) => report.findings.map((finding) => finding.severity));
+  if (severities.includes('blocking')) return 'blocked';
+  if (severities.includes('warning')) return 'pass_with_warnings';
+  return 'pass';
+}
+
+function axisLabel(axis: FindingAxis): string {
+  return axis === 'standards' ? 'Standards' : 'Spec';
+}
+
+function mergeFindingsIntoBody(body: string, reports: ReviewFindingsReport[]): string {
+  let merged = body.trimEnd();
+  for (const axis of AXES) {
+    const axisReports = reports
+      .filter((report) => report.axis === axis && report.findings.length > 0)
+      .sort((left, right) => left.reviewer.localeCompare(right.reviewer));
+    for (const report of axisReports) {
+      merged += `\n\n## ${axisLabel(axis)} findings (reviewer: ${report.reviewer})\n`;
+      for (const finding of report.findings) {
+        const evidence = finding.evidence
+          .map((entry) => (entry.lines ? `${entry.path}:${entry.lines}` : entry.path))
+          .join(', ');
+        merged += `\n- **${finding.severity}** ${finding.title}${evidence ? ` (${evidence})` : ''}`;
+        if (finding.recommendation) {
+          merged += `\n  Recommendation: ${finding.recommendation}`;
+        }
+      }
+      merged += '\n';
+    }
+  }
+  return `${merged}\n`;
 }
 
 function isUnfinished(status: TaskRecord['status'] | undefined): boolean {
@@ -199,13 +244,37 @@ export class WorkflowHarness {
 
   async recordReview(
     changeId: string,
-    input: { standards: ReviewAxisStatus; spec: ReviewAxisStatus; body: string },
+    input: {
+      standards: ReviewAxisStatus;
+      spec: ReviewAxisStatus;
+      body: string;
+      findings?: string[];
+    },
   ): Promise<ReviewRecord> {
     const inspection = await this.store.inspectChange(changeId);
     requireOpenChange(inspection.change);
     if (!inspection.change.spec_approved_at) {
       throw new Error(`change ${changeId} cannot be reviewed until the spec is approved`);
     }
+    const reports: ReviewFindingsReport[] = [];
+    for (const reference of input.findings ?? []) {
+      reports.push(...(await this.store.readFindingsReports(reference)));
+    }
+    for (const axis of AXES) {
+      const floor = axisFloor(reports, axis);
+      if (AXIS_RANK[input[axis]] < AXIS_RANK[floor]) {
+        throw new Error(
+          floor === 'blocked'
+            ? `${axis} findings contain blocking findings; record ${axis} as blocked or resolve them first`
+            : `${axis} findings contain warnings; record ${axis} as pass_with_warnings or blocked`,
+        );
+      }
+    }
+    const reviewers: ReviewerAttribution[] = reports
+      .map((report) => ({ id: report.reviewer, axis: report.axis, findings_sha256: report.sha256 }))
+      .sort(
+        (left, right) => left.axis.localeCompare(right.axis) || left.id.localeCompare(right.id),
+      );
     const status: ReviewAxisStatus =
       input.standards === 'blocked' || input.spec === 'blocked'
         ? 'blocked'
@@ -250,7 +319,8 @@ export class WorkflowHarness {
       worktreeFingerprint: fingerprint,
       specFingerprint: await this.store.specFingerprint(changeId),
       reviewContextFingerprint: reviewContext.fingerprint,
-      body: input.body,
+      reviewers: reviewers.length > 0 ? reviewers : undefined,
+      body: mergeFindingsIntoBody(input.body, reports),
     });
   }
 

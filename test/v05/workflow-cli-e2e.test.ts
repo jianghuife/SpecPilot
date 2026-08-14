@@ -367,4 +367,104 @@ describe('SpecPilot public workflow CLI', () => {
     expect(cleared.exitCode).toBe(0);
     expect(JSON.parse(cleared.stdout)).toEqual({ session: null });
   });
+
+  it('records reviewer findings with attribution and enforces the blocking floor', async () => {
+    const root = await setupRepository();
+    const successCommand = [process.execPath, '-e', 'process.exit(0)'];
+
+    for (const args of [
+      ['init', '.', '--host', 'codex', '--graph', 'none', '--yes', '--json'],
+      ['change', 'new', 'add-value', '--title', 'Add value', '--kind', 'light', '--json'],
+      ['task', 'add', 'add-value', 'implement', '--title', 'Implement value', '--json'],
+      ['change', 'approve', 'add-value', '--json'],
+      ['task', 'start', 'add-value', 'implement', '--json'],
+      [
+        'verify',
+        'run',
+        '--change',
+        'add-value',
+        '--task',
+        'implement',
+        '--phase',
+        'green',
+        '--json',
+        '--',
+        ...successCommand,
+      ],
+      ['task', 'complete', 'add-value', 'implement', '--json'],
+    ]) {
+      expect(await runCli(root, args)).toMatchObject({ exitCode: 0 });
+    }
+
+    const findingsDirectory = path.join(root, '.specpilot', 'local', 'review-findings');
+    await mkdir(findingsDirectory, { recursive: true });
+    await writeFile(
+      path.join(findingsDirectory, 'standards-reviewer.json'),
+      JSON.stringify({
+        schema_version: 1,
+        reviewer: 'standards-reviewer',
+        axis: 'standards',
+        status: 'blocked',
+        findings: [
+          {
+            severity: 'blocking',
+            title: 'Mysterious name in the new module',
+            evidence: [{ path: 'app.ts', lines: '1' }],
+            recommendation: 'Rename the export to reveal its purpose.',
+          },
+        ],
+      }),
+    );
+    const reviewDraft = path.join(root, '.specpilot', 'local', 'review-draft.md');
+    await writeFile(reviewDraft, '# Review\n\nSee structured findings.\n');
+
+    const rejected = await runCli(root, [
+      'review',
+      'record',
+      'add-value',
+      '--standards',
+      'pass',
+      '--spec',
+      'pass',
+      '--body-file',
+      reviewDraft,
+      '--findings',
+      'standards-reviewer.json',
+      '--json',
+    ]);
+    expect(rejected.exitCode).toBe(1);
+    expect(rejected.stderr).toContain('standards findings contain blocking findings');
+
+    const recorded = await runCli(root, [
+      'review',
+      'record',
+      'add-value',
+      '--standards',
+      'blocked',
+      '--spec',
+      'pass',
+      '--body-file',
+      reviewDraft,
+      '--findings',
+      'standards-reviewer.json',
+      '--json',
+    ]);
+    expect(recorded.exitCode).toBe(0);
+    expect(JSON.parse(recorded.stdout)).toMatchObject({
+      status: 'blocked',
+      reviewers: [
+        {
+          id: 'standards-reviewer',
+          axis: 'standards',
+          findings_sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+        },
+      ],
+    });
+    const reviewMarkdown = await readFile(
+      path.join(root, 'specs', 'changes', 'add-value', 'review.md'),
+      'utf8',
+    );
+    expect(reviewMarkdown).toContain('## Standards findings (reviewer: standards-reviewer)');
+    expect(reviewMarkdown).toContain('**blocking** Mysterious name in the new module (app.ts:1)');
+  });
 });

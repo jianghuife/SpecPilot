@@ -517,6 +517,10 @@ review
       .makeOptionMandatory(),
   )
   .requiredOption('--body-file <path>', 'Markdown review body to record')
+  .option(
+    '--findings <paths...>',
+    'Reviewer findings JSON files or directories under .specpilot/local/review-findings/',
+  )
   .option('--path <path>', 'Project path', '.')
   .option('--json')
   .action(
@@ -526,6 +530,7 @@ review
         standards: ReviewAxisStatus;
         spec: ReviewAxisStatus;
         bodyFile: string;
+        findings?: string[];
         path: string;
         json?: boolean;
       },
@@ -535,6 +540,7 @@ review
         standards: options.standards,
         spec: options.spec,
         body,
+        findings: options.findings,
       });
       print(result, options.json);
     },
