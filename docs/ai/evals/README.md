@@ -13,6 +13,7 @@ Add a case when an agent misses a project constraint, repeatedly loads irrelevan
 new high-frequency workflow appears. Keep prompts synthetic and free of secrets or raw private
 sessions. A policy change is incomplete until the evaluation set and its regression test agree.
 
-The deterministic regression test verifies taxonomy coverage and priority. Product-level agent
-evaluations can additionally score whether a host agent reads the expected artifacts, cites their
-sources, respects the byte budget, and refuses stale or conflicting knowledge.
+The deterministic regression tests verify taxonomy coverage/priority and the expected top-ranked
+artifact while preserving each pre-upgrade ranking baseline. Product-level agent evaluations can
+additionally score whether a host agent reads the expected artifacts, cites their sources, respects
+the byte budget, and refuses stale or conflicting knowledge.

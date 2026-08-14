@@ -27,6 +27,19 @@ All notable changes to `specpilot-kit` are documented here.
 
 - `context suggest` now includes the approved spec, design, and plan documents in its deterministic
   query terms instead of relying only on change/task titles and task text.
+- The disposable memory index uses a v3 Unicode-aware tokenizer with camelCase/snake_case splitting,
+  field weighting, and inverse document frequency; `memory-search` and `context suggest` share the
+  same deterministic ranker. A versioned top-result evaluation set preserves the old baseline.
+- `context suggest` consumes configured GraphProvider results as an advisory boost for trusted
+  knowledge whose source references or invalidation watch paths intersect candidate files. Graph
+  errors degrade to deterministic text ranking and provider `none` preserves source-search fallback.
+
+### Performance
+
+- Healthy fully attested knowledge audits use a rebuildable cache fingerprinted by knowledge and
+  attestation membership, source/watch metadata and glob membership, evidence/log dependencies,
+  current date, and validator version. Invalid, stale, conflicting, or unattested concepts always
+  run the full audit; `knowledge audit --json` reports `cache_hit`.
 
 ## [0.8.1] - 2026-08-06
 

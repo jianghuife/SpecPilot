@@ -248,11 +248,16 @@ context.
 
 `context suggest` ranks non-template project memory using the change/task text, the approved
 `spec.md` (plus `design.md` and `plan.md` for standard changes), P0/P1/P2 policy, and OKF
-`load_policy`. It fills only the remaining configured byte budget and explains selected and
-omitted files. Suggestions are read-only unless `--apply` is explicit. The default per-task,
-per-purpose budget is 131072 bytes; `context budget set <bytes>` changes the fallback, while
-`--purpose work|review` sets an optional purpose-specific override. Missing, untrusted, or
-over-budget context blocks task start, verification, review, and finish.
+`load_policy`. Its deterministic ranker splits camelCase, snake_case, kebab-case, acronyms, and
+Unicode terms, weights title/domain/summary/path/body fields separately, and applies inverse
+document frequency. The configured GraphProvider runs once as an advisory signal; only trusted
+knowledge whose source references or invalidation watch paths intersect graph candidate files
+receives a small boost, reported through `graphMatchedFiles` and the suggestion reason. Provider
+errors fall back to text ranking, and provider `none` retains source-search fallback. Suggestions
+fill only the remaining configured byte budget and are read-only unless `--apply` is explicit. The
+default per-task, per-purpose budget is 131072 bytes; `context budget set <bytes>` changes the
+fallback, while `--purpose work|review` sets an optional purpose-specific override. Missing,
+untrusted, or over-budget context blocks task start, verification, review, and finish.
 
 Closing a change requires an approved spec (`spec_approved_at`, stamped by
 `specpilot change approve`) and a `review.md` whose `worktree_fingerprint` still matches the
@@ -285,10 +290,15 @@ provenance checks as a read-only preflight and reports whether the local human-r
 missing, approved, rejected, or content-stale. `specpilot status --json` lists pending candidate
 paths so unfinished durable lessons remain visible before finish. Before promotion,
 `specpilot internal memory-review` records the decision, reviewer, reason, and candidate SHA-256
-in a gitignored local receipt; promotion rejects missing, rejected, or content-stale receipts. Promotion writes a tracked attestation binding the reviewed
-knowledge content to its source and invalidation-watch fingerprint. Later source/watch changes
-make that concept stale without invalidating unrelated knowledge. The disposable memory index
-fingerprints its Markdown inputs and rebuilds automatically after direct edits. Raw sessions and
+in a gitignored local receipt; promotion rejects missing, rejected, or content-stale receipts.
+Promotion writes a tracked attestation binding the reviewed knowledge content to its source and
+invalidation-watch fingerprint. Later source/watch changes make that concept stale without
+invalidating unrelated knowledge. The disposable memory index fingerprints its Markdown inputs
+and rebuilds automatically after direct edits. Healthy fully attested trust audits may be cached
+under `.specpilot/cache/knowledge-audit.json`; the cache fingerprint covers knowledge and
+attestation membership, source/watch metadata and glob membership, evidence/log files, the current
+date, and a validator version. Invalid, stale, conflicting, and legacy-unattested concepts always
+run the full audit. `knowledge audit --json` exposes `cache_hit` for diagnostics. Raw sessions and
 unconfirmed graph results must not enter `specs/knowledge/`.
 
 `knowledge audit` reports coverage for all 13 governed knowledge types, distinguishing `covered`,
