@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { EvidenceRunner } from '../../src/evidence/evidence-runner.js';
+import type { GraphProvider } from '../../src/graph/graph-provider.js';
 import { MemoryCatalog } from '../../src/memory/memory-catalog.js';
 import { ProjectStore } from '../../src/project/project-store.js';
 import { initializeProject } from '../../src/project/initialize.js';
@@ -603,5 +604,113 @@ verified_at: 2026-07-29T00:00:00.000Z
 
     expect(work.budgetBytes).toBe(4_096);
     expect(review.budgetBytes).toBe(65_536);
+  });
+
+  it('boosts trusted knowledge whose provenance intersects graph candidates', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'specpilot-graph-context-'));
+    await mkdir(path.join(root, 'src'), { recursive: true });
+    await writeFile(path.join(root, 'src', 'billing.ts'), 'export const billing = true;\n');
+    await writeFile(path.join(root, 'src', 'general.ts'), 'export const general = true;\n');
+    await writeFile(path.join(root, 'AGENTS.md'), '# Repository rules\n');
+    const store = new ProjectStore(root);
+    await store.createChange({ id: 'billing-change', title: 'Update service', kind: 'light' });
+    await store.addTask('billing-change', { id: 'implement', title: 'Change billing service' });
+    await writeFile(
+      path.join(root, 'specs', 'changes', 'billing-change', 'spec.md'),
+      '# Billing service change\n\nPreserve the billing contract.\n',
+    );
+    const evidence = await new EvidenceRunner(root).run({
+      changeId: 'billing-change',
+      taskId: 'implement',
+      phase: 'final',
+      command: PASS,
+    });
+    const knowledgeDirectory = path.join(root, 'specs', 'knowledge');
+    await mkdir(knowledgeDirectory, { recursive: true });
+    const concept = (title: string, watchPath: string): string => `---
+type: Architecture Boundary
+title: ${title}
+description: Billing service contract guidance.
+sources:
+  - id: repository-rules
+    resource: AGENTS.md
+    author: team:billing
+generated:
+  by: specpilot/0.8
+  at: 2026-08-05T09:00:00.000Z
+verified:
+  - by: human:hui
+    at: 2026-08-05T10:00:00.000Z
+status: stable
+stale_after: 2099-01-01
+specpilot:
+  domain: billing
+  criticality: p0
+  authority: normative
+  load_policy: required_when_matched
+  evidence_refs:
+    - ${evidence.record_path}
+  invalidation:
+    description: Billing source responsibilities change.
+    watch_paths:
+      - ${watchPath}
+---
+# ${title}
+`;
+    await writeFile(
+      path.join(knowledgeDirectory, 'a-general.md'),
+      concept('Billing service contract guidance', 'src/general.ts'),
+    );
+    await writeFile(
+      path.join(knowledgeDirectory, 'z-billing.md'),
+      concept('Billing source guidance', 'src/billing*.ts'),
+    );
+    const catalog = new MemoryCatalog(root);
+    const baseline = await catalog.suggestContext('billing-change', 'implement', 'work');
+    expect(baseline.selected[0]?.path).toBe('specs/knowledge/a-general.md');
+
+    const graph: GraphProvider = {
+      readiness: async () => ({
+        provider: 'codegraph',
+        available: true,
+        indexed: true,
+        stale: false,
+      }),
+      explore: async () => ({
+        provider: 'codegraph',
+        operation: 'explore',
+        advisory: true,
+        needsSourceConfirmation: true,
+        output: 'src/billing.ts:1:export const billing = true',
+        warnings: [],
+      }),
+      impact: async () => {
+        throw new Error('not used');
+      },
+      affected: async () => {
+        throw new Error('not used');
+      },
+    };
+    const boosted = await catalog.suggestContext('billing-change', 'implement', 'work', {
+      graph,
+    });
+    expect(boosted.selected[0]).toMatchObject({
+      path: 'specs/knowledge/z-billing.md',
+      graphMatchedFiles: ['src/billing.ts'],
+    });
+    expect(boosted.selected[0]?.reason).toContain('Graph candidates intersect provenance');
+
+    const failingGraph: GraphProvider = {
+      ...graph,
+      explore: async () => {
+        throw new Error('temporary graph failure');
+      },
+    };
+    const fallback = await catalog.suggestContext('billing-change', 'implement', 'work', {
+      graph: failingGraph,
+    });
+    expect(fallback.selected.map((item) => item.path)).toEqual(
+      baseline.selected.map((item) => item.path),
+    );
   });
 });

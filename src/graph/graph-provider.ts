@@ -30,6 +30,54 @@ export interface GraphProvider {
   affected(files: string[]): Promise<GraphResult>;
 }
 
+const GRAPH_PATH_KEYS = new Set(['file', 'filePath', 'path', 'relativePath', 'uri']);
+
+function safeGraphPath(value: string): string | undefined {
+  const withoutScheme = value.startsWith('file://') ? value.slice('file://'.length) : value;
+  const normalized = path.posix.normalize(withoutScheme.replaceAll('\\', '/'));
+  if (
+    normalized === '.' ||
+    normalized === '..' ||
+    normalized.startsWith('../') ||
+    path.posix.isAbsolute(normalized)
+  ) {
+    return undefined;
+  }
+  return normalized;
+}
+
+function collectGraphDataPaths(value: unknown, key: string | undefined, paths: Set<string>): void {
+  if (typeof value === 'string') {
+    if (!key || !GRAPH_PATH_KEYS.has(key)) return;
+    const candidate = safeGraphPath(value);
+    if (candidate) paths.add(candidate);
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectGraphDataPaths(item, key, paths);
+    return;
+  }
+  if (!value || typeof value !== 'object') return;
+  for (const [childKey, child] of Object.entries(value)) {
+    collectGraphDataPaths(child, childKey, paths);
+  }
+}
+
+// Graph output is advisory and provider-specific; this parser is the only
+// place that interprets those formats. Consumers receive normalized, safe,
+// repository-relative candidate paths and still confirm them in source.
+export function graphCandidateFiles(result: GraphResult): string[] {
+  const candidates = new Set<string>();
+  collectGraphDataPaths(result.data, undefined, candidates);
+  for (const line of result.output.split(/\r?\n/u)) {
+    const match = /^(.+?):\d+(?::|\s)/u.exec(line.trim());
+    if (!match?.[1]) continue;
+    const candidate = safeGraphPath(match[1]);
+    if (candidate) candidates.add(candidate);
+  }
+  return [...candidates].sort();
+}
+
 async function exists(filePath: string): Promise<boolean> {
   try {
     await lstat(filePath);

@@ -4,12 +4,44 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   CodeGraphAdapter,
+  graphCandidateFiles,
   graphProvider,
   SourceFallbackAdapter,
   UnavailableGraphAdapter,
 } from '../../src/graph/graph-provider.js';
 
 describe('GraphProvider', () => {
+  it('extracts safe repository candidate files from fallback and CodeGraph output', () => {
+    expect(
+      graphCandidateFiles({
+        provider: 'source-fallback',
+        operation: 'explore',
+        advisory: true,
+        needsSourceConfirmation: true,
+        output: 'src/auth.ts:10:authenticate()\n../escape.ts:1:bad\nsrc/billing.ts:4 write',
+        warnings: [],
+      }),
+    ).toEqual(['src/auth.ts', 'src/billing.ts']);
+
+    expect(
+      graphCandidateFiles({
+        provider: 'codegraph',
+        operation: 'explore',
+        advisory: true,
+        needsSourceConfirmation: true,
+        output: '',
+        data: {
+          nodes: [
+            { filePath: 'src/domain/invoice.ts' },
+            { location: { path: 'test/invoice.test.ts' } },
+            { path: '/tmp/outside.ts' },
+          ],
+        },
+        warnings: [],
+      }),
+    ).toEqual(['src/domain/invoice.ts', 'test/invoice.test.ts']);
+  });
+
   it('normalizes CodeGraph output without treating it as verified fact', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'specpilot-graph-'));
     await mkdir(path.join(root, '.codegraph'));

@@ -616,7 +616,9 @@ context
       options: { purpose: ContextPurpose; apply?: boolean; path: string; json?: boolean },
     ) => {
       const catalog = new MemoryCatalog(options.path);
-      const report = await catalog.suggestContext(changeId, taskId, options.purpose);
+      const report = await catalog.suggestContext(changeId, taskId, options.purpose, {
+        graph: await configuredGraph(options.path),
+      });
       if (options.apply) {
         const store = new ProjectStore(options.path);
         for (const suggestion of report.selected) {

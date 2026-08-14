@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { cp, lstat, readdir, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
+import { graphCandidateFiles, type GraphProvider } from '../graph/graph-provider.js';
 import { readProjectConfig } from '../project/config.js';
 import { parseFrontmatter, ProjectStore, type ContextPurpose } from '../project/project-store.js';
 import { DEFAULT_CONTEXT_MAX_BYTES } from '../types.js';
@@ -163,6 +164,7 @@ export interface TrustedKnowledgeAuditEntry {
   status: 'trusted' | 'stale' | 'invalid' | 'conflict';
   issues: string[];
   sourceRefs?: string[];
+  watchPaths?: string[];
   evidenceRefs?: string[];
   humanVerifiers?: string[];
   attested?: boolean;
@@ -192,6 +194,7 @@ export interface ContextSuggestion {
   loadPolicy?: string;
   knowledgeTypes: string[];
   matchedTerms: string[];
+  graphMatchedFiles?: string[];
 }
 
 export interface ContextSuggestionReport {
@@ -688,6 +691,24 @@ function globPattern(pattern: string): RegExp {
   return new RegExp(`${expression}$`, 'u');
 }
 
+function provenanceReferenceMatches(reference: string, candidateFile: string): boolean {
+  if (isExternalResource(reference)) return false;
+  const normalized = path.posix.normalize(reference.replaceAll('\\', '/'));
+  if (/[*?]/u.test(normalized)) return globPattern(normalized).test(candidateFile);
+  const prefix = normalized.endsWith('/') ? normalized.slice(0, -1) : normalized;
+  return candidateFile === prefix || candidateFile.startsWith(`${prefix}/`);
+}
+
+function graphMatchesForKnowledge(
+  entry: TrustedKnowledgeAuditEntry,
+  candidateFiles: string[],
+): string[] {
+  const references = [...(entry.sourceRefs ?? []), ...(entry.watchPaths ?? [])];
+  return candidateFiles.filter((candidateFile) =>
+    references.some((reference) => provenanceReferenceMatches(reference, candidateFile)),
+  );
+}
+
 async function memorySourceFingerprint(root: string, files: string[]): Promise<string> {
   const hash = createHash('sha256');
   for (const filePath of files) {
@@ -891,6 +912,7 @@ export class MemoryCatalog {
     changeId: string,
     taskId: string,
     purpose: ContextPurpose,
+    options: { graph?: GraphProvider } = {},
   ): Promise<ContextSuggestionReport> {
     const store = new ProjectStore(this.root);
     const change = await store.readChange(changeId);
@@ -923,6 +945,24 @@ export class MemoryCatalog {
     const trustedKnowledge = new Map(
       (await this.inspectTrustedKnowledge()).map((entry) => [entry.relativePath, entry]),
     );
+    let graphCandidates: string[] = [];
+    const graphQuery = [...queryTokens].sort(
+      (left, right) => right.length - left.length || left.localeCompare(right),
+    )[0];
+    if (options.graph && graphQuery) {
+      try {
+        graphCandidates = graphCandidateFiles(await options.graph.explore(graphQuery));
+      } catch {
+        // Graph output is optional and advisory; retrieval degrades to the
+        // deterministic text ranker on provider failure.
+      }
+    }
+    const graphMatches = new Map<string, string[]>();
+    for (const entry of trustedKnowledge.values()) {
+      if (entry.status !== 'trusted') continue;
+      const matchedFiles = graphMatchesForKnowledge(entry, graphCandidates);
+      if (matchedFiles.length > 0) graphMatches.set(entry.relativePath, matchedFiles);
+    }
     const priorityWeight: Record<KnowledgePriority, number> = { p0: 30, p1: 20, p2: 10 };
     const authorityWeight: Record<string, number> = {
       normative: 40,
@@ -957,22 +997,37 @@ export class MemoryCatalog {
       .map((entry): ContextSuggestion | undefined => {
         const lexical = lexicalRanks.get(entry.relativePath);
         const matchedTerms = lexical?.matchedTerms ?? [];
-        if (matchedTerms.length === 0 && entry.loadPolicy !== 'always') return undefined;
+        const graphMatchedFiles = graphMatches.get(entry.relativePath) ?? [];
+        if (
+          matchedTerms.length === 0 &&
+          graphMatchedFiles.length === 0 &&
+          entry.loadPolicy !== 'always'
+        ) {
+          return undefined;
+        }
         const priority = entry.priority;
         const score =
           (lexical?.score ?? 0) * 2 +
+          (graphMatchedFiles.length > 0 ? 15 : 0) +
           (priority ? priorityWeight[priority] : 0) +
           (entry.authority ? (authorityWeight[entry.authority] ?? 0) : 0) +
           (entry.loadPolicy ? (loadPolicyWeight[entry.loadPolicy] ?? 0) : 0);
-        const reason =
-          entry.loadPolicy === 'always' && matchedTerms.length === 0
-            ? 'The verified knowledge load policy is always.'
-            : `Matched change/task terms ${matchedTerms.join(', ')}${
-                entry.knowledgeTypes.length > 0 ? ` in ${entry.knowledgeTypes.join(', ')}` : ''
-              }.`;
+        const reasons: string[] = [];
+        if (matchedTerms.length > 0) {
+          reasons.push(
+            `Matched change/task terms ${matchedTerms.join(', ')}${
+              entry.knowledgeTypes.length > 0 ? ` in ${entry.knowledgeTypes.join(', ')}` : ''
+            }.`,
+          );
+        } else if (entry.loadPolicy === 'always') {
+          reasons.push('The verified knowledge load policy is always.');
+        }
+        if (graphMatchedFiles.length > 0) {
+          reasons.push(`Graph candidates intersect provenance: ${graphMatchedFiles.join(', ')}.`);
+        }
         return {
           path: entry.relativePath,
-          reason,
+          reason: reasons.join(' '),
           score,
           sizeBytes: entry.sizeBytes,
           priority,
@@ -980,6 +1035,7 @@ export class MemoryCatalog {
           loadPolicy: entry.loadPolicy,
           knowledgeTypes: entry.knowledgeTypes,
           matchedTerms,
+          graphMatchedFiles: graphMatchedFiles.length > 0 ? graphMatchedFiles : undefined,
         };
       })
       .filter((entry): entry is ContextSuggestion => entry !== undefined)
@@ -1178,6 +1234,7 @@ export class MemoryCatalog {
             status: 'trusted',
             issues: [],
             sourceRefs: provenance.sourceRefs,
+            watchPaths: provenance.watchPaths,
             evidenceRefs: provenance.evidenceRefs,
             humanVerifiers: provenance.humanVerifiers,
             attested: attestation !== undefined,
