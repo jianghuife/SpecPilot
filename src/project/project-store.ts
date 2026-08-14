@@ -301,7 +301,9 @@ function parseFindings(content: string, filePath: string): ReviewFindingsReport 
   try {
     parsed = JSON.parse(content);
   } catch (error) {
-    throw new Error(`${filePath} is not valid JSON: ${(error as Error).message}`);
+    throw new Error(`${filePath} is not valid JSON: ${(error as Error).message}`, {
+      cause: error,
+    });
   }
   if (!isJsonObject(parsed)) {
     throw new Error(`${filePath} must contain a JSON object`);

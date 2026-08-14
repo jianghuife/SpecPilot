@@ -30,7 +30,11 @@ import {
 } from '../runtime/runtime-projector.js';
 import { SPEC_PILOT_VERSION, type GraphMode, type Host, type ProjectConfig } from '../types.js';
 import { writeJsonAtomic } from '../utils/files.js';
-import { WorkflowHarness, type WorkflowStateSnapshot } from '../workflow/workflow-harness.js';
+import {
+  WorkflowHarness,
+  briefingMarkdown,
+  type WorkflowStateSnapshot,
+} from '../workflow/workflow-harness.js';
 
 interface CommonOutputOptions {
   json?: boolean;
@@ -870,6 +874,27 @@ internal
       true,
     );
   });
+internal
+  .command('briefing <change> [task]')
+  .description('Emit a self-contained subagent briefing for work or review delegation')
+  .addOption(new Option('--purpose <purpose>').choices(['work', 'review']).makeOptionMandatory())
+  .addOption(new Option('--format <format>').choices(['markdown', 'json']).default('markdown'))
+  .option('--path <path>', 'Project path', '.')
+  .action(
+    async (
+      changeId: string,
+      taskId: string | undefined,
+      options: { purpose: ContextPurpose; format: 'markdown' | 'json'; path: string },
+    ) => {
+      const briefing = await new WorkflowHarness(options.path).briefing(
+        changeId,
+        taskId,
+        options.purpose,
+      );
+      if (options.format === 'json') print(briefing, true);
+      else console.log(briefingMarkdown(briefing));
+    },
+  );
 internal
   .command('memory-search <query>')
   .option('--path <path>', 'Project path', '.')

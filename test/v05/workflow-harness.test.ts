@@ -8,7 +8,7 @@ import YAML from 'yaml';
 import { EvidenceRunner } from '../../src/evidence/evidence-runner.js';
 import { MemoryCatalog } from '../../src/memory/memory-catalog.js';
 import { ProjectStore } from '../../src/project/project-store.js';
-import { WorkflowHarness } from '../../src/workflow/workflow-harness.js';
+import { WorkflowHarness, briefingMarkdown } from '../../src/workflow/workflow-harness.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -927,5 +927,88 @@ describe('WorkflowHarness review findings', () => {
       },
     ]);
     expect(recorded.body).not.toContain('## Spec findings');
+  });
+});
+
+describe('WorkflowHarness briefing', () => {
+  it('packages task details, curated context, and TDD evidence commands for work delegation', async () => {
+    const root = await setupRepository();
+    await writeChange(root, { execution: 'tdd', taskStatus: 'doing' });
+    const harness = new WorkflowHarness(root);
+
+    const briefing = await harness.briefing('add-value', 'implement', 'work');
+
+    expect(briefing).toMatchObject({
+      change: { id: 'add-value', title: 'Add value', kind: 'light', specApproved: true },
+      task: {
+        id: 'implement',
+        title: 'Implement the value',
+        status: 'doing',
+        execution: 'tdd',
+        blockedBy: [],
+      },
+      purpose: 'work',
+    });
+    expect(briefing.context.references).toEqual([
+      expect.objectContaining({
+        path: 'specs/changes/add-value/spec.md',
+        reason: 'Approved change specification',
+        sizeBytes: expect.any(Number),
+      }),
+    ]);
+    expect(briefing.context.missing).toEqual([]);
+    expect(briefing.constraints.join('\n')).toContain(
+      'specpilot verify run --change add-value --task implement --phase red',
+    );
+    expect(briefing.constraints.join('\n')).toContain(
+      'specpilot verify run --change add-value --task implement --phase green',
+    );
+
+    const markdown = briefingMarkdown(briefing);
+    expect(markdown).toContain('# SpecPilot briefing: add-value / implement (work)');
+    expect(markdown).toContain('## Curated work context');
+    expect(markdown).toContain('specs/changes/add-value/spec.md');
+  });
+
+  it('marks missing context explicitly instead of omitting it', async () => {
+    const root = await setupRepository();
+    await writeChange(root, { execution: 'standard', taskStatus: 'doing' });
+    const standard = path.join(root, 'specs', 'project', 'standards', 'review.md');
+    await mkdir(path.dirname(standard), { recursive: true });
+    await writeFile(standard, '# Review standard\n');
+    await new ProjectStore(root).addTaskContext('add-value', 'implement', 'review', {
+      path: 'specs/project/standards/review.md',
+      reason: 'Required review standard.',
+    });
+    await rm(standard);
+
+    const briefing = await new WorkflowHarness(root).briefing('add-value', 'implement', 'review');
+
+    expect(briefing.context.missing).toEqual(['specs/project/standards/review.md']);
+    expect(briefingMarkdown(briefing)).toContain(
+      'Missing reference: specs/project/standards/review.md',
+    );
+  });
+
+  it('packages the read-only findings contract for review delegation', async () => {
+    const root = await setupRepository();
+    await writeChange(root, { execution: 'standard' });
+
+    const briefing = await new WorkflowHarness(root).briefing('add-value', 'implement', 'review');
+    const constraints = briefing.constraints.join('\n');
+
+    expect(constraints).toContain('read-only');
+    expect(constraints).toContain('.specpilot/local/review-findings/');
+    expect(constraints).toContain('schema_version: 1');
+    expect(constraints).toContain('blocking finding requires at least one evidence path');
+  });
+
+  it('rejects briefing requests for unknown tasks', async () => {
+    const root = await setupRepository();
+    await writeChange(root, { execution: 'standard' });
+
+    await expect(
+      new WorkflowHarness(root).briefing('add-value', 'missing-task', 'work'),
+    ).rejects.toThrow('task missing-task does not exist in change add-value');
   });
 });

@@ -11,6 +11,7 @@ import {
   requireOpenChange,
   requireTask,
   type ChangeRecord,
+  type ContextPurpose,
   type FindingAxis,
   type ReviewAxisStatus,
   type ReviewFindingsReport,
@@ -29,11 +30,109 @@ export interface FinishResult {
   knowledgeCandidates: string[];
 }
 
+export interface BriefingReference {
+  path: string;
+  reason: string;
+  sizeBytes: number;
+}
+
 export type WorkflowEntry =
   | 'specpilot-start'
   | 'specpilot-work'
   | 'specpilot-review'
   | 'specpilot-finish';
+
+export interface Briefing {
+  change: {
+    id: string;
+    title: string;
+    kind: ChangeRecord['kind'];
+    status: ChangeRecord['status'];
+    specApproved: boolean;
+  };
+  task?: {
+    id: string;
+    title: string;
+    status: TaskRecord['status'];
+    execution: TaskRecord['execution'];
+    blockedBy: string[];
+    body: string;
+  };
+  purpose: ContextPurpose;
+  context: {
+    references: BriefingReference[];
+    missing: string[];
+    invalid: string[];
+    totalBytes: number;
+    budgetBytes: number;
+    withinBudget: boolean;
+  };
+  constraints: string[];
+}
+
+// A briefing is the complete input contract for a delegated subagent: change
+// metadata, the task definition, the curated context listing (with gaps made
+// explicit), and the behavior contract for the delegation purpose.
+export function briefingMarkdown(briefing: Briefing): string {
+  const lines = [
+    `# SpecPilot briefing: ${briefing.change.id}${briefing.task ? ` / ${briefing.task.id}` : ''} (${briefing.purpose})`,
+    '',
+    '## Change',
+    '',
+    `- ID: ${briefing.change.id}`,
+    `- Title: ${briefing.change.title}`,
+    `- Kind: ${briefing.change.kind}`,
+    `- Status: ${briefing.change.status}`,
+    `- Spec approved: ${briefing.change.specApproved ? 'yes' : 'no'}`,
+    '',
+  ];
+  if (briefing.task) {
+    lines.push('## Task', '');
+    lines.push(`- ID: ${briefing.task.id}`);
+    lines.push(`- Title: ${briefing.task.title}`);
+    lines.push(`- Status: ${briefing.task.status}`);
+    lines.push(`- Execution: ${briefing.task.execution}`);
+    lines.push(
+      `- Blocked by: ${briefing.task.blockedBy.length > 0 ? briefing.task.blockedBy.join(', ') : 'none'}`,
+      '',
+    );
+    if (briefing.task.body.trim() !== '') {
+      lines.push(briefing.task.body.trim(), '');
+    }
+    lines.push(
+      `## Curated ${briefing.purpose} context (${briefing.context.totalBytes} of ${briefing.context.budgetBytes} bytes)`,
+      '',
+    );
+    if (briefing.context.references.length === 0) {
+      lines.push('No curated references.', '');
+    }
+    for (const reference of briefing.context.references) {
+      lines.push(`- ${reference.path} — ${reference.reason} (${reference.sizeBytes} bytes)`);
+    }
+    if (briefing.context.references.length > 0) lines.push('');
+    for (const missing of briefing.context.missing) {
+      lines.push(`- Missing reference: ${missing}`);
+    }
+    for (const invalid of briefing.context.invalid) {
+      lines.push(`- Untrusted reference: ${invalid}`);
+    }
+    if (briefing.context.missing.length > 0 || briefing.context.invalid.length > 0) {
+      lines.push('');
+    }
+    if (!briefing.context.withinBudget) {
+      lines.push(
+        `- Context exceeds its ${briefing.context.budgetBytes}-byte budget; report back instead of proceeding.`,
+        '',
+      );
+    }
+  }
+  lines.push('## Contract', '');
+  for (const constraint of briefing.constraints) {
+    lines.push(`- ${constraint}`);
+  }
+  lines.push('');
+  return lines.join('\n');
+}
 
 export interface WorkflowStateSnapshot {
   active: {
@@ -322,6 +421,101 @@ export class WorkflowHarness {
       reviewers: reviewers.length > 0 ? reviewers : undefined,
       body: mergeFindingsIntoBody(input.body, reports),
     });
+  }
+
+  // Builds the self-contained input package for a delegated subagent. The
+  // briefing is read-only: it reports gaps (missing, untrusted, or over-budget
+  // context) instead of enforcing gates, so the delegating agent decides.
+  async briefing(
+    changeId: string,
+    taskId: string | undefined,
+    purpose: ContextPurpose,
+  ): Promise<Briefing> {
+    if (purpose !== 'work' && purpose !== 'review') {
+      throw new Error('briefing purpose must be work or review');
+    }
+    const inspection = await this.store.inspectChange(changeId);
+    const task = taskId ? requireTask(inspection.taskRecords, changeId, taskId) : undefined;
+
+    const constraints: string[] = [];
+    if (purpose === 'work' && task) {
+      constraints.push(
+        'Read every curated context reference before editing; it lists approved inputs, not a source-file allowlist.',
+        'Never hand-edit task status or .specpilot/local/session.json; use the specpilot CLI for state changes.',
+        'Do not claim completion from graph output or an unrecorded run; record evidence with the CLI.',
+      );
+      if (task.execution === 'tdd') {
+        constraints.push(
+          `Record the expected failure first: specpilot verify run --change ${changeId} --task ${task.id} --phase red --reason "<expected failure>" -- <command>`,
+          `After the smallest implementation, record green with the same command: specpilot verify run --change ${changeId} --task ${task.id} --phase green -- <command>`,
+        );
+      } else {
+        constraints.push(
+          `Record the feedback loop as green evidence: specpilot verify run --change ${changeId} --task ${task.id} --phase green -- <command>`,
+        );
+      }
+    }
+    if (purpose === 'review') {
+      constraints.push(
+        'This delegation is read-only: do not modify repository files.',
+        'Review on two independent axes: standards and spec.',
+        'Write findings as JSON to .specpilot/local/review-findings/<reviewer-id>.json with schema_version: 1, reviewer, axis, status, and findings[].',
+        'Every blocking finding requires at least one evidence path that exists in the repository.',
+      );
+    }
+
+    let context: Briefing['context'] = {
+      references: [],
+      missing: [],
+      invalid: [],
+      totalBytes: 0,
+      budgetBytes: 0,
+      withinBudget: true,
+    };
+    if (task) {
+      const snapshot = await this.memory.contextSnapshot(changeId, task.id, purpose);
+      const references: BriefingReference[] = [];
+      for (const reference of snapshot.references) {
+        if (!reference.exists || !reference.trusted) continue;
+        const content = await readFile(path.join(this.root, reference.path));
+        references.push({
+          path: reference.path,
+          reason: reference.reason,
+          sizeBytes: content.byteLength,
+        });
+      }
+      context = {
+        references,
+        missing: snapshot.missing,
+        invalid: snapshot.invalid,
+        totalBytes: snapshot.totalBytes,
+        budgetBytes: snapshot.budgetBytes,
+        withinBudget: snapshot.withinBudget,
+      };
+    }
+
+    return {
+      change: {
+        id: inspection.change.id,
+        title: inspection.change.title,
+        kind: inspection.change.kind,
+        status: inspection.change.status,
+        specApproved: inspection.change.spec_approved_at !== undefined,
+      },
+      task: task
+        ? {
+            id: task.id,
+            title: task.title,
+            status: task.status,
+            execution: task.execution,
+            blockedBy: task.blocked_by,
+            body: task.body,
+          }
+        : undefined,
+      purpose,
+      context,
+      constraints,
+    };
   }
 
   async transitionTask(

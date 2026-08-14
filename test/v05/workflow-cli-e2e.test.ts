@@ -467,4 +467,60 @@ describe('SpecPilot public workflow CLI', () => {
     expect(reviewMarkdown).toContain('## Standards findings (reviewer: standards-reviewer)');
     expect(reviewMarkdown).toContain('**blocking** Mysterious name in the new module (app.ts:1)');
   });
+
+  it('emits self-contained subagent briefings in markdown and JSON', async () => {
+    const root = await setupRepository();
+
+    for (const args of [
+      ['init', '.', '--host', 'codex', '--graph', 'none', '--yes', '--json'],
+      ['change', 'new', 'add-value', '--title', 'Add value', '--kind', 'light', '--json'],
+      ['task', 'add', 'add-value', 'implement', '--title', 'Implement value', '--json'],
+      ['change', 'approve', 'add-value', '--json'],
+    ]) {
+      expect(await runCli(root, args)).toMatchObject({ exitCode: 0 });
+    }
+
+    const markdown = await runCli(root, [
+      'internal',
+      'briefing',
+      'add-value',
+      'implement',
+      '--purpose',
+      'work',
+    ]);
+    expect(markdown.exitCode).toBe(0);
+    expect(markdown.stdout).toContain('# SpecPilot briefing: add-value / implement (work)');
+    expect(markdown.stdout).toContain('specs/changes/add-value/spec.md');
+    expect(markdown.stdout).toContain(
+      'specpilot verify run --change add-value --task implement --phase green',
+    );
+
+    const json = await runCli(root, [
+      'internal',
+      'briefing',
+      'add-value',
+      'implement',
+      '--purpose',
+      'review',
+      '--format',
+      'json',
+    ]);
+    expect(json.exitCode).toBe(0);
+    expect(JSON.parse(json.stdout)).toMatchObject({
+      change: { id: 'add-value', specApproved: true },
+      task: { id: 'implement', execution: 'standard' },
+      purpose: 'review',
+    });
+
+    const unknown = await runCli(root, [
+      'internal',
+      'briefing',
+      'add-value',
+      'missing-task',
+      '--purpose',
+      'work',
+    ]);
+    expect(unknown.exitCode).toBe(1);
+    expect(unknown.stderr).toContain('task missing-task does not exist');
+  });
 });
