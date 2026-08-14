@@ -820,7 +820,25 @@ export class MemoryCatalog {
     if (current.missing.length > 0 || current.invalid.length > 0) {
       throw new Error('repair missing or untrusted context before requesting suggestions');
     }
-    const queryTokens = [...new Set(words(`${change.title} ${task.title} ${task.body}`))];
+    // The approved spec (plus design/plan for standard changes) carries most of
+    // the change's vocabulary; titles and task bodies alone under-represent it.
+    const documentNames = [
+      'spec.md',
+      ...(change.kind === 'standard' ? ['design.md', 'plan.md'] : []),
+    ];
+    const documentParts: string[] = [];
+    for (const name of documentNames) {
+      try {
+        documentParts.push(
+          await readFile(path.join(store.changeDirectory(changeId), name), 'utf8'),
+        );
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      }
+    }
+    const queryTokens = [
+      ...new Set(words(`${change.title} ${task.title} ${task.body} ${documentParts.join('\n')}`)),
+    ];
     const existing = new Set(current.references.map((reference) => reference.path));
     const trustedKnowledge = new Map(
       (await this.inspectTrustedKnowledge()).map((entry) => [entry.relativePath, entry]),

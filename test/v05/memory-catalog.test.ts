@@ -555,4 +555,26 @@ verified_at: 2026-07-29T00:00:00.000Z
       /knowledge-candidates/,
     );
   });
+
+  it('ranks candidates using the approved spec documents, not only task text', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'specpilot-suggest-'));
+    const store = new ProjectStore(root);
+    await store.createChange({ id: 'billing-api', title: 'Billing API', kind: 'light' });
+    await store.addTask('billing-api', { id: 'implement', title: 'Implement the change' });
+    await writeFile(
+      path.join(root, 'specs', 'changes', 'billing-api', 'spec.md'),
+      '# Billing API\n\nAll write endpoints must be idempotent and accept idempotency keys.\n',
+    );
+    await mkdir(path.join(root, 'specs', 'project', 'standards'), { recursive: true });
+    await writeFile(
+      path.join(root, 'specs', 'project', 'standards', 'idempotency.md'),
+      '# Idempotency\n\nIdempotent writes require client-supplied request keys.\n',
+    );
+
+    const report = await new MemoryCatalog(root).suggestContext('billing-api', 'implement', 'work');
+
+    expect(report.selected.map((item) => item.path)).toContain(
+      'specs/project/standards/idempotency.md',
+    );
+  });
 });
