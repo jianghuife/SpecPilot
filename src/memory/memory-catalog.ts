@@ -671,9 +671,12 @@ export class MemoryCatalog {
     this.sessionPath = path.join(this.root, '.specpilot', 'local', 'session.json');
   }
 
-  private async contextMaxBytes(): Promise<number> {
+  private async contextMaxBytes(purpose?: ContextPurpose): Promise<number> {
     try {
-      return (await readProjectConfig(this.root)).context.max_bytes;
+      const context = (await readProjectConfig(this.root)).context;
+      if (purpose === 'work' && context.work_bytes !== undefined) return context.work_bytes;
+      if (purpose === 'review' && context.review_bytes !== undefined) return context.review_bytes;
+      return context.max_bytes;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return DEFAULT_CONTEXT_MAX_BYTES;
       throw error;
@@ -1200,7 +1203,7 @@ export class MemoryCatalog {
       totalBytes += content.byteLength;
       hash.update(content);
     }
-    const budgetBytes = await this.contextMaxBytes();
+    const budgetBytes = await this.contextMaxBytes(purpose);
     return {
       ...listing,
       fingerprint: hash.digest('hex'),

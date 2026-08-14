@@ -577,4 +577,31 @@ verified_at: 2026-07-29T00:00:00.000Z
       'specs/project/standards/idempotency.md',
     );
   });
+
+  it('applies per-purpose context budgets with fallback to the shared budget', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'specpilot-budget-'));
+    const store = new ProjectStore(root);
+    await store.createChange({ id: 'budgeted', title: 'Budgeted change', kind: 'light' });
+    await store.addTask('budgeted', { id: 'implement', title: 'Implement' });
+    await mkdir(path.join(root, '.specpilot'), { recursive: true });
+    await writeFile(
+      path.join(root, '.specpilot', 'config.json'),
+      JSON.stringify({
+        schema_version: 1,
+        managed_version: 'test',
+        language: 'en',
+        hosts: ['codex'],
+        graph: { provider: 'none', required: false },
+        context: { per_turn_state: false, max_bytes: 65_536, work_bytes: 4_096 },
+        optional_skills: [],
+      }),
+    );
+
+    const catalog = new MemoryCatalog(root);
+    const work = await catalog.contextSnapshot('budgeted', 'implement', 'work');
+    const review = await catalog.contextSnapshot('budgeted', 'implement', 'review');
+
+    expect(work.budgetBytes).toBe(4_096);
+    expect(review.budgetBytes).toBe(65_536);
+  });
 });

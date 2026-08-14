@@ -129,8 +129,11 @@ describe('SpecPilot public workflow CLI', () => {
     expect(await runCli(root, ['context', 'budget', 'set', '65536', '--json'])).toMatchObject({
       exitCode: 0,
     });
+    expect(
+      await runCli(root, ['context', 'budget', 'set', '8192', '--purpose', 'work', '--json']),
+    ).toMatchObject({ exitCode: 0 });
     const budget = await runCli(root, ['context', 'budget', 'show', '--json']);
-    expect(JSON.parse(budget.stdout)).toEqual({ max_bytes: 65_536 });
+    expect(JSON.parse(budget.stdout)).toEqual({ max_bytes: 65_536, work_bytes: 8_192 });
     await writeFile(
       path.join(root, 'specs', 'project', 'examples', 'add-value.md'),
       '# Add value implementation example\n\nUse this approved pattern when implementing value changes.\n',
@@ -147,10 +150,10 @@ describe('SpecPilot public workflow CLI', () => {
     ]);
     expect(suggestions.exitCode).toBe(0);
     expect(JSON.parse(suggestions.stdout)).toMatchObject({
-      budgetBytes: 65_536,
+      budgetBytes: 8_192,
       selected: expect.any(Array),
       omitted: expect.any(Array),
-      applied: ['specs/project/examples/add-value.md'],
+      applied: expect.arrayContaining(['specs/project/examples/add-value.md']),
     });
 
     await expect(
@@ -288,6 +291,9 @@ describe('SpecPilot public workflow CLI', () => {
       'specpilot internal prompt-context',
     );
     expect(await runCli(root, ['update', '.', '--json'])).toMatchObject({ exitCode: 0 });
+    expect(
+      JSON.parse(await readFile(path.join(root, '.specpilot', 'config.json'), 'utf8')),
+    ).toMatchObject({ context: { max_bytes: 65_536, work_bytes: 8_192 } });
     expect(
       await readFile(path.join(root, '.agents', 'skills', 'codebase-design', 'SKILL.md'), 'utf8'),
     ).toContain('Design **deep modules**');

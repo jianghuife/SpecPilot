@@ -53,6 +53,12 @@ export async function readProjectConfig(root: string): Promise<ProjectConfig> {
     context: {
       per_turn_state: value.context?.per_turn_state === true,
       max_bytes: normalizeContextMaxBytes(value.context?.max_bytes),
+      ...(value.context?.work_bytes !== undefined
+        ? { work_bytes: normalizeContextMaxBytes(value.context.work_bytes) }
+        : {}),
+      ...(value.context?.review_bytes !== undefined
+        ? { review_bytes: normalizeContextMaxBytes(value.context.review_bytes) }
+        : {}),
     },
     optional_skills: normalizeOptionalSkills(
       Array.isArray(value.optional_skills)

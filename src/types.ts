@@ -21,6 +21,8 @@ export interface ProjectConfig {
   context: {
     per_turn_state: boolean;
     max_bytes: number;
+    work_bytes?: number;
+    review_bytes?: number;
   };
   optional_skills: string[];
 }

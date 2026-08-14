@@ -118,7 +118,7 @@ async function applyManagedRuntime(
   const updated: ProjectConfig = {
     ...config,
     managed_version: SPEC_PILOT_VERSION,
-    context: { per_turn_state: perTurnState, max_bytes: config.context.max_bytes },
+    context: { ...config.context, per_turn_state: perTurnState },
     optional_skills: optionalSkills,
   };
   await writeJsonAtomic(path.join(root, '.specpilot', 'config.json'), updated);
@@ -686,27 +686,54 @@ contextBudget
   .option('--path <path>', 'Project path', '.')
   .option('--json')
   .action(async (options: { path: string; json?: boolean }) => {
-    const maxBytes = (await readProjectConfig(options.path)).context.max_bytes;
-    print(options.json ? { max_bytes: maxBytes } : `${maxBytes} bytes`, options.json);
-  });
-contextBudget
-  .command('set <bytes>')
-  .option('--path <path>', 'Project path', '.')
-  .option('--json')
-  .action(async (bytes: string, options: { path: string; json?: boolean }) => {
-    const root = path.resolve(options.path);
-    const config = await readProjectConfig(root);
-    const maxBytes = normalizeContextMaxBytes(Number(bytes));
-    const updated: ProjectConfig = {
-      ...config,
-      context: { ...config.context, max_bytes: maxBytes },
+    const configured = (await readProjectConfig(options.path)).context;
+    const budgets = {
+      max_bytes: configured.max_bytes,
+      ...(configured.work_bytes !== undefined ? { work_bytes: configured.work_bytes } : {}),
+      ...(configured.review_bytes !== undefined ? { review_bytes: configured.review_bytes } : {}),
     };
-    await writeJsonAtomic(path.join(root, '.specpilot', 'config.json'), updated);
     print(
-      options.json ? { max_bytes: maxBytes } : `Context budget set to ${maxBytes} bytes.`,
+      options.json
+        ? budgets
+        : [
+            `${configured.max_bytes} bytes (default)`,
+            ...(configured.work_bytes !== undefined
+              ? [`${configured.work_bytes} bytes (work)`]
+              : []),
+            ...(configured.review_bytes !== undefined
+              ? [`${configured.review_bytes} bytes (review)`]
+              : []),
+          ].join('\n'),
       options.json,
     );
   });
+contextBudget
+  .command('set <bytes>')
+  .addOption(new Option('--purpose <purpose>').choices(['work', 'review']))
+  .option('--path <path>', 'Project path', '.')
+  .option('--json')
+  .action(
+    async (bytes: string, options: { purpose?: ContextPurpose; path: string; json?: boolean }) => {
+      const root = path.resolve(options.path);
+      const config = await readProjectConfig(root);
+      const maxBytes = normalizeContextMaxBytes(Number(bytes));
+      const context =
+        options.purpose === 'work'
+          ? { ...config.context, work_bytes: maxBytes }
+          : options.purpose === 'review'
+            ? { ...config.context, review_bytes: maxBytes }
+            : { ...config.context, max_bytes: maxBytes };
+      const updated: ProjectConfig = { ...config, context };
+      await writeJsonAtomic(path.join(root, '.specpilot', 'config.json'), updated);
+      const key = options.purpose ? `${options.purpose}_bytes` : 'max_bytes';
+      print(
+        options.json
+          ? { [key]: maxBytes }
+          : `${options.purpose ? `${options.purpose} context` : 'Context'} budget set to ${maxBytes} bytes.`,
+        options.json,
+      );
+    },
+  );
 
 const knowledge = program
   .command('knowledge')
